@@ -12,20 +12,20 @@ Dettagli su modello dati, architettura e roadmap: [docs/specifica-tecnica.md](do
 2. Aspetta che il progetto sia pronto (circa 1-2 minuti).
 3. Vai su **SQL Editor** (menu a sinistra) → **New query**, incolla e esegui:
 
-```sql
-create table athletes (
-  id text primary key,
-  data jsonb not null,
-  updated_at timestamptz not null default now()
-);
+   ```sql
+   create table athletes (
+     id text primary key,
+     data jsonb not null,
+     updated_at timestamptz not null default now()
+   );
 
--- Per iniziare in fretta: disabilita la Row Level Security.
--- ATTENZIONE: con RLS disabilitata, chiunque abbia la tua anon key
--- (che è pubblica, visibile nel file HTML) può leggere/scrivere la tabella.
--- Va bene per uso personale/prototipo con un link non condiviso.
--- Se in futuro serve più sicurezza, riabilita RLS e aggiungi Supabase Auth.
-alter table athletes disable row level security;
-```
+   -- Per iniziare in fretta: disabilita la Row Level Security.
+   -- ATTENZIONE: con RLS disabilitata, chiunque abbia la tua anon key
+   -- (che è pubblica, visibile nel file HTML) può leggere/scrivere la tabella.
+   -- Va bene per uso personale/prototipo con un link non condiviso.
+   -- Se in futuro serve più sicurezza, riabilita RLS e aggiungi Supabase Auth.
+   alter table athletes disable row level security;
+   ```
 
 4. Vai su **Project Settings → API**. Ti servono due valori:
    - **Project URL** (es. `https://xxxxx.supabase.co`)
@@ -63,6 +63,14 @@ connessione, ricontrolla URL e chiave.
 In alternativa a GitHub Pages puoi trascinare `index.html` su
 [Netlify Drop](https://app.netlify.com/drop) per un URL immediato, senza
 nemmeno creare un repository.
+
+## Funzionalità avanzate: generazione piano e feedback con Claude
+
+L'app include (opzionalmente) pulsanti per generare un piano di allenamento
+e un feedback settimanale con l'assistenza di Claude. Richiede un piccolo
+setup aggiuntivo (una tabella Supabase in più, una Edge Function, una API
+key Claude): vedi [docs/impostazioni-claude.md](docs/impostazioni-claude.md).
+Senza questo setup l'app resta comunque completa per l'uso base.
 
 ## Limiti di questa versione
 

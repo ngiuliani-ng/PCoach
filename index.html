@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Atleti — Schede di programmazione</title>
+<title>Adaptive AI Coach</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -21,6 +21,9 @@
     --danger: #B3261E;
     --danger-bg: #FBEAE9;
     --focus: #0F6E64;
+    --chart-ctl: #2F6FED;
+    --chart-atl: #7C3AED;
+    --chart-bar: color-mix(in srgb, var(--text-muted) 25%, transparent);
     --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
     --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   }
@@ -37,6 +40,8 @@
       --danger: #E5867E;
       --danger-bg: #3A1F1D;
       --focus: #37C2AE;
+      --chart-ctl: #6FA8FF;
+      --chart-atl: #B79CFF;
     }
   }
   :root[data-theme="dark"] {
@@ -51,6 +56,8 @@
     --danger: #E5867E;
     --danger-bg: #3A1F1D;
     --focus: #37C2AE;
+    --chart-ctl: #6FA8FF;
+    --chart-atl: #B79CFF;
   }
 
   * { box-sizing: border-box; }
@@ -94,9 +101,6 @@
     margin: 0;
     font-size: 12px;
     color: var(--text-muted);
-  }
-  .new-athlete-btn {
-    margin: 14px 14px 8px;
   }
   .athlete-list {
     list-style: none;
@@ -288,6 +292,44 @@
   }
   .subsection-title:first-child { margin-top: 0; }
 
+  .chart-wrap {
+    position: relative;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px 10px;
+    background: var(--bg);
+    margin-bottom: 10px;
+  }
+  .load-chart { width: 100%; height: 180px; display: block; cursor: crosshair; }
+  .chart-tooltip {
+    position: absolute;
+    top: 4px;
+    pointer-events: none;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 9px;
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--text);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.08s;
+    z-index: 2;
+  }
+  .chart-tooltip.visible { opacity: 1; }
+  .chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 8px;
+  }
+  .chart-legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .chart-legend .swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+
   .discipline-card, .day-row {
     border: 1px solid var(--border);
     border-radius: 8px;
@@ -340,6 +382,7 @@
     padding: 9px 16px;
     cursor: pointer;
     border: 1px solid transparent;
+    text-align: center;
   }
   button.primary { background: var(--accent); color: var(--accent-contrast); width: 100%; }
   button.primary:disabled {
@@ -429,8 +472,9 @@
       <h1>Atleti</h1>
       <p>Schede di programmazione</p>
     </div>
-    <div style="padding: 0 14px;">
-      <button class="secondary new-athlete-btn" id="newBtn">+ Nuovo atleta</button>
+    <div style="display:flex; flex-direction:column; gap:8px; padding: 14px 14px 8px;">
+      <button class="secondary" id="newBtn">Nuovo atleta</button>
+      <button class="secondary" id="settingsBtn" type="button">Impostazioni</button>
     </div>
     <ul class="athlete-list" id="athleteList">
       <li class="empty-list">Nessun atleta ancora. Crea la prima scheda.</li>
@@ -443,6 +487,44 @@
       <div class="placeholder" id="placeholder">
         <span class="big-emoji">🎽</span>
         Seleziona un atleta dalla lista, oppure crea una nuova scheda per iniziare.
+      </div>
+
+      <div id="settingsPanel" style="display:none;">
+        <div class="form-header">
+          <h2>Impostazioni</h2>
+        </div>
+        <p class="updated-line">Configurazione condivisa (non legata a un singolo atleta): API key Claude e i template dei prompt usati per generare i piani e i feedback settimanali. Dettagli di setup in <code>docs/impostazioni-claude.md</code>.</p>
+
+        <section class="block">
+          <h3>Claude</h3>
+          <div class="field-row">
+            <div>
+              <label for="s-claude-api-key">API key Claude</label>
+              <input type="text" id="s-claude-api-key" class="mono-input" placeholder="sk-ant-...">
+            </div>
+            <div>
+              <label for="s-claude-model">Modello</label>
+              <input type="text" id="s-claude-model" class="mono-input" placeholder="claude-sonnet-4-5">
+            </div>
+          </div>
+          <p class="helper-text">Salvata in chiaro su Supabase, letta solo lato server dalla Edge Function di proxy. Senza questa chiave, i pulsanti di generazione restano disponibili in modalità "assembla prompt da copiare".</p>
+        </section>
+
+        <section class="block">
+          <h3>Prompt: generazione piano</h3>
+          <textarea id="s-plan-prompt" style="min-height:220px;"></textarea>
+          <p class="helper-text">Placeholder disponibili: <code>{{nome_atleta}}</code>, <code>{{settimane}}</code>, <code>{{contesto_atleta_json}}</code>, <code>{{formato_training_plan_json}}</code>.</p>
+        </section>
+
+        <section class="block">
+          <h3>Prompt: feedback settimanale</h3>
+          <textarea id="s-feedback-prompt" style="min-height:220px;"></textarea>
+          <p class="helper-text">Placeholder disponibili: <code>{{nome_atleta}}</code>, <code>{{settimana_pianificata_json}}</code>, <code>{{settimana_reale_json}}</code>.</p>
+        </section>
+
+        <div class="action-bar">
+          <button class="primary" id="saveSettingsBtn" type="button">Salva impostazioni</button>
+        </div>
       </div>
 
       <div id="editor" style="display:none;">
@@ -573,9 +655,15 @@
           </div>
 
           <div class="subsection-title">Carico recente</div>
-          <p class="helper-text" id="loadCurrentSummary" style="margin-top:-2px;">Nessuna rilevazione.</p>
-          <div id="loadMetricsLogWrap"></div>
-          <button class="add-row" id="addLoadMetricBtn" type="button">+ Aggiungi rilevazione</button>
+          <div class="chart-wrap"><div id="loadMetricsChartWrap"></div></div>
+
+          <div class="field-row">
+            <div style="grid-column: 1 / -1;">
+              <label for="f-intervals-api-key">API key Intervals.icu</label>
+              <input type="text" id="f-intervals-api-key" class="mono-input" placeholder="Impostazioni → Developer Settings su intervals.icu">
+            </div>
+          </div>
+          <button class="secondary" id="refreshIntervalsBtn" type="button">Aggiorna da Intervals.icu</button>
         </section>
 
         <section class="block">
@@ -666,6 +754,33 @@
           <textarea id="f-notes" placeholder="Qualsiasi informazione utile non modellata sopra…"></textarea>
         </section>
 
+        <section class="block">
+          <h3>Piano assegnato</h3>
+          <p class="helper-text" id="planSummary" style="margin-top:-2px;">Nessun piano generato.</p>
+          <div class="field-row">
+            <div>
+              <label for="f-plan-weeks">Settimane da generare</label>
+              <input type="number" id="f-plan-weeks" class="mono-input" value="8" min="1" max="52">
+            </div>
+          </div>
+          <button class="secondary" id="generatePlanBtn" type="button">Genera piano con Claude</button>
+          <div id="planPreviewWrap" style="display:none; margin-top:14px;">
+            <label for="planPreviewText">Anteprima (modificabile prima di salvare)</label>
+            <textarea id="planPreviewText" class="mono-input" style="min-height:260px;"></textarea>
+            <div class="action-bar" style="margin-top:10px;">
+              <button class="primary" id="confirmPlanBtn" type="button">Conferma e carica nella scheda</button>
+              <button class="secondary" id="discardPlanBtn" type="button">Scarta anteprima</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="block">
+          <h3>Feedback settimanale</h3>
+          <p class="helper-text" style="margin-top:-2px;">Confronta gli allenamenti realmente svolti nell'ultima settimana (da Intervals.icu) con il piano assegnato sopra.</p>
+          <button class="secondary" id="weeklyFeedbackBtn" type="button">Confronta settimana con il piano</button>
+          <div id="weeklyFeedbackWrap" style="margin-top:12px;"></div>
+        </section>
+
         <div class="action-bar">
           <button class="primary" id="saveBtn">Salva scheda</button>
           <button class="secondary" id="exportBtn">Esporta JSON</button>
@@ -729,11 +844,12 @@
     ["carichi_familiari_elevati", "Carichi familiari elevati"]
   ];
 
-  // Fonte di ogni rilevazione: per ora solo manuale. La struttura resta pronta
-  // ad accogliere in futuro fonti sincronizzate (Adaptive AI Coach / Intervals.icu / Garmin)
+  // Fonte di ogni rilevazione: manuale o sincronizzata da Intervals.icu.
+  // Pronta ad accogliere in futuro altre fonti sincronizzate (es. Garmin)
   // aggiungendo voci qui, senza altre modifiche.
   const SOURCE_OPTIONS = [
-    ["manual", "Manuale"]
+    ["manual", "Manuale"],
+    ["intervals_icu_sync", "Intervals.icu (sync)"]
   ];
 
 
@@ -754,6 +870,8 @@
   let swimThresholdLog = [];
   let loadMetricsLog = [];
   let lifestyleFactors = [];
+  let trainingPlan = null;
+  let weeklyFeedbackLog = [];
   let dbAvailable = false;
   let baselineSnapshot = null; // stato del profilo subito dopo l'ultimo caricamento/salvataggio, per rilevare modifiche non salvate
 
@@ -802,6 +920,68 @@
     return new Date().toISOString().slice(0, 10);
   }
 
+  function addDaysISO(dateStr, days) {
+    const d = new Date(dateStr + "T00:00:00");
+    d.setDate(d.getDate() + days);
+    return d.toISOString().slice(0, 10);
+  }
+
+  // Struttura JSON iniettata nel prompt di generazione, così Claude sa esattamente cosa restituire (specifica-tecnica.md §5.3).
+  const TRAINING_PLAN_JSON_SHAPE = `{
+  "plan_name": "string",
+  "start_date": "YYYY-MM-DD",
+  "weeks": [
+    {
+      "week_number": 1,
+      "week_label": "string",
+      "is_deload": false,
+      "sessions": [
+        {
+          "date": "YYYY-MM-DD",
+          "day": "lunedi|martedi|mercoledi|giovedi|venerdi|sabato|domenica",
+          "session_type": "string",
+          "discipline": "running|cycling|swimming|strength",
+          "is_structured": false,
+          "target_zone": "string",
+          "target_duration_min": null,
+          "target_distance_km": null,
+          "notes": "string",
+          "steps": []
+        }
+      ]
+    }
+  ]
+}
+Se is_structured e' true, usa steps[] invece dei campi target_*. Ogni step: { "kind": "warmup|cooldown|block", "duration_sec": null, "distance_m": null, "zone": "string", "description": "string" } oppure, per le ripetute uniformi: { "kind": "repeat", "repetitions": 1, "work": { "duration_sec": null, "distance_m": null, "zone": "string", "description": "string" }, "recovery": { "duration_sec": null, "distance_m": null, "zone": "string", "description": "string" } }.`;
+
+  const DEFAULT_PLAN_PROMPT = `Sei un coach esperto di allenamento endurance (corsa, bici, nuoto, palestra). Genera un piano di allenamento di {{settimane}} settimane per l'atleta {{nome_atleta}}, seguendo esattamente il formato JSON indicato sotto.
+
+Dati atleta:
+{{contesto_atleta_json}}
+
+Restituisci SOLO un oggetto JSON valido (puoi racchiuderlo in un blocco di codice \`\`\`json, oppure scriverlo senza altro testo prima o dopo), con questa struttura esatta:
+{{formato_training_plan_json}}
+
+Regole:
+- Le date delle sessioni devono essere reali (YYYY-MM-DD), a partire dalla data di oggi.
+- Rispetta i vincoli di disponibilità settimanale e lo schema di carico/scarico dell'atleta.
+- Usa is_structured: true e steps[] solo per le sessioni con intervalli; per le sessioni a blocco unico (easy, lunga, palestra generica) usa is_structured: false con i campi target_*.`;
+
+  const DEFAULT_FEEDBACK_PROMPT = `Sei un coach esperto. Confronta la settimana pianificata con quella effettivamente svolta dall'atleta {{nome_atleta}} e scrivi un feedback breve (massimo 200 parole) in italiano: aderenza al piano, scostamenti di carico, suggerimenti per la settimana successiva.
+
+Piano pianificato per questa settimana:
+{{settimana_pianificata_json}}
+
+Allenamenti realmente svolti questa settimana:
+{{settimana_reale_json}}`;
+
+  let appSettings = {
+    claude_api_key: "",
+    claude_model: "claude-sonnet-4-5",
+    plan_generation_prompt_template: DEFAULT_PLAN_PROMPT,
+    weekly_feedback_prompt_template: DEFAULT_FEEDBACK_PROMPT
+  };
+
   function blankProfile() {
     return {
       schema_version: "1.3.0",
@@ -829,7 +1009,10 @@
         sessions_per_week_target: null
       },
       methodology_preferences: { intensity_distribution_model: "polarizzato_80_20", load_deload_pattern: "3:1" },
-      notes_free_text: ""
+      notes_free_text: "",
+      integrations: { intervals_icu_api_key: "" },
+      training_plan: null,
+      weekly_feedback_log: []
     };
   }
 
@@ -1147,11 +1330,115 @@
   const SWIM_THRESHOLD_FIELDS = [
     { key: "css_pace_per_100m", label: "CSS (min/100m)", type: "text", mono: true }
   ];
-  const LOAD_METRIC_FIELDS = [
-    { key: "ctl", label: "CTL (fitness)", type: "number" },
-    { key: "atl", label: "ATL (fatica)", type: "number" },
-    { key: "tsb", label: "TSB (forma)", type: "number" }
-  ];
+
+  // Grafico di sola lettura: i dati arrivano solo da "Aggiorna da Intervals.icu", nessun editing manuale.
+  function renderLoadMetricsChart(wrapId, logArray) {
+    const wrap = $("#" + wrapId);
+    wrap.innerHTML = "";
+    const entries = logArray.filter((e) => e.date).slice().sort((a, b) => a.date.localeCompare(b.date));
+
+    if (entries.length === 0) {
+      wrap.appendChild(el("p", { className: "empty-list", style: "padding:0;", textContent: 'Nessuna rilevazione: usa "Aggiorna da Intervals.icu" per popolare il grafico.' }));
+      return;
+    }
+
+    const W = 600, H = 180, padL = 30, padR = 8, padT = 10, padB = 18;
+    const innerW = W - padL - padR, innerH = H - padT - padB;
+
+    const values = [];
+    entries.forEach((e) => { ["ctl", "atl", "tsb"].forEach((k) => { if (e[k] != null) values.push(e[k]); }); });
+    const minV = Math.min(0, ...values);
+    const maxV = Math.max(10, ...values);
+    const yFor = (v) => padT + innerH - ((v - minV) / (maxV - minV || 1)) * innerH;
+    const xFor = (i) => padL + (entries.length === 1 ? innerW / 2 : (i / (entries.length - 1)) * innerW);
+
+    const maxWorkouts = Math.max(1, ...entries.map((e) => e.workouts_count || 0));
+    const barW = Math.max(2, innerW / entries.length - 2);
+
+    const bars = entries.map((e, i) => {
+      const count = e.workouts_count || 0;
+      if (!count) return "";
+      const h = (count / maxWorkouts) * (innerH * 0.35);
+      const x = (xFor(i) - barW / 2).toFixed(1);
+      const y = (padT + innerH - h).toFixed(1);
+      return `<rect x="${x}" y="${y}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" rx="1" style="fill:var(--chart-bar)"></rect>`;
+    }).join("");
+
+    function pathFor(key) {
+      let d = "";
+      entries.forEach((e, i) => {
+        if (e[key] == null) return;
+        d += (d === "" ? "M" : "L") + xFor(i).toFixed(1) + "," + yFor(e[key]).toFixed(1) + " ";
+      });
+      return d.trim();
+    }
+
+    function pointsFor(key, color) {
+      return entries.map((e, i) => {
+        if (e[key] == null) return "";
+        return `<circle cx="${xFor(i).toFixed(1)}" cy="${yFor(e[key]).toFixed(1)}" r="2.5" style="fill:${color}"></circle>`;
+      }).join("");
+    }
+
+    const zeroY = yFor(0).toFixed(1);
+    wrap.innerHTML = `
+      <svg viewBox="0 0 ${W} ${H}" class="load-chart" preserveAspectRatio="none">
+        <line x1="${padL}" y1="${zeroY}" x2="${W - padR}" y2="${zeroY}" style="stroke:var(--border); stroke-dasharray:3,3" />
+        ${bars}
+        <path d="${pathFor("ctl")}" fill="none" style="stroke:var(--chart-ctl); stroke-width:2" />
+        <path d="${pathFor("atl")}" fill="none" style="stroke:var(--chart-atl); stroke-width:2" />
+        <path d="${pathFor("tsb")}" fill="none" style="stroke:var(--text-muted); stroke-width:1.5; stroke-dasharray:4,3" />
+        ${pointsFor("ctl", "var(--chart-ctl)")}
+        ${pointsFor("atl", "var(--chart-atl)")}
+        ${pointsFor("tsb", "var(--text-muted)")}
+        <line class="chart-crosshair" x1="0" y1="${padT}" x2="0" y2="${padT + innerH}" style="stroke:var(--text-muted); stroke-width:1; opacity:0" />
+        <text x="${padL}" y="${H - 4}" font-size="9" style="fill:var(--text-muted)">${entries[0].date}</text>
+        <text x="${W - padR}" y="${H - 4}" font-size="9" text-anchor="end" style="fill:var(--text-muted)">${entries[entries.length - 1].date}</text>
+      </svg>
+      <div class="chart-tooltip"></div>
+      <div class="chart-legend">
+        <span><i class="swatch" style="background:var(--chart-ctl)"></i>CTL (fitness)</span>
+        <span><i class="swatch" style="background:var(--chart-atl)"></i>ATL (fatica)</span>
+        <span><i class="swatch" style="background:var(--text-muted)"></i>TSB (forma)</span>
+        <span><i class="swatch" style="background:var(--chart-bar)"></i>Allenamenti/giorno</span>
+      </div>
+    `;
+
+    // Tooltip + crosshair: segue il mouse e mostra i valori del giorno più vicino (anche passati).
+    const svgEl = wrap.querySelector("svg");
+    const crosshair = wrap.querySelector(".chart-crosshair");
+    const tooltip = wrap.querySelector(".chart-tooltip");
+
+    function showAt(idx) {
+      const e = entries[idx];
+      const x = xFor(idx).toFixed(1);
+      crosshair.setAttribute("x1", x);
+      crosshair.setAttribute("x2", x);
+      crosshair.style.opacity = "1";
+      tooltip.innerHTML = `<strong>${e.date}</strong><br>Fitness (CTL): ${e.ctl ?? "—"}<br>Fatica (ATL): ${e.atl ?? "—"}<br>Forma (TSB): ${e.tsb ?? "—"}<br>Allenamenti: ${e.workouts_count ?? "—"}`;
+      tooltip.classList.add("visible");
+
+      const svgRect = svgEl.getBoundingClientRect();
+      const wrapRect = wrap.getBoundingClientRect();
+      const pxX = (xFor(idx) / W) * svgRect.width + (svgRect.left - wrapRect.left);
+      let left = pxX + 10;
+      const maxLeft = wrapRect.width - tooltip.offsetWidth - 6;
+      if (left > maxLeft) left = pxX - tooltip.offsetWidth - 10;
+      tooltip.style.left = Math.max(4, left) + "px";
+    }
+
+    svgEl.addEventListener("mousemove", (evt) => {
+      const rect = svgEl.getBoundingClientRect();
+      const svgX = ((evt.clientX - rect.left) / rect.width) * W;
+      let idx = entries.length === 1 ? 0 : Math.round(((svgX - padL) / innerW) * (entries.length - 1));
+      idx = Math.max(0, Math.min(entries.length - 1, idx));
+      showAt(idx);
+    });
+    svgEl.addEventListener("mouseleave", () => {
+      crosshair.style.opacity = "0";
+      tooltip.classList.remove("visible");
+    });
+  }
 
   function refreshCurrentSummaries() {
     const runLatest = latestLogEntry(runThresholdLog);
@@ -1167,11 +1454,6 @@
     const swimLatest = latestLogEntry(swimThresholdLog);
     $("#swimCurrentSummary").textContent = swimLatest
       ? `Valore attuale (${swimLatest.date || "senza data"}, ${sourceLabel(swimLatest.source)}): CSS ${swimLatest.css_pace_per_100m || "—"}`
-      : "Nessuna rilevazione.";
-
-    const loadLatest = latestLogEntry(loadMetricsLog);
-    $("#loadCurrentSummary").textContent = loadLatest
-      ? `Valore attuale (${loadLatest.date || "senza data"}, ${sourceLabel(loadLatest.source)}): CTL ${loadLatest.ctl ?? "—"} · ATL ${loadLatest.atl ?? "—"} · TSB ${loadLatest.tsb ?? "—"}`
       : "Nessuna rilevazione.";
   }
 
@@ -1273,7 +1555,7 @@
     $("#f-detrain-severity").value = dt.severity || "lieve_riduzione";
 
     loadMetricsLog = (profile.training_status.load_metrics_log || []).map((e) => JSON.parse(JSON.stringify(e)));
-    renderMetricLog("loadMetricsLogWrap", loadMetricsLog, LOAD_METRIC_FIELDS);
+    renderLoadMetricsChart("loadMetricsChartWrap", loadMetricsLog);
     refreshCurrentSummaries();
 
     lifestyleFactors = [...(profile.training_status.lifestyle_factors || [])];
@@ -1303,6 +1585,14 @@
     $("#f-load-deload").value = profile.methodology_preferences.load_deload_pattern || "3:1";
 
     $("#f-notes").value = profile.notes_free_text || "";
+
+    $("#f-intervals-api-key").value = (profile.integrations && profile.integrations.intervals_icu_api_key) || "";
+
+    trainingPlan = profile.training_plan ? JSON.parse(JSON.stringify(profile.training_plan)) : null;
+    renderPlanSummary();
+    $("#planPreviewWrap").style.display = "none";
+    weeklyFeedbackLog = (profile.weekly_feedback_log || []).map((e) => JSON.parse(JSON.stringify(e)));
+    renderWeeklyFeedback();
 
     baselineSnapshot = snapshotForCompare(readForm(profile));
     refreshDirtyState();
@@ -1355,6 +1645,9 @@
     p.methodology_preferences.load_deload_pattern = $("#f-load-deload").value.trim();
 
     p.notes_free_text = $("#f-notes").value;
+    p.integrations = { intervals_icu_api_key: $("#f-intervals-api-key").value.trim() };
+    p.training_plan = trainingPlan;
+    p.weekly_feedback_log = weeklyFeedbackLog;
     p.meta.updated_at = todayISO();
     return p;
   }
@@ -1386,9 +1679,262 @@
     $("#unsavedBadge").style.display = dirty ? "" : "none";
   }
 
+  // ---------- Impostazioni globali (Claude) ----------
+  async function loadAppSettings() {
+    if (!dbAvailable) return;
+    try {
+      const { data, error } = await supabaseClient.from("app_settings").select("*").eq("id", 1).maybeSingle();
+      if (!error && data) {
+        appSettings = {
+          claude_api_key: data.claude_api_key || "",
+          claude_model: data.claude_model || appSettings.claude_model,
+          plan_generation_prompt_template: data.plan_generation_prompt_template || DEFAULT_PLAN_PROMPT,
+          weekly_feedback_prompt_template: data.weekly_feedback_prompt_template || DEFAULT_FEEDBACK_PROMPT
+        };
+      }
+    } catch (err) {
+      // Tabella app_settings non ancora creata o errore di rete: si resta sui default in memoria.
+    }
+  }
+
+  function fillSettingsForm() {
+    $("#s-claude-api-key").value = appSettings.claude_api_key;
+    $("#s-claude-model").value = appSettings.claude_model;
+    $("#s-plan-prompt").value = appSettings.plan_generation_prompt_template;
+    $("#s-feedback-prompt").value = appSettings.weekly_feedback_prompt_template;
+  }
+
+  function showSettingsPanel() {
+    currentId = null;
+    $("#placeholder").style.display = "none";
+    $("#editor").style.display = "none";
+    $("#settingsPanel").style.display = "";
+    fillSettingsForm();
+    renderList();
+  }
+
+  async function saveAppSettings() {
+    appSettings = {
+      claude_api_key: $("#s-claude-api-key").value.trim(),
+      claude_model: $("#s-claude-model").value.trim() || "claude-sonnet-4-5",
+      plan_generation_prompt_template: $("#s-plan-prompt").value,
+      weekly_feedback_prompt_template: $("#s-feedback-prompt").value
+    };
+    if (!dbAvailable) {
+      showToast("Supabase non configurato: impostazioni tenute solo in questa sessione.");
+      return;
+    }
+    try {
+      await supabaseClient.from("app_settings").upsert({ id: 1, ...appSettings });
+      showToast("Impostazioni salvate.");
+    } catch (err) {
+      showToast("Salvataggio non riuscito: la tabella app_settings esiste? Vedi docs/impostazioni-claude.md.");
+    }
+  }
+
+  // Proxy verso Claude: la API key non lascia mai Supabase, vedi docs/impostazioni-claude.md.
+  async function callClaudeProxy(promptText, maxTokens) {
+    const url = SUPABASE_URL.replace(/\/$/, "") + "/functions/v1/claude-proxy";
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + SUPABASE_ANON_KEY,
+          "apikey": SUPABASE_ANON_KEY
+        },
+        body: JSON.stringify({ prompt: promptText, max_tokens: maxTokens || 4096, model: appSettings.claude_model })
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data || data.error) {
+        return { ok: false, error: (data && data.error) || `Errore proxy (${res.status})` };
+      }
+      return { ok: true, text: data.text || "" };
+    } catch (err) {
+      return { ok: false, error: "Impossibile contattare la Edge Function claude-proxy." };
+    }
+  }
+
+  function extractJsonBlock(text) {
+    if (!text) return null;
+    const fenced = text.match(/```json\s*([\s\S]*?)```/i) || text.match(/```\s*([\s\S]*?)```/);
+    const raw = fenced ? fenced[1] : text;
+    try { return JSON.parse(raw.trim()); } catch (err) { return null; }
+  }
+
+  async function copyToClipboardFallback(text, msg) {
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast(msg);
+    } catch (err) {
+      console.log(text);
+      showToast("Copia negli appunti non riuscita: il testo è stampato nella console del browser.");
+    }
+  }
+
+  // Riassunto compatto del profilo per il prompt: solo ciò che serve a programmare, niente bookkeeping.
+  function buildAthleteContextForPrompt(profile) {
+    const pt = profile.physiological_thresholds || {};
+    const last30 = (profile.training_status.load_metrics_log || [])
+      .filter((e) => e.date && e.date >= addDaysISO(todayISO(), -30));
+    return {
+      identity: profile.identity,
+      disciplines: profile.disciplines,
+      thresholds: {
+        running: latestLogEntry((pt.running || {}).thresholds_log),
+        cycling: latestLogEntry((pt.cycling || {}).thresholds_log),
+        swimming: latestLogEntry((pt.swimming || {}).thresholds_log)
+      },
+      training_status: {
+        detraining_period: profile.training_status.detraining_period,
+        lifestyle_factors: profile.training_status.lifestyle_factors,
+        lifestyle_factors_note: profile.training_status.lifestyle_factors_note,
+        load_metrics_last_30_days: last30
+      },
+      goals: profile.goals,
+      constraints: profile.constraints,
+      methodology_preferences: profile.methodology_preferences,
+      notes_free_text: profile.notes_free_text
+    };
+  }
+
+  // ---------- Piano assegnato (Claude) ----------
+  function renderPlanSummary() {
+    const summaryEl = $("#planSummary");
+    if (!trainingPlan) { summaryEl.textContent = "Nessun piano generato."; return; }
+    const weeks = (trainingPlan.weeks || []).length;
+    summaryEl.textContent = `${trainingPlan.plan_name || "Piano"} — ${weeks} settimane, a partire dal ${trainingPlan.start_date || "?"}`;
+  }
+
+  async function generatePlan() {
+    const weeksCount = numOrNull($("#f-plan-weeks").value) || 8;
+    const base = currentId ? athletes[currentId] : blankProfile();
+    const profileForPrompt = readForm(base);
+    const context = buildAthleteContextForPrompt(profileForPrompt);
+    const template = appSettings.plan_generation_prompt_template || DEFAULT_PLAN_PROMPT;
+    const prompt = template
+      .split("{{nome_atleta}}").join(profileForPrompt.identity.name || "Atleta")
+      .split("{{settimane}}").join(String(weeksCount))
+      .split("{{contesto_atleta_json}}").join(JSON.stringify(context, null, 2))
+      .split("{{formato_training_plan_json}}").join(TRAINING_PLAN_JSON_SHAPE);
+
+    if (!appSettings.claude_api_key) {
+      await copyToClipboardFallback(prompt, "Claude API key non configurata: prompt copiato negli appunti, incollalo in una chat Claude e poi incolla qui la risposta JSON.");
+      $("#planPreviewWrap").style.display = "";
+      $("#planPreviewText").value = "";
+      return;
+    }
+
+    const btn = $("#generatePlanBtn");
+    btn.disabled = true;
+    btn.textContent = "Generazione in corso…";
+    const result = await callClaudeProxy(prompt, 8000);
+    btn.disabled = false;
+    btn.textContent = "Genera piano con Claude";
+
+    if (!result.ok) {
+      showToast(result.error || "Generazione non riuscita.");
+      return;
+    }
+    const parsed = extractJsonBlock(result.text);
+    $("#planPreviewWrap").style.display = "";
+    $("#planPreviewText").value = parsed ? JSON.stringify(parsed, null, 2) : result.text;
+    if (!parsed) showToast("Risposta ricevuta ma non era JSON valido: correggila a mano prima di confermare.");
+  }
+
+  function confirmPlanPreview() {
+    try {
+      trainingPlan = JSON.parse($("#planPreviewText").value);
+      renderPlanSummary();
+      $("#planPreviewWrap").style.display = "none";
+      refreshDirtyState();
+      showToast('Piano caricato nella scheda: premi "Salva scheda" per renderlo definitivo.');
+    } catch (err) {
+      showToast("Il testo non è JSON valido: correggilo prima di confermare.");
+    }
+  }
+
+  // ---------- Feedback settimanale (Claude) ----------
+  function renderWeeklyFeedback() {
+    const wrap = $("#weeklyFeedbackWrap");
+    wrap.innerHTML = "";
+    if (!weeklyFeedbackLog.length) {
+      wrap.appendChild(el("p", { className: "empty-list", style: "padding:0;", textContent: "Nessun feedback ancora generato." }));
+      return;
+    }
+    weeklyFeedbackLog.slice().sort((a, b) => (b.date || "").localeCompare(a.date || "")).forEach((entry) => {
+      const card = el("div", { className: "discipline-card" });
+      const head = el("div", { className: "discipline-card-head" });
+      head.appendChild(el("span", { textContent: entry.date || "" }));
+      const rm = el("button", { className: "icon-btn", textContent: "Rimuovi", type: "button" });
+      rm.addEventListener("click", () => { weeklyFeedbackLog = weeklyFeedbackLog.filter((e) => e !== entry); renderWeeklyFeedback(); refreshDirtyState(); });
+      head.appendChild(rm);
+      card.appendChild(head);
+      card.appendChild(el("p", { style: "white-space:pre-wrap; margin:0; font-size:12.5px;", textContent: entry.note }));
+      wrap.appendChild(card);
+    });
+  }
+
+  async function compareWeekWithPlan() {
+    const apiKey = $("#f-intervals-api-key").value.trim();
+    if (!apiKey) { showToast("Inserisci prima la API key di Intervals.icu."); return; }
+    if (!trainingPlan) { showToast("Genera prima un piano assegnato."); return; }
+
+    const newest = todayISO();
+    const oldest = addDaysISO(newest, -7);
+    const btn = $("#weeklyFeedbackBtn");
+    btn.disabled = true;
+    btn.textContent = "Confronto in corso…";
+    try {
+      const auth = "Basic " + btoa("API_KEY:" + apiKey);
+      const res = await fetch(`https://intervals.icu/api/v1/athlete/0/activities?oldest=${oldest}&newest=${newest}`, { headers: { Authorization: auth } });
+      if (res.status === 401) { showToast("API key di Intervals.icu non valida."); return; }
+      if (!res.ok) { showToast(`Intervals.icu ha risposto con un errore (${res.status}).`); return; }
+      const activities = await res.json();
+      const actualWeek = activities.map((a) => ({
+        date: (a.start_date_local || "").slice(0, 10),
+        type: a.type,
+        name: a.name,
+        moving_time_min: a.moving_time ? Math.round(a.moving_time / 60) : null,
+        training_load: a.icu_training_load ?? null
+      }));
+
+      const plannedWeek = [];
+      (trainingPlan.weeks || []).forEach((w) => (w.sessions || []).forEach((s) => {
+        if (s.date && s.date >= oldest && s.date <= newest) plannedWeek.push(s);
+      }));
+
+      const athleteName = (currentId && athletes[currentId].identity.name) || $("#f-name").value || "Atleta";
+      const template = appSettings.weekly_feedback_prompt_template || DEFAULT_FEEDBACK_PROMPT;
+      const prompt = template
+        .split("{{nome_atleta}}").join(athleteName)
+        .split("{{settimana_pianificata_json}}").join(JSON.stringify(plannedWeek, null, 2))
+        .split("{{settimana_reale_json}}").join(JSON.stringify(actualWeek, null, 2));
+
+      if (!appSettings.claude_api_key) {
+        await copyToClipboardFallback(prompt, "Claude API key non configurata: confronto copiato negli appunti, incollalo in una chat Claude per il feedback.");
+        return;
+      }
+
+      const result = await callClaudeProxy(prompt, 1024);
+      if (!result.ok) { showToast(result.error || "Generazione feedback non riuscita."); return; }
+
+      weeklyFeedbackLog.push({ date: newest, note: result.text, generated_by: "claude" });
+      renderWeeklyFeedback();
+      refreshDirtyState();
+      showToast('Feedback generato: premi "Salva scheda" per renderlo definitivo.');
+    } catch (err) {
+      showToast("Impossibile completare il confronto (rete o CORS).");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Confronta settimana con il piano";
+    }
+  }
+
   // ---------- Open / New / Save / Delete ----------
   function openAthlete(id) {
     currentId = id;
+    $("#settingsPanel").style.display = "none";
     $("#placeholder").style.display = "none";
     $("#editor").style.display = "";
     fillForm(athletes[id]);
@@ -1398,6 +1944,7 @@
   function newAthlete() {
     currentId = null;
     const blank = blankProfile();
+    $("#settingsPanel").style.display = "none";
     $("#placeholder").style.display = "none";
     $("#editor").style.display = "";
     fillForm(blank);
@@ -1487,6 +2034,12 @@
 
   // ---------- Wiring ----------
   $("#newBtn").addEventListener("click", newAthlete);
+  $("#settingsBtn").addEventListener("click", showSettingsPanel);
+  $("#saveSettingsBtn").addEventListener("click", saveAppSettings);
+  $("#generatePlanBtn").addEventListener("click", generatePlan);
+  $("#confirmPlanBtn").addEventListener("click", confirmPlanPreview);
+  $("#discardPlanBtn").addEventListener("click", () => { $("#planPreviewWrap").style.display = "none"; });
+  $("#weeklyFeedbackBtn").addEventListener("click", compareWeekWithPlan);
   // Rileva qualsiasi modifica nel form: digitazione/select/checkbox (input, change)
   // e aggiunta/rimozione righe dinamiche (click, es. discipline, rilevazioni, eventi).
   // Il click bubbla dopo che il listener specifico del bottone ha già mutato i dati.
@@ -1528,11 +2081,82 @@
     renderMetricLog("swimThresholdLogWrap", swimThresholdLog, SWIM_THRESHOLD_FIELDS);
     refreshCurrentSummaries();
   });
-  $("#addLoadMetricBtn").addEventListener("click", () => {
-    loadMetricsLog.push({ date: todayISO(), source: "manual", ctl: null, atl: null, tsb: null, note: "" });
-    renderMetricLog("loadMetricsLogWrap", loadMetricsLog, LOAD_METRIC_FIELDS);
-    refreshCurrentSummaries();
-  });
+  $("#refreshIntervalsBtn").addEventListener("click", refreshFromIntervalsIcu);
+
+  // Chiamata manuale (nessun polling): recupera wellness (CTL/ATL) e conteggio allenamenti
+  // fino a oggi via API pubblica Intervals.icu (CORS verificato permissivo, nessun proxy necessario).
+  // athlete id "0" = l'atleta associato alla API key usata per la chiamata (vedi doc API Intervals.icu).
+  async function refreshFromIntervalsIcu() {
+    const apiKey = $("#f-intervals-api-key").value.trim();
+    if (!apiKey) {
+      showToast("Inserisci prima la API key di Intervals.icu.");
+      return;
+    }
+
+    const latest = latestLogEntry(loadMetricsLog);
+    const oldest = latest && latest.date ? addDaysISO(latest.date, 1) : addDaysISO(todayISO(), -30);
+    const newest = todayISO();
+    if (oldest > newest) {
+      showToast("Il log è già aggiornato a oggi.");
+      return;
+    }
+
+    const btn = $("#refreshIntervalsBtn");
+    btn.disabled = true;
+    btn.textContent = "Aggiornamento in corso…";
+    try {
+      const auth = "Basic " + btoa("API_KEY:" + apiKey);
+      const [wellnessRes, activitiesRes] = await Promise.all([
+        fetch(`https://intervals.icu/api/v1/athlete/0/wellness?oldest=${oldest}&newest=${newest}`, { headers: { Authorization: auth } }),
+        fetch(`https://intervals.icu/api/v1/athlete/0/activities?oldest=${oldest}&newest=${newest}`, { headers: { Authorization: auth } })
+      ]);
+
+      if (wellnessRes.status === 401 || activitiesRes.status === 401) {
+        showToast("API key di Intervals.icu non valida.");
+        return;
+      }
+      if (!wellnessRes.ok || !activitiesRes.ok) {
+        showToast(`Intervals.icu ha risposto con un errore (${wellnessRes.status}/${activitiesRes.status}).`);
+        return;
+      }
+
+      const wellness = await wellnessRes.json();
+      const activities = await activitiesRes.json();
+
+      const workoutsByDate = {};
+      activities.forEach((a) => {
+        const d = (a.start_date_local || "").slice(0, 10);
+        if (d) workoutsByDate[d] = (workoutsByDate[d] || 0) + 1;
+      });
+
+      let updatedCount = 0;
+      wellness.forEach((w) => {
+        const date = w.id;
+        if (!date || w.ctl == null || w.atl == null) return;
+        const existingIdx = loadMetricsLog.findIndex((e) => e.date === date);
+        if (existingIdx >= 0 && loadMetricsLog[existingIdx].source === "manual") return; // non sovrascrivere rilevazioni manuali
+        const entry = {
+          date, source: "intervals_icu_sync",
+          ctl: w.ctl, atl: w.atl, tsb: Math.round((w.ctl - w.atl) * 10) / 10,
+          workouts_count: workoutsByDate[date] || 0,
+          note: "Sincronizzato da Intervals.icu"
+        };
+        if (existingIdx >= 0) loadMetricsLog[existingIdx] = entry; else loadMetricsLog.push(entry);
+        updatedCount++;
+      });
+      loadMetricsLog.sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+
+      renderLoadMetricsChart("loadMetricsChartWrap", loadMetricsLog);
+      refreshCurrentSummaries();
+      refreshDirtyState();
+      showToast(updatedCount > 0 ? `Aggiornati ${updatedCount} giorni da Intervals.icu.` : "Nessun nuovo dato da Intervals.icu.");
+    } catch (err) {
+      showToast("Impossibile contattare Intervals.icu (rete o CORS).");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Aggiorna da Intervals.icu";
+    }
+  }
 
   populateObjectiveSelects();
 
@@ -1568,6 +2192,7 @@
       supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
       await loadAthletesFromSupabase();
       dbAvailable = true;
+      await loadAppSettings();
       $("#connStatus").textContent = "Connesso a Supabase.";
       // Aggiorna la lista periodicamente, per riflettere modifiche fatte da un altro dispositivo/scheda.
       setInterval(() => { loadAthletesFromSupabase().catch(() => {}); }, 15000);
