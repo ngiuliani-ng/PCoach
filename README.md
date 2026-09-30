@@ -1,4 +1,4 @@
-# Atleti — Schede di programmazione
+# PCoach
 
 App per un coach che segue più atleti: usa [Supabase](https://supabase.com)
 come database e il download nativo del browser per l'export JSON.
@@ -6,9 +6,9 @@ Un solo file HTML, nessuna build, nessun server da scrivere.
 
 Dettagli su modello dati, architettura e roadmap: [docs/specifica-tecnica.md](docs/specifica-tecnica.md).
 
-## 1. Crea il progetto Supabase (gratis)
+## 1. Crea il progetto Supabase
 
-1. Vai su [supabase.com](https://supabase.com) → crea un account → **New project**.
+1. Vai su [Supabase](https://supabase.com) → crea un account → **New project**.
 2. Aspetta che il progetto sia pronto (circa 1-2 minuti).
 3. Vai su **SQL Editor** (menu a sinistra) → **New query**, incolla e esegui:
 
