@@ -1,8 +1,8 @@
 // Costruzione pura (testabile) dei prompt per Claude: contesto atleta compatto
 // e sostituzione dei placeholder nei template. Porting di buildAthleteContextForPrompt
 // e della logica di interpolazione dal legacy index.html.
-import { addDaysISO, todayISO } from "../constants";
-import type { AthleteTrainingProfile, TrainingSession } from "../schema/types.generated";
+import { addDaysISO, fullName, todayISO } from "../constants";
+import type { AthleteTrainingProfile } from "../schema/types.generated";
 
 export function buildAthleteContextForPrompt(profile: AthleteTrainingProfile) {
   const cutoff = addDaysISO(todayISO(), -30);
@@ -45,21 +45,8 @@ export function buildPlanPrompt(
 ): string {
   return interpolate(template, {
     settimane: String(weeks),
-    nome_atleta: profile.identity?.name || "",
+    nome_atleta: fullName(profile.identity),
     contesto_atleta_json: JSON.stringify(buildAthleteContextForPrompt(profile), null, 2),
     formato_training_plan_json: planJsonShape
-  });
-}
-
-export function buildFeedbackPrompt(
-  profile: AthleteTrainingProfile,
-  plannedWeek: TrainingSession[],
-  realWeek: unknown[],
-  template: string
-): string {
-  return interpolate(template, {
-    nome_atleta: profile.identity?.name || "",
-    settimana_pianificata_json: JSON.stringify(plannedWeek, null, 2),
-    settimana_reale_json: JSON.stringify(realWeek, null, 2)
   });
 }

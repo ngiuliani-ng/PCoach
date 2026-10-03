@@ -1,8 +1,9 @@
-// Integrazione con Intervals.icu: sincronizzazione CTL/ATL/TSB e lettura attività
-// per il confronto settimanale piano/reale. Porting diretto della logica di index.html,
-// isolata dal DOM per essere testabile e riusabile dagli store.
+// Integrazione con Intervals.icu: sincronizzazione CTL/ATL/TSB da mostrare nella
+// scheda atleta. Porting diretto della logica di index.html, isolata dal DOM per
+// essere testabile e riusabile dagli store. Il confronto piano/reale per il feedback
+// settimanale è ora lato backend (Edge Function weekly-feedback, Fase 7).
 import { addDaysISO, todayISO } from "../constants";
-import type { AthleteTrainingProfile, TrainingSession } from "../schema/types.generated";
+import type { AthleteTrainingProfile } from "../schema/types.generated";
 
 type LoadMetricsEntry = NonNullable<
   NonNullable<AthleteTrainingProfile["training_status"]>["load_metrics_log"]
@@ -77,38 +78,4 @@ export async function refreshFromIntervalsIcu(
   } catch {
     return { ok: false, error: "Impossibile contattare Intervals.icu (rete o CORS)." };
   }
-}
-
-export type WeekActivitiesResult =
-  | { ok: true; activities: unknown[] }
-  | { ok: false; error: string };
-
-export async function fetchLastWeekActivities(apiKey: string): Promise<WeekActivitiesResult> {
-  const newest = todayISO();
-  const oldest = addDaysISO(newest, -7);
-  try {
-    const auth = "Basic " + btoa("API_KEY:" + apiKey);
-    const res = await fetch(`https://intervals.icu/api/v1/athlete/0/activities?oldest=${oldest}&newest=${newest}`, { headers: { Authorization: auth } });
-    if (res.status === 401) return { ok: false, error: "API key di Intervals.icu non valida." };
-    if (!res.ok) return { ok: false, error: `Errore Intervals.icu (${res.status}).` };
-    const activities = await res.json();
-    return { ok: true, activities };
-  } catch {
-    return { ok: false, error: "Impossibile contattare Intervals.icu (rete o CORS)." };
-  }
-}
-
-export function plannedWeekFromPlan(
-  trainingPlan: AthleteTrainingProfile["training_plan"],
-  oldest: string,
-  newest: string
-): TrainingSession[] {
-  if (!trainingPlan?.weeks) return [];
-  const sessions: TrainingSession[] = [];
-  trainingPlan.weeks.forEach((week) => {
-    (week.sessions || []).forEach((s) => {
-      if (s.date && s.date >= oldest && s.date <= newest) sessions.push(s);
-    });
-  });
-  return sessions;
 }

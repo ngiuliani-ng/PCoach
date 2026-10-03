@@ -9,11 +9,10 @@ import {
   TRAINING_SPORT_OPTIONS, LEVEL_OPTIONS, VOLUME_UNITS,
   OBJECTIVE_OPTIONS, SHARED_OBJECTIVE_OPTIONS, EVENT_DISCIPLINE_OPTIONS, EVENT_PRIORITIES,
   LIFESTYLE_FACTOR_OPTIONS, DAY_LABELS, RUN_THRESHOLD_FIELDS, BIKE_THRESHOLD_FIELDS, SWIM_THRESHOLD_FIELDS,
-  TRAINING_PLAN_JSON_SHAPE, todayISO, addDaysISO, fullName
+  TRAINING_PLAN_JSON_SHAPE, fullName
 } from "../../constants";
 import { callClaudeProxy, extractJsonBlock, copyToClipboardFallback } from "../../services/claude";
-import { fetchLastWeekActivities, plannedWeekFromPlan } from "../../services/intervals";
-import { buildPlanPrompt, buildFeedbackPrompt } from "../../services/planPrompt";
+import { buildPlanPrompt } from "../../services/planPrompt";
 import { showToast } from "../../composables/useToast";
 import { confirmDialog } from "../../composables/useConfirmDialog";
 import { useIntervalsSync } from "../../composables/useIntervalsSync";
@@ -164,50 +163,16 @@ function discardPlanPreview() {
   showPlanPreview.value = false;
 }
 
-const comparingWeek = ref(false);
-async function compareWeekWithPlan() {
-  const apiKey = profile.value.integrations?.intervals_icu_api_key;
-  if (!apiKey) {
-    showToast("Inserisci prima la API key di Intervals.icu (sezione Connessione con app esterne).");
-    return;
-  }
-  if (!profile.value.training_plan) {
-    showToast("Genera prima un piano di allenamento.");
-    return;
-  }
-  comparingWeek.value = true;
-  const actRes = await fetchLastWeekActivities(apiKey);
-  if (!actRes.ok) {
-    comparingWeek.value = false;
-    showToast(actRes.error);
-    return;
-  }
-  const newest = todayISO();
-  const oldest = addDaysISO(newest, -7);
-  const plannedWeek = plannedWeekFromPlan(profile.value.training_plan, oldest, newest);
-  const prompt = buildFeedbackPrompt(profile.value, plannedWeek, actRes.activities, settings.settings.weekly_feedback_prompt_template);
-  if (!settings.settings.claude_api_key) {
-    comparingWeek.value = false;
-    const copied = await copyToClipboardFallback(prompt);
-    showToast(copied ? "Claude non configurato: prompt copiato negli appunti." : "Claude non configurato e copia negli appunti non riuscita.");
-    return;
-  }
-  const result = await callClaudeProxy(prompt, 1024, settings.settings.claude_model);
-  comparingWeek.value = false;
-  if (!result.ok) {
-    showToast(result.error);
-    return;
-  }
-  profile.value.weekly_feedback_log = profile.value.weekly_feedback_log || [];
-  profile.value.weekly_feedback_log.push({ date: newest, note: result.text, generated_by: "claude" });
-  showToast("Feedback generato.");
-}
-function removeFeedback(i: number) {
-  profile.value.weekly_feedback_log?.splice(i, 1);
-}
+const feedbackShowAll = ref(false);
+const FEEDBACK_VISIBLE_COUNT = 5;
 const sortedFeedback = computed(() =>
   [...(profile.value.weekly_feedback_log || [])].sort((a, b) => b.date.localeCompare(a.date))
 );
+const visibleFeedback = computed(() =>
+  feedbackShowAll.value ? sortedFeedback.value : sortedFeedback.value.slice(0, FEEDBACK_VISIBLE_COUNT)
+);
+const hasHiddenFeedback = computed(() => sortedFeedback.value.length > FEEDBACK_VISIBLE_COUNT);
+
 
 async function onSave() {
   const result = await athletes.saveCurrent();
@@ -592,16 +557,16 @@ function onExport() {
 
     <section class="block">
       <h3>Feedback settimanale</h3>
-      <button type="button" class="secondary" :disabled="comparingWeek" @click="compareWeekWithPlan">
-        {{ comparingWeek ? "Confronto in corso…" : "Confronta settimana con il piano" }}
-      </button>
-      <div v-for="(f, i) in sortedFeedback" :key="i" class="discipline-card" style="margin-top: 10px">
+      <p v-if="!sortedFeedback.length" class="helper-text">Nessun feedback generato finora. Il feedback settimanale viene generato automaticamente in base alla pianificazione impostata.</p>
+      <div v-for="f in visibleFeedback" :key="f.date" class="discipline-card" style="margin-top: 10px">
         <div class="discipline-card-head">
           <span>{{ f.date }} · {{ f.generated_by === "claude" ? "Claude" : "Manuale" }}</span>
-          <button type="button" class="icon-btn" @click="removeFeedback(profile.weekly_feedback_log!.indexOf(f))">Rimuovi</button>
         </div>
         <p style="margin: 0; white-space: pre-wrap">{{ f.note }}</p>
       </div>
+      <button v-if="hasHiddenFeedback" type="button" class="link-btn" @click="feedbackShowAll = !feedbackShowAll">
+        {{ feedbackShowAll ? "Mostra solo i più recenti" : "Mostra tutti" }}
+      </button>
     </section>
 
     <div class="action-bar">

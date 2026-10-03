@@ -69,7 +69,9 @@ app/
     styles/      tokens.css (variabili di design), base.css (stili globali)
   index.html, main.ts, App.vue  Bootstrap applicazione
 supabase/
-  functions/claude-proxy/  Edge Function: proxy verso l'API Claude
+  functions/claude-proxy/     Edge Function: proxy verso l'API Claude
+  functions/weekly-feedback/  Edge Function schedulata: feedback settimanale + email (Fase 7)
+  functions/_shared/          EmailSender astratto + implementazione Resend (Fase 7)
 .github/workflows/deploy.yml  Build + pubblicazione su GitHub Pages
 docs/
   DOCUMENTAZIONE.md            Questo file
@@ -104,11 +106,14 @@ AthleteEditor → services/planPrompt.ts (costruisce il prompt dal profilo atlet
 ```
 Se non è configurata una chiave Claude in `app_settings`, il prompt viene copiato negli appunti invece di essere inviato (fallback sempre disponibile).
 
-**Feedback settimanale** (generazione manuale in Fase 1; automazione schedulata pianificata per la Fase 7, vedi §11)
+**Feedback settimanale** (generato automaticamente da una Edge Function schedulata, Fase 7 — vedi §6/§7)
 ```
-AthleteEditor → confronto tra training_plan e attività reali (services/intervals.ts)
-  → prompt di confronto → services/claude.ts → claude-proxy
+pg_cron (ogni ora) → Edge Function weekly-feedback
+  → se nella finestra giorno/ora configurata (app_settings): per ogni atleta idoneo
+  → confronto tra training_plan e attività reali Intervals.icu
+  → prompt di confronto → Claude (stesso pattern di claude-proxy)
   → risultato aggiunto a weekly_feedback_log nella scheda atleta
+  → invio email opzionale (EmailSender/Resend) se attivo e atleta con email
 ```
 
 ---
@@ -207,13 +212,23 @@ create table app_settings (
 );
 
 alter table app_settings disable row level security;
+
+-- Fase 7: impostazioni del feedback settimanale automatico.
+alter table app_settings add column weekly_feedback_day text not null default 'domenica';
+alter table app_settings add column weekly_feedback_time text not null default '08:00';
+alter table app_settings add column weekly_feedback_timezone text not null default 'Europe/Rome';
+alter table app_settings add column weekly_feedback_email_enabled boolean not null default false;
 ```
 
 - `claude_api_key`: API key personale del coach per Anthropic Claude, salvata in chiaro. Stesso compromesso di sicurezza già accettato per la chiave Intervals.icu per-atleta (vedi §8), qui con un impatto potenzialmente più costoso in caso di fuga (fatturazione Claude a carico del coach).
 - `claude_model`: modello Claude da usare (es. `claude-sonnet-...`); se assente, la Edge Function usa un modello di default.
 - `plan_generation_prompt_template` / `weekly_feedback_prompt_template`: eventuali template di prompt personalizzati (opzionali).
+- `weekly_feedback_day` (Fase 7): giorno della settimana in cui generare il feedback automatico, come chiave italiana minuscola (`domenica`…`sabato`, stesso vocabolario di `DayKey` in `app/src/constants.ts`).
+- `weekly_feedback_time` (Fase 7): orario nel formato `HH:MM`, interpretato nel fuso di `weekly_feedback_timezone`. La funzione schedulata (vedi sotto) confronta solo l'ora (non i minuti), essendo invocata al più ogni ora.
+- `weekly_feedback_timezone` (Fase 7): nome fuso orario IANA (es. `Europe/Rome`), usato con `Intl.DateTimeFormat` per calcolare giorno/ora correnti lato server senza dipendere dal fuso del server Supabase.
+- `weekly_feedback_email_enabled` (Fase 7): se `true`, oltre a salvare il feedback in `weekly_feedback_log` la funzione schedulata prova a inviarlo via email all'atleta (se ha un `identity.email`); se `false`, il feedback viene comunque generato e salvato, ma nessuna email viene inviata.
 
-Ulteriori colonne per le impostazioni di feedback schedulato (giorno/orario/fuso, toggle email) sono pianificate per la Fase 7 (vedi §11); verranno documentate qui con la relativa migrazione SQL quando introdotte.
+Queste quattro colonne sono editabili dal coach nel pannello Impostazioni (sezione "Feedback settimanale automatico"); modificarle non richiede alcuna modifica alla configurazione dello scheduler (`pg_cron`, vedi sotto), perché la funzione schedulata le rilegge ad ogni invocazione.
 
 ### Edge Function `claude-proxy`
 
@@ -225,7 +240,38 @@ Percorso: `supabase/functions/claude-proxy/index.ts`. Scopo: inoltrare una richi
 - **Output**: `{ text: string }` in caso di successo, `{ error: string }` in caso di errore (chiave assente, errore dell'API Claude, ecc.).
 - **Setup richiesto** (manuale, lato coach): creare la tabella `app_settings` (SQL sopra), inserire la propria API key Claude tramite l'interfaccia Impostazioni dell'app, effettuare il deploy della function con la Supabase CLI (`supabase functions deploy claude-proxy`). Nessun secret aggiuntivo da configurare: la function usa la chiave service-role del progetto, già disponibile automaticamente nell'ambiente di ogni Edge Function Supabase.
 
-Job schedulato per il feedback settimanale e relativo invio email: pianificati per la Fase 7 (vedi §11); questa sezione verrà estesa con la function `weekly-feedback`, lo scheduler (`pg_cron` o equivalente) e il provider email scelto.
+### Edge Function `weekly-feedback` (Fase 7)
+
+Percorso: `supabase/functions/weekly-feedback/index.ts`, più `supabase/functions/_shared/emailSender.ts` (interfaccia astratta `EmailSender`) e `supabase/functions/_shared/resendEmailSender.ts` (implementazione su Resend). Scopo: generare automaticamente il feedback settimanale per ogni atleta idoneo e, se attivo, inviarlo via email.
+
+- **Trigger**: HTTP, pensata per essere invocata **ogni ora** da `pg_cron` (via `pg_net`, vedi setup sotto). Non esegue nulla all'ora sbagliata: la funzione stessa confronta giorno/ora correnti (nel fuso `weekly_feedback_timezone`) con `weekly_feedback_day`/`weekly_feedback_time` e restituisce `{ skipped: true, reason: "..." }` se non corrispondono. Questo disaccoppia la cadenza del cron (fissa, configurata una volta) dalle impostazioni modificabili dal coach in UI (vedi §6 sopra).
+- **Comportamento per atleta** (ogni atleta gestito in un blocco try/catch isolato, un errore non blocca gli altri):
+  1. Salta (con motivo in log) se l'atleta non ha una chiave Intervals.icu o non ha un `training_plan`.
+  2. Salta (idempotenza) se `weekly_feedback_log` ha già una voce con `date` uguale a oggi (nel fuso configurato) — garantisce **mai due feedback/email per la stessa settimana**, indipendentemente da `generated_by`.
+  3. Recupera le attività Intervals.icu degli ultimi 7 giorni e le sessioni pianificate nello stesso intervallo da `training_plan` (stessa logica, duplicata in forma Deno, di `app/src/services/intervals.ts`/`planPrompt.ts` — vedi §10 per il perché della duplicazione).
+  4. Costruisce il prompt di confronto (`weekly_feedback_prompt_template` da `app_settings`) e chiama `api.anthropic.com/v1/messages` direttamente (stesso pattern di `claude-proxy`, chiave letta da `app_settings.claude_api_key`).
+  5. Salva la nuova voce in `weekly_feedback_log` con lo stesso controllo di concorrenza ottimistico usato dal client (`update` condizionato a `id` + `updated_at` noto; in caso di conflitto, il feedback di quell'atleta viene segnalato come errore in quel ciclo e ritentato al prossimo trigger orario, dato che l'idempotenza del passo 2 non ha ancora trovato una voce per oggi).
+  6. Se `weekly_feedback_email_enabled` è `true` e l'atleta ha `identity.email`, invia il feedback via `ResendEmailSender`; altrimenti registra nel risultato che l'invio è stato saltato (provider non configurato, nessuna email, o toggle disattivato).
+- **Output**: `{ ranAt, newest, results: [{ athleteId, status: "ok"|"skipped"|"error", detail? }] }`, oppure `{ skipped: true, ... }` se fuori dalla finestra oraria configurata.
+- **Setup richiesto** (manuale, lato coach, una tantum):
+  1. Eseguire la migrazione SQL delle quattro nuove colonne di `app_settings` (vedi sopra).
+  2. Deploy della function: `supabase functions deploy weekly-feedback`.
+  3. Configurare il secret `RESEND_API_KEY` (API key Resend) e `RESEND_FROM_ADDRESS` (indirizzo mittente verificato su Resend) con `supabase secrets set RESEND_API_KEY=... RESEND_FROM_ADDRESS=...` — **mai** in `app_settings` o nel client.
+  4. Creare un cron job orario che invoca la function via `pg_net` (richiede le estensioni `pg_cron` e `pg_net` abilitate sul progetto Supabase):
+     ```sql
+     select cron.schedule(
+       'weekly-feedback-hourly',
+       '5 * * * *',
+       $$
+       select net.http_post(
+         url := '<URL_PROGETTO>.supabase.co/functions/v1/weekly-feedback',
+         headers := jsonb_build_object('Authorization', 'Bearer <SERVICE_ROLE_KEY>', 'Content-Type', 'application/json'),
+         body := '{}'::jsonb
+       );
+       $$
+     );
+     ```
+     Questo passo è manuale e una tantum: non va ripetuto quando il coach cambia giorno/orario/fuso/toggle email dalle Impostazioni (vedi §6 sopra).
 
 ---
 
@@ -248,7 +294,13 @@ I dati sincronizzati sono persistiti con la scrittura mirata `athletes.syncLoadM
 
 Il contratto del proxy `claude-proxy` è descritto in §6. La vista grafica del piano (Fase 6, `app/src/services/planViewModel.ts` e componenti `domain/Plan*.vue`) è una trasformazione puramente client-side dello stesso JSON `training_plan` già prodotto da Claude: non introduce né richiede alcuna modifica al prompt o al contratto del proxy.
 
-*Aggiornamento del prompt per il feedback settimanale: da completare in Fase 7.*
+### Feedback settimanale automatico ed email (Fase 7)
+
+Il template `weekly_feedback_prompt_template` (`app_settings`) supporta i segnaposto `{{nome_atleta}}`, `{{settimana_pianificata_json}}`, `{{settimana_reale_json}}`, interpolati sia dal flusso manuale lato client sia dalla Edge Function schedulata `weekly-feedback` (§6) — stessa funzione di interpolazione, duplicata in forma Deno per i vincoli descritti in §10. Il testo restituito da Claude è salvato in `weekly_feedback_log` (`generated_by: "claude"`, uguale al flusso manuale) e, se l'invio email è attivo, inviato come corpo testuale semplice tramite `EmailSender`/Resend, senza ulteriore formattazione HTML.
+
+### Resend (Fase 7)
+
+Provider email dietro l'interfaccia astratta `EmailSender` (`supabase/functions/_shared/emailSender.ts`), con un'unica implementazione concreta `ResendEmailSender` (`supabase/functions/_shared/resendEmailSender.ts`) che chiama `POST https://api.resend.com/emails`. La API key Resend vive solo come secret della Edge Function (`RESEND_API_KEY`, insieme a `RESEND_FROM_ADDRESS` per il mittente), mai in `app_settings` né nel client — vedi §6 per il comando di setup e §10 per il motivo della scelta di un'interfaccia astratta.
 
 ---
 
@@ -257,6 +309,10 @@ Il contratto del proxy `claude-proxy` è descritto in §6. La vista grafica del 
 *Da completare in Fase 1 (sezione dedicata a chiavi/segreti del nuovo setup Vite) e aggiornata man mano. Punti già stabiliti, da riportare qui per esteso quando la sezione sarà scritta:*
 - *URL e anon key Supabase in variabili d'ambiente Vite (`.env`, non committato), centralizzate in `services/supabase.ts`.*
 - *`app_settings.claude_api_key` e le chiavi Intervals.icu per-atleta restano salvate in chiaro nel database, con RLS disabilitata (nessuna autenticazione): rischio accettato per uso personale con link non condiviso, da rivedere se l'uso cambiasse (multi-coach, link condiviso pubblicamente).*
+
+**Fase 7 — Secret della Edge Function `weekly-feedback`**
+
+La API key Resend (`RESEND_API_KEY`) e l'indirizzo mittente (`RESEND_FROM_ADDRESS`) sono configurati esclusivamente come secret della Edge Function (`supabase secrets set ...`), mai come colonne di `app_settings` né esposti al client: a differenza di `claude_api_key` (letta anche da `claude-proxy` dal DB), non esiste alcun flusso in cui il coach debba vederla/modificarla da UI, quindi non c'è motivo di accettare lo stesso compromesso "chiave in chiaro nel DB" già fatto per `claude_api_key`/Intervals.icu.
 
 ---
 
@@ -346,6 +402,23 @@ Senza questi due secret configurati, la build in CI fallisce o produce una build
   - *Motivo*: mantiene la trasformazione matematicamente corretta e testabile (le percentuali sommano sempre a 100, verificabile nei test) senza mescolare una preoccupazione di layout/accessibilità nella logica pura; il vincolo "resta visibile/tappabile" richiesto dalla specifica è comunque soddisfatto, solo a un livello diverso dello stack.
   - *Alternativa scartata*: applicare un pavimento minimo di percentuale dentro `planViewModel.ts` — avrebbe reso la somma dei `widthPercent` non più esattamente 100 e complicato i test senza un reale beneficio aggiuntivo rispetto al `min-width` CSS.
 
+**Fase 7 — Feedback settimanale automatico**
+- *Decisione*: la Edge Function `weekly-feedback` è invocata **ogni ora** da `pg_cron`, ma internamente confronta giorno/ora correnti (nel fuso `weekly_feedback_timezone`, via `Intl.DateTimeFormat`) con `weekly_feedback_day`/`weekly_feedback_time` letti da `app_settings`, no-op altrimenti.
+  - *Motivo*: rende le impostazioni di giorno/orario/fuso modificabili dal coach in UI realmente effettive senza richiedere di toccare la configurazione del cron (SQL) ogni volta che cambiano — un cron con espressione dinamica per-riga non è disponibile in `pg_cron`/`pg_net` in modo pratico.
+  - *Alternativa scartata*: ricreare/aggiornare il cron job via SQL ad ogni modifica delle impostazioni — avrebbe richiesto dare alla Edge Function o al client i permessi per modificare `cron.job`, aumentando la superficie di rischio per un beneficio minimo.
+- *Decisione*: idempotenza basata sulla presenza di una voce in `weekly_feedback_log` con `date` uguale a "oggi" (nel fuso configurato), indipendentemente dal valore di `generated_by`.
+  - *Motivo*: garantisce al massimo un feedback/email per atleta per settimana anche se la function viene invocata più volte nella stessa finestra oraria o se un'invocazione precedente è fallita a metà dopo aver già scritto il log.
+- *Decisione*: la logica di fetch Intervals.icu, confronto piano/reale e interpolazione del prompt è duplicata in forma Deno dentro `weekly-feedback/index.ts`, invece di essere condivisa come modulo importato da `app/src`.
+  - *Motivo*: le Edge Function Supabase girano su runtime Deno con bundling separato da Vite/Vitest; importare moduli TypeScript da `app/src` non è supportato in modo affidabile. La duplicazione è circoscritta a poche funzioni pure di media dimensione (fetch attività, filtro settimana pianificata, interpolazione template), un compromesso accettabile rispetto a un pacchetto condiviso cross-runtime.
+  - *Alternativa scartata*: estrarre un pacchetto npm/workspace condiviso consumabile sia da Vite sia da Deno — complessità di tooling non giustificata per questo volume di logica.
+- *Decisione*: invio email dietro un'interfaccia astratta `EmailSender` (`supabase/functions/_shared/emailSender.ts`), con un'unica implementazione `ResendEmailSender` dietro di essa; `weekly_feedback_email_enabled` gates solo il passo di invio email, non la generazione/salvataggio del feedback (che avviene comunque ad ogni ciclo schedulato idoneo).
+  - *Motivo*: come da [DECISIONE] §9.2 risolta a inizio migrazione (vedi introduzione del piano), il provider email deve restare sostituibile senza toccare la logica di business della function; separare "genera feedback" da "invia email" evita di perdere il feedback salvato se l'invio email fallisce o è disattivato.
+  - *Alternativa scartata*: chiamare l'SDK/API Resend direttamente dentro `weekly-feedback/index.ts` — avrebbe reso un futuro cambio di provider un refactor della function invece che l'aggiunta di una nuova classe.
+- *Decisione*: la API key Resend e l'indirizzo mittente sono secret della Edge Function (`RESEND_API_KEY`, `RESEND_FROM_ADDRESS`), mai colonne di `app_settings`.
+  - *Motivo*: a differenza di `claude_api_key`, non esiste alcun flusso UI in cui il coach debba leggerla/modificarla; tenerla come secret evita di esporla anche solo potenzialmente lato client (vedi §8).
+- *Decisione*: rimossi dall'editor atleta il pulsante "Confronta settimana con il piano" e il pulsante "Rimuovi" per-voce di `weekly_feedback_log`; lo storico diventa di sola lettura, con collasso automatico oltre 5 voci dietro un link "Mostra tutti".
+  - *Motivo*: con la generazione automatica e schedulata, il confronto manuale e la rimozione diventano superflui (il feedback è generato dal backend, non più dal coach a richiesta) e l'elenco può crescere indefinitamente nel tempo, da qui il collasso per non appesantire la scheda.
+
 ---
 
 ## 11. Limiti noti e roadmap
@@ -377,3 +450,6 @@ Identità divisa in `nome`/`cognome`/`email` (`schema_version` 1.4.0), con migra
 
 ### Fase 6 — Vista grafica del piano
 Nuova trasformazione pura e testata `training_plan` → view-model (`planViewModel.ts`, 13 test Vitest sui casi di dati mancanti/malformati: step assenti, durate null, blocchi `repeat`, settimane vuote, date non valide). Nuovi componenti `PlanView.vue` (intestazione piano, controlli "Apri/Chiudi tutte", ancora alla settimana corrente), `PlanWeekBlock.vue` (settimana comprimibile, corrente aperta di default, badge "Scarico", riepilogo ore/km per disciplina) e `PlanSessionCard.vue` (icona disciplina, chip zona colorato, barra segmentata proporzionale alla durata per sessioni strutturate con testo "6 × (3' Z4 / 2' Z1)" per i blocchi `repeat`, lista testuale step come fallback accessibile, note pieghevoli). Stato di apertura/chiusura delle settimane spostato in un nuovo composable a stato di modulo (`usePlanWeeksUi`), fuori dal profilo atleta e dal confronto "modifiche non salvate". In `AthleteEditor.vue`, sia il piano salvato sia l'anteprima pre-conferma usano ora `PlanView` al posto del riepilogo testuale/JSON grezzo; l'editing JSON manuale resta disponibile dietro un toggle "avanzato" nell'anteprima, con avviso quando il JSON non è valido.
+
+### Fase 7 — Impostazioni feedback e backend schedulato
+Nuove colonne in `app_settings` (`weekly_feedback_day`, `weekly_feedback_time`, `weekly_feedback_timezone`, `weekly_feedback_email_enabled`), editabili dal coach in una nuova sezione "Feedback settimanale automatico" del pannello Impostazioni. Nuova Edge Function schedulata `supabase/functions/weekly-feedback/index.ts`, invocata ogni ora da `pg_cron` ma attiva solo nella finestra giorno/ora configurata (fuso orario esplicito via `Intl.DateTimeFormat`): per ogni atleta idoneo, sincronizza/confronta la settimana pianificata con quella reale da Intervals.icu, genera il feedback con Claude (stesso pattern di `claude-proxy`), lo salva in `weekly_feedback_log` con lo stesso controllo di concorrenza ottimistico del client, e — se l'invio email è attivo e l'atleta ha un indirizzo — lo invia tramite la nuova interfaccia `EmailSender` (`supabase/functions/_shared/emailSender.ts`) con implementazione Resend (`resendEmailSender.ts`, chiave come secret della function, mai nel DB). Idempotente (mai due feedback per la stessa settimana) ed errori isolati per atleta. Rimossi dall'editor atleta il confronto manuale e il pulsante "Rimuovi" per-voce: lo storico feedback è ora di sola lettura, con collasso oltre 5 voci.
