@@ -30,12 +30,13 @@ watch(
 </script>
 
 <template>
-  <div class="app-shell">
+  <div class="app">
     <AthleteSidebar @open-settings="openSettings" />
-    <main class="main-area">
+    <main class="main">
       <SettingsPanel v-if="showSettings" />
       <AthleteEditor v-else-if="athletes.currentProfile" />
-      <div v-else class="empty-state">
+      <div v-else class="placeholder">
+        <span class="big-emoji">👤</span>
         <p>Seleziona un atleta dalla barra laterale oppure creane uno nuovo.</p>
       </div>
     </main>

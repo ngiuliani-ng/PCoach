@@ -9,6 +9,7 @@
   --accent-contrast: #FFFFFF;
   --danger: #B3261E;
   --danger-bg: #FBEAE9;
+  --warning: #9A6B07;
   --focus: #0F6E64;
   --chart-ctl: #2F6FED;
   --chart-atl: #7C3AED;
@@ -28,6 +29,7 @@
     --accent-contrast: #0A1512;
     --danger: #E5867E;
     --danger-bg: #3A1F1D;
+    --warning: #D9A441;
     --focus: #37C2AE;
     --chart-ctl: #6FA8FF;
     --chart-atl: #B79CFF;
@@ -44,6 +46,7 @@
   --accent-contrast: #0A1512;
   --danger: #E5867E;
   --danger-bg: #3A1F1D;
+  --warning: #D9A441;
   --focus: #37C2AE;
   --chart-ctl: #6FA8FF;
   --chart-atl: #B79CFF;
