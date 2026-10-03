@@ -75,4 +75,11 @@ function shortDate(iso: string | null): string {
 .plan-week-summary { flex: 1; font-size: 11.5px; color: var(--text-muted); text-align: right; }
 .plan-week-caret { color: var(--text-muted); flex-shrink: 0; }
 .plan-week-body { padding: 4px 14px 14px; }
+
+@media (max-width: 480px) {
+  .plan-week-header { flex-wrap: wrap; }
+  .plan-week-title { order: 1; }
+  .plan-week-caret { order: 2; margin-left: auto; }
+  .plan-week-summary { order: 3; flex: 1 1 100%; text-align: left; margin-top: 2px; }
+}
 </style>

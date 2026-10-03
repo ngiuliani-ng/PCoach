@@ -1,6 +1,8 @@
 <script setup lang="ts">
 // Grafico carico (CTL/ATL/TSB + conteggio allenamenti) in SVG puro, con crosshair
-// e tooltip al passaggio del mouse. Porting a parità funzionale dal legacy index.html.
+// e tooltip al passaggio del mouse o al tocco. Nessun preserveAspectRatio="none":
+// il box CSS mantiene lo stesso rapporto del viewBox (aspect-ratio in base.css),
+// cosi' meet/slice/none sono equivalenti e non c'e' distorsione (§10 Fase 8).
 import { computed, ref } from "vue";
 
 type Entry = { date: string; ctl?: number; atl?: number; tsb?: number; workouts_count?: number };
@@ -53,13 +55,14 @@ function pathFor(key: "ctl" | "atl"): string {
 }
 
 const hoverIndex = ref<number | null>(null);
-const tooltipX = ref(0);
+const tooltipX = ref(50); // percentuale, non px: il box renderizzato è più stretto del viewBox su mobile
 const tooltipY = ref(4);
 
-function onMouseMove(ev: MouseEvent) {
-  const svg = ev.currentTarget as SVGSVGElement;
+function relXFromClientX(svg: SVGSVGElement, clientX: number): number {
   const rect = svg.getBoundingClientRect();
-  const relX = ((ev.clientX - rect.left) / rect.width) * W;
+  return ((clientX - rect.left) / rect.width) * W;
+}
+function updateHover(relX: number) {
   const n = sorted.value.length;
   if (n === 0) return;
   let nearest = 0;
@@ -72,9 +75,21 @@ function onMouseMove(ev: MouseEvent) {
     }
   }
   hoverIndex.value = nearest;
-  tooltipX.value = Math.min(Math.max(x(nearest), 60), W - 60);
+  const clampedX = Math.min(Math.max(x(nearest), 60), W - 60);
+  tooltipX.value = (clampedX / W) * 100;
+}
+function onMouseMove(ev: MouseEvent) {
+  updateHover(relXFromClientX(ev.currentTarget as SVGSVGElement, ev.clientX));
 }
 function onMouseLeave() {
+  hoverIndex.value = null;
+}
+function onTouchMove(ev: TouchEvent) {
+  const touch = ev.touches[0];
+  if (!touch) return;
+  updateHover(relXFromClientX(ev.currentTarget as SVGSVGElement, touch.clientX));
+}
+function onTouchEnd() {
   hoverIndex.value = null;
 }
 
@@ -86,9 +101,12 @@ const hoverEntry = computed(() => (hoverIndex.value !== null ? sorted.value[hove
     <svg
       class="load-chart"
       :viewBox="`0 0 ${W} ${H}`"
-      preserveAspectRatio="none"
       @mousemove="onMouseMove"
       @mouseleave="onMouseLeave"
+      @touchstart="onTouchMove"
+      @touchmove="onTouchMove"
+      @touchend="onTouchEnd"
+      @touchcancel="onTouchEnd"
     >
       <line :x1="padL" :x2="W - padR" :y1="yZero()" :y2="yZero()" stroke="var(--border)" stroke-dasharray="3,3" />
       <rect
@@ -119,7 +137,7 @@ const hoverEntry = computed(() => (hoverIndex.value !== null ? sorted.value[hove
       </text>
       <line v-if="hoverIndex !== null" :x1="x(hoverIndex)" :x2="x(hoverIndex)" :y1="padT" :y2="padT + innerH" stroke="var(--text-muted)" stroke-dasharray="2,2" />
     </svg>
-    <div class="chart-tooltip" :class="{ visible: hoverEntry }" :style="{ left: tooltipX + 'px', top: tooltipY + 'px' }">
+    <div class="chart-tooltip" :class="{ visible: hoverEntry }" :style="{ left: tooltipX + '%', top: tooltipY + 'px' }">
       <template v-if="hoverEntry">
         <div>{{ hoverEntry.date }}</div>
         <div>CTL {{ hoverEntry.ctl ?? "—" }} · ATL {{ hoverEntry.atl ?? "—" }} · TSB {{ hoverEntry.tsb ?? "—" }}</div>

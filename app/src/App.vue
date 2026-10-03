@@ -12,26 +12,43 @@ import ConfirmDialog from "./components/ui/ConfirmDialog.vue";
 const athletes = useAthletesStore();
 const settings = useSettingsStore();
 const showSettings = ref(false);
+const mobileSidebarOpen = ref(false);
 
 onMounted(() => {
   athletes.init();
   settings.load();
 });
 
+function toggleMobileSidebar() {
+  mobileSidebarOpen.value = !mobileSidebarOpen.value;
+}
+function closeMobileSidebar() {
+  mobileSidebarOpen.value = false;
+}
 function openSettings() {
   showSettings.value = true;
+  closeMobileSidebar();
 }
 watch(
   () => athletes.currentProfile,
   (profile) => {
     if (profile) showSettings.value = false;
+    closeMobileSidebar();
   }
 );
 </script>
 
 <template>
   <div class="app">
-    <AthleteSidebar @open-settings="openSettings" />
+    <button
+      type="button"
+      class="sidebar-toggle"
+      :aria-expanded="mobileSidebarOpen"
+      aria-label="Apri o chiudi la barra laterale"
+      @click="toggleMobileSidebar"
+    >☰</button>
+    <div v-if="mobileSidebarOpen" class="sidebar-backdrop" @click="closeMobileSidebar"></div>
+    <AthleteSidebar :class="{ open: mobileSidebarOpen }" @open-settings="openSettings" />
     <main class="main">
       <SettingsPanel v-if="showSettings" />
       <AthleteEditor v-else-if="athletes.currentProfile" />

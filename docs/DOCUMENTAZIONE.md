@@ -148,7 +148,28 @@ pg_cron (ogni ora) → Edge Function weekly-feedback
 
 ## 4. Linee guida grafiche
 
-*Sezione principale da completare in Fase 8, con riferimento ai componenti `ui/` definitivi e alle regole mobile (Fase 2/Fase 8). Sotto, le convenzioni già stabilite in Fase 6 per la vista grafica del piano.*
+### Design tokens e componenti generici
+
+Tutte le variabili di design (colori, in chiaro/scuro dove previsto, font) vivono in `app/src/styles/tokens.css`; gli stili globali condivisi (layout, form, bottoni, toast, dialog) in `app/src/styles/base.css`. Nessun componente definisce colori o dimensioni "a mano": si usano sempre le variabili CSS (`var(--accent)`, `var(--border)`, `var(--font-ui)`, ...), per poter cambiare tema senza toccare i componenti.
+
+Componenti generici riutilizzabili, in `components/ui/`:
+- **Toast** (`ToastHost.vue` + `useToast`): un solo messaggio visibile alla volta, in basso al centro, si chiude da solo; usato per esiti di operazioni (salvataggio, errori di rete), mai per conferme che richiedono una decisione.
+- **ConfirmDialog** (`ConfirmDialog.vue` + `useConfirmDialog`): dialogo modale disegnato in-page per ogni azione distruttiva o che scarta dati (eliminazione atleta, chiusura di una bozza con contenuto, ricaricamento di dati sopra modifiche non salvate) — mai `window.confirm`/`alert` nativi, per uno stile coerente e per poter controllare la larghezza su mobile (vedi sotto).
+- **PasswordField** (`PasswordField.vue`): campo chiave/password con pulsante mostra/nascondi, usato per ogni credenziale inserita dall'utente (oggi solo la chiave Intervals.icu).
+- **Card generiche** (`section.block` in `base.css`): contenitore con bordo, titolo e corpo, pattern ripetuto per ogni blocco del form atleta (Identità, Discipline, Soglie, ...).
+
+### Convenzioni di layout
+
+- **Chip di stato** (badge "Scarico", chip sticky "Modifiche non salvate"/"Aggiorna", stato di connessione in sidebar): sempre un pallino o badge colorato + testo breve, mai solo colore, per restare leggibili anche senza percezione del colore.
+- **Azioni distruttive**: sempre dietro `ConfirmDialog`, mai immediate al click, e visivamente distinte (classe `button.danger`, colore `--danger`).
+- **Area di lavoro**: un solo form visibile alla volta nella colonna centrale (`main`), largo al massimo 640px (`.form-wrap`) e centrato, per restare leggibile anche su schermi molto larghi.
+
+### Regole mobile (360–430px, Fase 2/Fase 8)
+
+- **Sidebar**: sotto i 720px diventa un drawer (`position: fixed`, scorrimento con `transform: translateX`), aperto/chiuso da un pulsante flottante a tocco (44×44px, soglia minima consigliata per i target touch) e da un overlay di sfondo cliccabile per chiudere; si chiude da sola alla selezione di un atleta o all'apertura delle Impostazioni (vedi `App.vue`). La transizione è disabilitata sotto `prefers-reduced-motion: reduce`, stesso trattamento già riservato al pallino di stato pulsante.
+- **Form a colonna singola**: sotto i 480px, le griglie `field-row`/`checkbox-grid` (altrimenti `auto-fit, minmax(...)`, che su schermi di 360–430px possono ancora produrre due colonne strette) e la barra azioni (`action-bar`) passano a una sola colonna, per evitare celle troppo strette per input ed etichette.
+- **Intestazioni che possono traboccare**: righe flessibili con testo di lunghezza variabile (es. `plan-week-header`, che unisce titolo, intervallo date e un riepilogo multi-disciplina) vanno in `flex-wrap: wrap` con `order` espliciti sotto i 480px, in modo che l'elemento più lungo (il riepilogo) vada su una riga propria invece di restringere gli altri elementi o causare overflow orizzontale.
+- **Grafico del carico**: nessun `preserveAspectRatio="none"` sull'SVG — il contenitore CSS ha un `aspect-ratio` identico al `viewBox` (`600 / 180`), così il comportamento di default (`meet`) non introduce distorsione né bande vuote. Il tooltip calcola la propria posizione orizzontale in percentuale del box renderizzato (non in unità del `viewBox`, che su schermi più stretti di 600px darebbe una posizione fuori scala) e la logica di aggiornamento (`updateHover`) è condivisa tra eventi mouse e touch; `touch-action: pan-y` sull'SVG lascia passare lo scroll verticale della pagina mentre il trascinamento orizzontale è gestito dal componente.
 
 ### Colori zona e icone disciplina (Fase 6)
 
@@ -238,7 +259,14 @@ Percorso: `supabase/functions/claude-proxy/index.ts`. Scopo: inoltrare una richi
 - **Input** (corpo della richiesta POST, JSON): `{ prompt: string, max_tokens?: number, model?: string }`.
 - **Comportamento**: legge `claude_api_key` e `claude_model` dalla tabella `app_settings` usando la chiave service-role (iniettata automaticamente nell'ambiente della Edge Function da Supabase, nessun secret da configurare a mano per questo), poi chiama `api.anthropic.com/v1/messages` server-side.
 - **Output**: `{ text: string }` in caso di successo, `{ error: string }` in caso di errore (chiave assente, errore dell'API Claude, ecc.).
-- **Setup richiesto** (manuale, lato coach): creare la tabella `app_settings` (SQL sopra), inserire la propria API key Claude tramite l'interfaccia Impostazioni dell'app, effettuare il deploy della function con la Supabase CLI (`supabase functions deploy claude-proxy`). Nessun secret aggiuntivo da configurare: la function usa la chiave service-role del progetto, già disponibile automaticamente nell'ambiente di ogni Edge Function Supabase.
+- **Setup richiesto** (manuale, lato coach, una tantum):
+  1. Creare la tabella `app_settings` (SQL sopra).
+  2. Ottenere una API key Claude da `platform.claude.com` → Settings → API Keys.
+  3. `supabase login`, poi `supabase link --project-ref <ref>` (una sola volta per macchina/progetto) per collegare la CLI al progetto Supabase.
+  4. Deploy della function: `supabase functions deploy claude-proxy`.
+  5. Inserire la API key Claude ottenuta al passo 2 tramite l'interfaccia Impostazioni dell'app (campo salvato in `app_settings.claude_api_key`, mai come secret della function).
+
+  Nessun secret aggiuntivo da configurare per questa function: usa la chiave service-role del progetto, già disponibile automaticamente nell'ambiente di ogni Edge Function Supabase. Senza una API key Claude configurata, il pulsante "Genera piano" copia il prompt negli appunti invece di inviarlo (fallback sempre disponibile, vedi §2).
 
 ### Edge Function `weekly-feedback` (Fase 7)
 
@@ -306,9 +334,23 @@ Provider email dietro l'interfaccia astratta `EmailSender` (`supabase/functions/
 
 ## 8. Sicurezza
 
-*Da completare in Fase 1 (sezione dedicata a chiavi/segreti del nuovo setup Vite) e aggiornata man mano. Punti già stabiliti, da riportare qui per esteso quando la sezione sarà scritta:*
-- *URL e anon key Supabase in variabili d'ambiente Vite (`.env`, non committato), centralizzate in `services/supabase.ts`.*
-- *`app_settings.claude_api_key` e le chiavi Intervals.icu per-atleta restano salvate in chiaro nel database, con RLS disabilitata (nessuna autenticazione): rischio accettato per uso personale con link non condiviso, da rivedere se l'uso cambiasse (multi-coach, link condiviso pubblicamente).*
+### Credenziali Supabase (client)
+
+URL e anon key del progetto Supabase sono variabili d'ambiente Vite (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`), lette in un unico punto (`app/src/services/supabase.ts`) e mai cablate nel codice. In locale vivono in `app/.env` (non committato, escluso da `.gitignore`; `.env.example` è il template committato senza valori reali). In CI sono due secret del repository GitHub, iniettati in build da `.github/workflows/deploy.yml` (vedi §9). La anon key resta comunque pubblica per costruzione (finisce nel bundle statico distribuito su GitHub Pages): la sicurezza dell'app non dipende dalla sua segretezza, ma dal fatto che RLS è disabilitata e l'accesso è protetto solo dalla segretezza del link (vedi sotto) — spostarla in una variabile d'ambiente serve a evitare di doverla ruotare ad ogni commit del sorgente, non a nasconderla.
+
+**Rotazione della anon key (Fase 1)**: la chiave originale era stata committata in chiaro in `index.html` nella cronologia git (versione pre-migrazione). È stata ruotata dal dashboard Supabase e il nuovo valore comunicato solo tramite `.env` locale/secret GitHub Actions, mai rientrato nel repository. La vecchia chiave resta recuperabile da chiunque ispezioni la cronologia git pubblica: ruotarla rende quel valore storico inutilizzabile, azione reversibile e a basso rischio che non richiede riscrivere la cronologia.
+
+### Nessuna autenticazione/RLS
+
+Sia `athletes` sia `app_settings` hanno la Row Level Security disabilitata (vedi SQL in §6): non esiste login, non esiste separazione tra utenti. Chiunque conosca l'URL dell'app e la anon key (pubblica, vedi sopra) può leggere e scrivere entrambe le tabelle. Rischio accettato esplicitamente per il perimetro d'uso dichiarato in §1 (un singolo coach, link non condiviso pubblicamente); da rivedere se l'uso cambiasse (multi-coach, link condiviso pubblicamente) — richiederebbe introdurre Supabase Auth e riscrivere le policy RLS da zero, fuori dallo scope di questa migrazione.
+
+### Chiavi di terze parti salvate in chiaro
+
+`app_settings.claude_api_key` (per-coach) e `integrations.intervals_icu_api_key` (per-atleta, dentro il blob `data`) sono salvate in chiaro nel database, senza cifratura applicativa. Stesso compromesso di fondo del punto precedente (nessuna autenticazione a proteggerle oltre alla segretezza del link), ma con impatto diverso in caso di fuga: la chiave Claude è legata alla fatturazione Anthropic del coach (impatto economico diretto), quella Intervals.icu ai dati di allenamento di un singolo atleta (impatto più contenuto). Non è stata introdotta cifratura lato applicazione perché richiederebbe comunque decifrare la chiave in un contesto fidato per poterla usare (client per Intervals.icu, Edge Function per Claude), spostando il problema invece di risolverlo, senza autenticazione reale a monte.
+
+### `DB_PW.md`
+
+File in root del repository, non tracciato da git (`.gitignore` lo esclude esplicitamente da Fase 1), contenente una password in chiaro legata al progetto Supabase. Non viene mai letto, copiato in altri file né committato durante lo sviluppo assistito da AI di questo progetto — lo gestisce esclusivamente il coach al di fuori del repository versionato.
 
 **Fase 7 — Secret della Edge Function `weekly-feedback`**
 
@@ -368,7 +410,21 @@ Senza questi due secret configurati, la build in CI fallisce o produce una build
 
 ## 10. Decisioni prese
 
-*Sezione popolata progressivamente. Le decisioni principali già prese (risposte alle [DECISIONE] bloccanti e scelte autonome di Fase 1) verranno riportate qui per esteso, con data, motivo e alternative scartate, entro la fine della Fase 1/inizio Fase 2.*
+**Fase 1/2 — Decisioni d'impianto della migrazione**
+- *Decisione*: sicurezza delle credenziali Supabase → variabili d'ambiente Vite (`VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY`), centralizzate in `services/supabase.ts`, nessun Supabase Auth/RLS per ora (2026-09-30, risposta alla [DECISIONE] bloccante §3 del documento di specifica originale).
+  - *Motivo*: è l'opzione raccomandata a parità di perimetro d'uso (mono-coach, link non condiviso): introdurre Auth/RLS avrebbe un costo di implementazione non giustificato per il rischio accettato, mentre spostare le credenziali fuori dal sorgente versionato rende possibile ruotarle senza un nuovo commit (vedi §8).
+  - *Alternativa scartata*: Supabase Auth + RLS completo — rimandato, non scartato in modo permanente: resta l'opzione da adottare se il perimetro d'uso cambiasse (vedi §11).
+- *Decisione*: invio email del feedback settimanale → Resend, dietro un'interfaccia astratta `EmailSender` (2026-09-30, risposta alla [DECISIONE] bloccante §9.2).
+  - *Motivo*: opzione raccomandata; l'interfaccia astratta tiene il provider sostituibile senza toccare la logica di business della Edge Function (vedi dettaglio Fase 7 sotto).
+  - *Alternativa scartata*: invio diretto senza interfaccia astratta — avrebbe reso un futuro cambio di provider un refactor della function invece che l'aggiunta di una classe.
+- *Decisione*: confermato il comportamento assunto per la card "Nuovo atleta" in sidebar (bozza inline al click, conferma di chiusura se contiene dati) (2026-09-30, risposta alla [DECISIONE] §5).
+- *Decisione*: i dati Intervals.icu sincronizzati sono esclusi dal confronto "modifiche non salvate" e scritti in modo mirato, non tramite il salvataggio manuale dell'intera scheda (2026-09-30, risposta alla [DECISIONE] §6) — dettaglio implementativo completo in Fase 3 sotto.
+- *Decisione*: TypeScript con tipi generati automaticamente da `athlete_profile.schema.json` (`json-schema-to-typescript`, script `npm run gen:types`), presa in autonomia.
+  - *Motivo*: risolve alla radice il problema dei "7 punti disallineati a mano" descritto nella specifica tecnica precedente (schema, `blankProfile()`, form, wiring eventi, ...): con i tipi generati, un disallineamento tra schema e codice diventa un errore di compilazione invece di un bug silenzioso scoperto a runtime.
+  - *Alternativa scartata*: librerie di form schema-driven generiche (JSONForms/RJSF) — già valutate e scartate nella specifica precedente perché gran parte della logica dell'app (log storici, esclusioni reciproche, viste derivate) non si presta a generazione automatica del form, solo dei tipi.
+- *Decisione*: rotazione della anon key Supabase, presa in autonomia — dettaglio e motivo in §8.
+- *Decisione*: `DB_PW.md` resta untracked, non letto né spostato; `.gitignore` aggiunto in Fase 1 lo esclude esplicitamente, senza cancellare o spostare il file — la decisione se rimuoverlo o tenerlo resta del coach.
+- *Decisione*: un commit per fase, con messaggio descrittivo in italiano, al termine di ogni fase in cui l'app è in uno stato funzionante — presa in autonomia per rendere la cronologia git leggibile e ogni fase isolatamente revisionabile/ripristinabile.
 
 **Fase 3 — Concorrenza ottimistica e scrittura mirata per Intervals.icu**
 - *Decisione*: il salvataggio continua a scrivere l'intero blob `data` (non un merge lato server), ma l'`update` è condizionato al valore di `updated_at` noto quando la scheda è stata aperta/salvata l'ultima volta (`.eq("id", id).eq("updated_at", baseVersion)`), verificando poi che almeno una riga sia stata effettivamente modificata.
@@ -419,12 +475,36 @@ Senza questi due secret configurati, la build in CI fallisce o produce una build
 - *Decisione*: rimossi dall'editor atleta il pulsante "Confronta settimana con il piano" e il pulsante "Rimuovi" per-voce di `weekly_feedback_log`; lo storico diventa di sola lettura, con collasso automatico oltre 5 voci dietro un link "Mostra tutti".
   - *Motivo*: con la generazione automatica e schedulata, il confronto manuale e la rimozione diventano superflui (il feedback è generato dal backend, non più dal coach a richiesta) e l'elenco può crescere indefinitamente nel tempo, da qui il collasso per non appesantire la scheda.
 
+**Fase 8 — Rifinitura mobile**
+- *Decisione*: la sidebar su mobile (≤720px) diventa un drawer `position: fixed` con `transform: translateX`, aperto da un pulsante flottante dedicato (`.sidebar-toggle`, z-index sopra sia il drawer sia l'overlay) e chiuso anche da un overlay di sfondo cliccabile, invece di un pattern "accordion" che spinga in basso il contenuto principale.
+  - *Motivo*: un drawer sovrapposto lascia intatta l'altezza disponibile per il form principale (il caso d'uso più frequente su mobile è consultare/modificare una scheda già aperta, non la lista atleti), mentre un accordion ridurrebbe lo spazio utile del form ogni volta che la sidebar è visibile.
+  - *Alternativa scartata*: sidebar sempre visibile ma ridotta in altezza (pattern già usato in Fase 2 per il layout responsive "di base") — insufficiente sotto i 480px, dove anche una sidebar compressa lascia troppo poco spazio al form.
+- *Decisione*: il grafico del carico (`LoadMetricsChart.vue`) non usa più `preserveAspectRatio="none"`; il box CSS ha un `aspect-ratio` identico al `viewBox` SVG (`600 / 180`), e la posizione orizzontale del tooltip è calcolata in percentuale del box renderizzato invece che in unità del `viewBox`.
+  - *Motivo*: `preserveAspectRatio="none"` permette la distorsione del grafico (le proporzioni di CTL/ATL non sono più confrontabili visivamente); allineare l'`aspect-ratio` CSS al `viewBox` rende `meet`/`slice`/`none` equivalenti senza bisogno di disabilitare la proiezione. Il tooltip in unità `viewBox` applicato come pixel CSS diretti (bug pre-esistente, scoperto durante questa fase) posizionava il tooltip fuori dall'area visibile su ogni schermo più stretto di 600px, cioè quasi sempre: la percentuale lo rende corretto a qualunque larghezza.
+  - *Alternativa scartata*: rimuovere solo `preserveAspectRatio="none"` senza aggiungere l'`aspect-ratio` CSS — avrebbe introdotto bande vuote (letterboxing) nel contenitore, dato che senza un `aspect-ratio` esplicito il box manterrebbe la propria proporzione (non quella del `viewBox`).
+- *Decisione*: la gestione del tocco sul grafico (`onTouchMove`/`onTouchEnd`) riusa la stessa funzione `updateHover` degli eventi mouse, con un solo helper di conversione coordinate (`relXFromClientX`) condiviso tra i due percorsi.
+  - *Motivo*: evita di duplicare la logica di ricerca del punto più vicino e di clamping della posizione del tooltip tra i due tipi di evento, con il rischio che si disallineino nel tempo.
+- *Decisione*: l'intestazione comprimibile di ogni settimana (`PlanWeekBlock.vue`) passa a `flex-wrap: wrap` con `order` espliciti sotto i 480px, invece di troncare il riepilogo testuale (sessioni/ore/km per disciplina) con `text-overflow: ellipsis`.
+  - *Motivo*: il riepilogo è informazione utile al coach per farsi un'idea della settimana senza aprirla; troncarlo lo renderebbe inutile proprio sugli schermi più piccoli, dove lo spazio orizzontale scarseggia di più.
+
 ---
 
 ## 11. Limiti noti e roadmap
 
-*Da completare progressivamente. Debiti tecnici già noti e tracciati nel piano di lavoro (riferimento rapido, da dettagliare qui):*
-- *Nessuna autenticazione/RLS: rischio noto, accettato per uso personale (vedi §8).*
+- Nessuna autenticazione/RLS: rischio noto, accettato per uso personale (vedi §8).
+- Nessuna cifratura applicativa per le chiavi di terze parti salvate in chiaro nel database (vedi §8).
+
+**Sezioni volutamente non presenti nel modello dati**
+
+Le voci seguenti erano state progettate in una fase precedente e poi rimosse su richiesta esplicita del coach: infortuni/limitazioni, eccezioni temporanee, risultati recenti, forza in palestra (fase/esperienza/attrezzatura), monitoraggio (fonti dati/metriche tracciate), regole di adattamento automatico del piano. **Non vanno reintrodotte per iniziativa autonoma in sviluppi futuri** — se servissero, richiedono una nuova richiesta esplicita del coach, non un'estrapolazione dal contesto esistente.
+
+**Sessioni a piramide**
+
+`training_plan`/`weekly_feedback_log` non hanno un `kind` dedicato per le sessioni a piramide (ripetute non uniformi tra loro, es. 1'-2'-3'-2'-1'): si modellano come sequenza di più `block` singoli consecutivi, non come un blocco `repeat` con variazione. Scelta per non appesantire con un caso raro la generalizzazione del modello `repeat`, pensato per il caso comune (ripetute identiche).
+
+**Limite di frequenza Intervals.icu**
+
+L'API di Intervals.icu impone 5000 richieste/giorno e 2500/15 minuti. Non rilevante per l'uso attuale (sincronizzazione manuale/automatica saltuaria per singolo atleta), ma da tenere presente se in futuro si aggiungesse una sincronizzazione massiva o più frequente per molti atleti contemporaneamente.
 
 **Rischio residuo: salvataggio dell'intero blob `jsonb` (Fase 3)**
 
@@ -453,3 +533,6 @@ Nuova trasformazione pura e testata `training_plan` → view-model (`planViewMod
 
 ### Fase 7 — Impostazioni feedback e backend schedulato
 Nuove colonne in `app_settings` (`weekly_feedback_day`, `weekly_feedback_time`, `weekly_feedback_timezone`, `weekly_feedback_email_enabled`), editabili dal coach in una nuova sezione "Feedback settimanale automatico" del pannello Impostazioni. Nuova Edge Function schedulata `supabase/functions/weekly-feedback/index.ts`, invocata ogni ora da `pg_cron` ma attiva solo nella finestra giorno/ora configurata (fuso orario esplicito via `Intl.DateTimeFormat`): per ogni atleta idoneo, sincronizza/confronta la settimana pianificata con quella reale da Intervals.icu, genera il feedback con Claude (stesso pattern di `claude-proxy`), lo salva in `weekly_feedback_log` con lo stesso controllo di concorrenza ottimistico del client, e — se l'invio email è attivo e l'atleta ha un indirizzo — lo invia tramite la nuova interfaccia `EmailSender` (`supabase/functions/_shared/emailSender.ts`) con implementazione Resend (`resendEmailSender.ts`, chiave come secret della function, mai nel DB). Idempotente (mai due feedback per la stessa settimana) ed errori isolati per atleta. Rimossi dall'editor atleta il confronto manuale e il pulsante "Rimuovi" per-voce: lo storico feedback è ora di sola lettura, con collasso oltre 5 voci.
+
+### Fase 8 — Rifinitura mobile e documentazione finale
+Sidebar trasformata in drawer sotto i 720px (`position: fixed` + `transform: translateX`, pulsante flottante 44×44px, overlay di sfondo, chiusura automatica alla selezione atleta/apertura Impostazioni, nessuna transizione sotto `prefers-reduced-motion`). Form a colonna singola e barra azioni impilata sotto i 480px. Intestazione di `PlanWeekBlock` resa `flex-wrap` con `order` espliciti sotto i 480px per evitare overflow del riepilogo multi-disciplina. Corretto `LoadMetricsChart`: rimosso `preserveAspectRatio="none"` (sostituito da un `aspect-ratio` CSS identico al `viewBox`, senza distorsione né bande vuote) e corretto il posizionamento del tooltip, ora calcolato in percentuale del box renderizzato invece che in unità del `viewBox` (bug che lo collocava fuori schermo su schermi più stretti di 600px); gestione del tocco unificata con quella del mouse tramite gli stessi helper (`updateHover`/`relXFromClientX`), con `touch-action: pan-y` per non bloccare lo scroll verticale della pagina. Completate tutte le sezioni di questo documento (§4, §8, §10, §11); migrato il contenuto ancora valido da `docs/specifica-tecnica.md` e `docs/impostazioni-claude.md`, poi eliminati entrambi i file. `README.md` riscritto in forma minimale. Rimosso l'`index.html` legacy dalla radice del repository.

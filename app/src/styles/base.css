@@ -324,7 +324,14 @@ input[type="checkbox"] { width: auto; margin-right: 6px; }
   background: var(--bg);
   margin-bottom: 10px;
 }
-.load-chart { width: 100%; height: 180px; display: block; cursor: crosshair; }
+.load-chart {
+  width: 100%;
+  aspect-ratio: 600 / 180;
+  height: auto;
+  display: block;
+  cursor: crosshair;
+  touch-action: pan-y;
+}
 .chart-tooltip {
   position: absolute;
   top: 4px;
@@ -479,10 +486,58 @@ button.add-row:hover { background: var(--surface-2); }
 }
 ::selection { background: color-mix(in srgb, var(--accent) 30%, transparent); }
 
+.sidebar-toggle { display: none; }
+.sidebar-backdrop { display: none; }
+
 @media (max-width: 720px) {
   .app { flex-direction: column; }
-  .sidebar { width: 100%; max-height: 40vh; position: relative; }
-  .main { padding: 24px 16px 60px; }
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(300px, 85vw);
+    max-height: 100vh;
+    z-index: 15;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    box-shadow: 2px 0 12px rgba(0,0,0,0.25);
+  }
+  .sidebar.open { transform: translateX(0); }
+  .sidebar-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    width: 44px;
+    height: 44px;
+    z-index: 16;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 18px;
+    cursor: pointer;
+  }
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 14;
+  }
+  .main { padding: 64px 16px 60px; }
   .day-row { grid-template-columns: 1fr; }
   .day-row label.day-label { padding-top: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar { transition: none; }
+}
+@media (max-width: 480px) {
+  .field-row { grid-template-columns: 1fr; }
+  .checkbox-grid { grid-template-columns: 1fr; }
+  .action-bar { flex-direction: column; }
+  .action-bar > * { min-width: 0; }
 }
