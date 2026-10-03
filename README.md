@@ -1,6 +1,7 @@
 # PCoach
 
-App per un coach che segue più atleti: usa [Supabase](https://supabase.com)
+App per un coach che segue più atleti.
+Usa [Supabase](https://supabase.com)
 come database e il download nativo del browser per l'export JSON.
 Un solo file HTML, nessuna build, nessun server da scrivere.
 
@@ -9,8 +10,7 @@ Dettagli su modello dati, architettura e roadmap: [docs/specifica-tecnica.md](do
 ## 1. Crea il progetto Supabase
 
 1. Vai su [Supabase](https://supabase.com) → crea un account → **New project**.
-2. Aspetta che il progetto sia pronto (circa 1-2 minuti).
-3. Vai su **SQL Editor** (menu a sinistra) → **New query**, incolla e esegui:
+2. Vai su **SQL Editor** (menu a sinistra) → **New query**, incolla e esegui:
 
    ```sql
    create table athletes (
@@ -27,21 +27,21 @@ Dettagli su modello dati, architettura e roadmap: [docs/specifica-tecnica.md](do
    alter table athletes disable row level security;
    ```
 
-4. Vai su **Project Settings → API**. Ti servono due valori:
-   - **Project URL** (es. `https://xxxxx.supabase.co`)
-   - **anon public key** (una stringa lunga)
+3. Vai su **Project Settings → API**, ti servono due valori:
+   - **Project URL** (es. `https://xxxxx.supabase.co`).
+   - **anon public key** (una stringa lunga).
 
 ## 2. Configura il file HTML
 
-Apri `index.html` con un editor di testo, cerca queste due righe
-vicino all'inizio dello script (subito dopo `<style>...</style>`):
+Apri `index.html` cerca queste due righe
+vicino all'inizio dello script:
 
 ```js
 const SUPABASE_URL = "INSERISCI_QUI_LA_TUA_SUPABASE_URL";
 const SUPABASE_ANON_KEY = "INSERISCI_QUI_LA_TUA_SUPABASE_ANON_KEY";
 ```
 
-Sostituisci i due placeholder con i valori copiati al punto 1.4. Salva il file.
+Sostituisci i due placeholder con i valori copiati al punto 1.3.
 
 ## 3. Prova in locale
 
