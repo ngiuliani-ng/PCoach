@@ -4,7 +4,7 @@
   "title": "AthleteTrainingProfile",
   "description": "Profilo completo di un atleta ai fini della programmazione dell'allenamento. Compilato manualmente dal coach; il campo training_plan può anche essere generato automaticamente dall'app stessa con l'assistenza di Claude (vedi specifica-tecnica.md §5.3).",
   "type": "object",
-  "required": ["schema_version", "meta", "identity", "disciplines", "goals", "constraints", "methodology_preferences"],
+  "required": ["schema_version", "meta", "identity", "disciplines", "goals", "constraints", "methodology_preferences", "training_status"],
   "properties": {
 
     "schema_version": {

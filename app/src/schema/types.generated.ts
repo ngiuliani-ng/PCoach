@@ -1,5 +1,4 @@
-// File generato automaticamente da athlete_profile.schema.json. Non modificare a mano.
-// Rigenerare con: npm run gen:types
+// File generato automaticamente da athlete_profile.schema.json. Non modificare a mano.\n// Rigenerare con: npm run gen:types
 
 /**
  * Profilo completo di un atleta ai fini della programmazione dell'allenamento. Compilato manualmente dal coach; il campo training_plan può anche essere generato automaticamente dall'app stessa con l'assistenza di Claude (vedi specifica-tecnica.md §5.3).
@@ -126,7 +125,7 @@ export interface AthleteTrainingProfile {
   /**
    * Fotografia dello stato di allenamento attuale: fondamentale per decidere se serve un ramp-up.
    */
-  training_status?: {
+  training_status: {
     /**
      * Stato attuale: nessun calo, oppure reduce da un calo (con dettagli).
      */
