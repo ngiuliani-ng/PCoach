@@ -1,0 +1,17 @@
+# Dipendenze e build
+app/node_modules/
+app/dist/
+app/node_modules/.tmp/
+
+# Variabili d'ambiente locali (contengono credenziali, mai committare)
+.env
+.env.*
+!.env.example
+!app/.env.example
+
+# File con credenziali in chiaro (vedi nota in docs/DOCUMENTAZIONE.md)
+DB_PW.md
+
+# Editor/OS
+.DS_Store
+*.log

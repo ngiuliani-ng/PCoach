@@ -1,0 +1,30 @@
+{
+  "name": "app",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "gen:types": "json2ts -i src/schema/athlete_profile.schema.json -o src/schema/types.generated.ts --bannerComment \"// File generato automaticamente da athlete_profile.schema.json. Non modificare a mano.\\n// Rigenerare con: npm run gen:types\""
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.117.2",
+    "pinia": "^4.0.3",
+    "vue": "^3.5.42"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.1",
+    "@vitejs/plugin-vue": "^6.0.8",
+    "@vue/test-utils": "^2.5.1",
+    "@vue/tsconfig": "^0.9.1",
+    "jsdom": "^30.1.1",
+    "json-schema-to-typescript": "^16.0.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.3",
+    "vue-tsc": "^3.3.11"
+  }
+}
