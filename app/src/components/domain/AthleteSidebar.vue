@@ -6,6 +6,7 @@ import { useAthletesStore } from "../../stores/athletes";
 import { confirmDialog } from "../../composables/useConfirmDialog";
 import { showToast } from "../../composables/useToast";
 import { CONNECTION_STATUS_LABELS, useConnectionStatus } from "../../composables/useConnectionStatus";
+import { fullName } from "../../constants";
 
 const athletes = useAthletesStore();
 const { status } = useConnectionStatus();
@@ -13,7 +14,7 @@ const { status } = useConnectionStatus();
 const emit = defineEmits<{ (e: "open-settings"): void }>();
 
 const isDraftOpen = computed(() => athletes.currentId === null && athletes.currentProfile !== null);
-const draftName = computed(() => athletes.currentProfile?.identity?.name?.trim() || "(bozza senza nome)");
+const draftName = computed(() => fullName(athletes.currentProfile?.identity) || "(bozza senza nome)");
 const statusLabel = computed(() => CONNECTION_STATUS_LABELS[status.value]);
 
 // Se c'e' una bozza di nuovo atleta non salvata, chiede conferma prima di scartarla

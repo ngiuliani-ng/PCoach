@@ -158,11 +158,15 @@ export function numOrNull(v: unknown): number | null {
   return v === "" || v === null || v === undefined ? null : Number(v as string);
 }
 
+export function fullName(identity: { nome?: string; cognome?: string } | undefined): string {
+  return [identity?.nome, identity?.cognome].filter((part) => part && part.trim()).join(" ");
+}
+
 export function blankProfile(): AthleteTrainingProfile {
   return {
-    schema_version: "1.3.0",
+    schema_version: "1.4.0",
     meta: { athlete_id: "", coach_id: "", created_at: todayISO(), updated_at: todayISO(), data_source: "manual" },
-    identity: { name: "", birth_year: undefined, biological_sex: "unspecified", height_cm: undefined, weight_kg: undefined },
+    identity: { nome: "", cognome: "", email: "", birth_year: undefined, biological_sex: "unspecified", height_cm: undefined, weight_kg: undefined },
     disciplines: [],
     physiological_thresholds: {
       running: { zone_system: "7-zone", thresholds_log: [] },

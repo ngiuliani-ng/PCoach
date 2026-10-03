@@ -10,7 +10,7 @@
     "schema_version": {
       "type": "string",
       "description": "Versione dello schema, per gestire migrazioni future.",
-      "examples": ["1.3.0"]
+      "examples": ["1.4.0"]
     },
 
     "meta": {
@@ -34,7 +34,9 @@
       "type": "object",
       "description": "Dati anagrafici rilevanti per calcolo carichi/zone (non dati sensibili).",
       "properties": {
-        "name": { "type": "string" },
+        "nome": { "type": "string" },
+        "cognome": { "type": "string" },
+        "email": { "type": "string", "format": "email", "description": "Usata per l'invio del feedback settimanale automatico, se attivo." },
         "birth_year": { "type": "integer", "description": "Usato per stime età-correlate (es. FC max teorica), non l'età esatta." },
         "biological_sex": {
           "type": "string",
@@ -62,7 +64,7 @@
           "years_practice": { "type": "number" },
           "current_weekly_volume": {
             "type": "object",
-            "description": "Volume attuale reale (non storico), usato per capire da dove si riparte.",
+            "description": "Volume settimanale attuale reale (non storico), usato per capire da dove si riparte.",
             "properties": {
               "value": { "type": "number" },
               "unit": { "type": "string", "enum": ["km", "ore", "sessioni"] }
@@ -70,7 +72,7 @@
           },
           "peak_weekly_volume_last_12_months": {
             "type": "object",
-            "description": "Volume massimo raggiunto di recente: serve come riferimento per il ramp-up.",
+            "description": "Volume settimanale massimo raggiunto negli ultimi 12 mesi: serve come riferimento per il ramp-up.",
             "properties": {
               "value": { "type": "number" },
               "unit": { "type": "string", "enum": ["km", "ore", "sessioni"] }
@@ -301,7 +303,7 @@
       "type": "object",
       "description": "Credenziali/config per sincronizzazioni automatiche con servizi esterni, per-atleta.",
       "properties": {
-        "intervals_icu_api_key": { "type": "string", "description": "API key personale Intervals.icu dell'atleta, salvata in chiaro. Usata dal pulsante 'Aggiorna da Intervals.icu'." }
+        "intervals_icu_api_key": { "type": "string", "description": "API key personale Intervals.icu dell'atleta, salvata in chiaro (compromesso di sicurezza accettato, vedi docs/DOCUMENTAZIONE.md §3). Attiva e aggiorna automaticamente la sincronizzazione del carico di allenamento." }
       }
     }
   },
@@ -316,7 +318,7 @@
         "source": {
           "type": "string",
           "enum": ["manual", "intervals_icu_sync"],
-          "description": "'manual' per voci inserite dal coach, 'intervals_icu_sync' per voci scritte dal pulsante 'Aggiorna da Intervals.icu'. Enum pensato per accogliere in futuro altre fonti (es. garmin_sync) senza cambiare struttura."
+          "description": "'manual' per voci inserite dal coach, 'intervals_icu_sync' per voci scritte dalla sincronizzazione automatica con Intervals.icu. Enum pensato per accogliere in futuro altre fonti (es. garmin_sync) senza cambiare struttura."
         },
         "note": { "type": "string" }
       }

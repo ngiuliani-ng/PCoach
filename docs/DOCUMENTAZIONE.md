@@ -149,7 +149,19 @@ AthleteEditor → confronto tra training_plan e attività reali (services/interv
 
 ## 5. Modello dati
 
-*Da completare progressivamente a partire dalla Fase 5 (split Identità, sezione "Connessione con app esterne", relabeling Discipline). Fino ad allora il modello dati coincide con quello descritto in `docs/athlete_profile.schema.json`, invariato rispetto alla versione precedente alla migrazione.*
+Il modello dati è descritto in `app/src/schema/athlete_profile.schema.json`; i tipi TypeScript in `app/src/schema/types.generated.ts` sono generati da questo schema (`npm run gen:types`, vedi §9) e non vanno modificati a mano.
+
+### Identità (Fase 5)
+
+`identity.name` (stringa unica) è stato sostituito da `identity.nome`, `identity.cognome` ed `identity.email`, con `schema_version` incrementata a `1.4.0`. Le schede esistenti vengono migrate al volo in lettura da `migrateProfile` (`app/src/schema/migrations/`), che applica `splitLegacyName`: la prima parola del nome completo diventa `nome`, il resto `cognome` (euristica non sempre corretta per nomi composti o cognomi con più parole). Quando l'euristica viene applicata, l'apertura della scheda (`athletes.openAthlete`) mostra un avviso che invita a verificare la divisione; la migrazione non viene ripersistita automaticamente, solo al primo salvataggio successivo della scheda. `fullName()` (in `app/src/constants.ts`) centralizza la composizione `nome + cognome` per intestazioni, card sidebar e ordinamento.
+
+### Connessione con app esterne (Fase 5)
+
+Nuova sezione `integrations` nel profilo (oggi con il solo campo `intervals_icu_api_key`, pensata per essere estesa con altre integrazioni future), visualizzata tra Identità e Discipline nell'editor. Il campo chiave usa il componente riutilizzabile `ui/PasswordField.vue` (mostra/nascondi). La vecchia posizione del campo (dentro "Stato di allenamento attuale", con pulsante di refresh manuale) è stata rimossa: la sincronizzazione ora è sempre automatica (vedi §7).
+
+### Discipline (Fase 5)
+
+Le etichette dei volumi sono state rese esplicitamente settimanali ("Volume settimanale attuale /settimana", "Picco settimanale (ultimi 12 mesi) /settimana"), con testo d'aiuto a corredo. Nessuna migrazione dati: i valori esistenti si considerano già settimanali, solo l'etichetta era ambigua.
 
 ---
 
@@ -213,7 +225,22 @@ Job schedulato per il feedback settimanale e relativo invio email: pianificati p
 
 ## 7. Integrazioni
 
-*Da completare in Fase 5/6 (Intervals.icu: dettaglio endpoint/regole di sync) e Fase 7 (Claude: aggiornamento con i prompt definitivi del piano grafico). Il contratto corrente del proxy Claude è già descritto in §6.*
+### Intervals.icu (Fase 5)
+
+La chiave API si inserisce nella sezione "Connessione con app esterne" dell'editor atleta (vedi §5). `app/src/services/intervals.ts` (`refreshFromIntervalsIcu`) interroga Intervals.icu e confronta il log restituito con quello già salvato, evitando scritture inutili quando non ci sono novità (`upToDate`).
+
+La sincronizzazione è automatica, non più legata a un pulsante manuale, tramite il composable singleton `app/src/composables/useIntervalsSync.ts`, invocata da tre trigger lato client (il quarto, il job di feedback settimanale, è lato backend — Fase 7):
+1. chiave inserita o modificata (con debounce di 1,5s, per non lanciare una richiesta ad ogni tasto premuto);
+2. apertura della scheda atleta;
+3. avvio della generazione di un piano ("Genera piano").
+
+Il composable mantiene uno stato a livello di modulo (non per istanza di componente) per evitare chiamate concorrenti sullo stesso atleta (dedup via `inFlightIds`) e per tracciare un esito leggero per chiave (`valid` / `invalid` / `offline`), derivato dal messaggio di errore di `refreshFromIntervalsIcu` (`"...non valida"` → chiave non valida, altrimenti → rete/CORS non disponibile), mostrato come testo accanto al campo. Non è una validazione formale (nessun endpoint dedicato di verifica): è un sottoprodotto del primo tentativo di sincronizzazione.
+
+I dati sincronizzati sono persistiti con la scrittura mirata `athletes.syncLoadMetrics` (vedi §10, Fase 3), non tramite il salvataggio manuale della scheda.
+
+### Claude
+
+*Da completare in Fase 6 (vista grafica del piano) e Fase 7 (aggiornamento prompt per il feedback settimanale). Il contratto corrente del proxy `claude-proxy` è già descritto in §6.*
 
 ---
 
@@ -288,6 +315,15 @@ Senza questi due secret configurati, la build in CI fallisce o produce una build
 - *Decisione*: il rilevamento di "dati più recenti disponibili sul server" (chip "Aggiorna") si basa sul confronto tra `updated_at` noto all'apertura/ultimo salvataggio e quello osservato dal polling periodico della lista (15s), non su una richiesta dedicata.
   - *Motivo*: il polling della lista aggiorna già `rowVersions` per tutte le schede; riusarlo evita richieste di rete aggiuntive.
 
+**Fase 5 — Modello dati e form**
+- *Decisione*: la migrazione `identity.name` → `nome`/`cognome` usa un'euristica (prima parola → nome, resto → cognome) applicata al volo in lettura (`migrateProfile`), non uno script di migrazione batch del database.
+  - *Motivo*: evita un passo manuale separato e un downtime; l'euristica è segnalata esplicitamente all'apertura della scheda interessata, così il coach può correggere a mano i casi sbagliati (nomi composti, cognomi con più parole) senza che l'errore passi inosservato.
+  - *Alternativa scartata*: script SQL una tantum su tutte le righe — avrebbe richiesto un passo manuale aggiuntivo e non avrebbe comunque potuto distinguere automaticamente i casi ambigui meglio dell'euristica a runtime.
+- *Decisione*: la validazione della API key di Intervals.icu è "leggera" (esito del primo tentativo di sincronizzazione reale: valida/non valida/non verificabile offline), non una chiamata dedicata di verifica.
+  - *Motivo*: Intervals.icu non espone un endpoint di validazione a basso costo distinto da quello dati; riusare il primo sync evita una richiesta di rete aggiuntiva e tiene la UI semplice.
+- *Decisione*: i tre trigger di sincronizzazione automatica lato client (chiave inserita/modificata con debounce, apertura scheda, "Genera piano") condividono stato a livello di modulo (non di istanza componente) in `useIntervalsSync`, sul modello già usato da `useToast`/`useConnectionStatus`.
+  - *Motivo*: il dedup (`inFlightIds`) e il debounce devono valere per atleta a prescindere da quale istanza di `AthleteEditor` li invoca; uno stato per-istanza permetterebbe sincronizzazioni concorrenti duplicate se l'editor venisse mai montato più volte.
+
 ---
 
 ## 11. Limiti noti e roadmap
@@ -313,3 +349,6 @@ Sidebar definitiva con card "Nuovo atleta" fissa in cima, bozza inline con confe
 
 ### Fase 3 — Sincronizzazione sicura e concorrenza ottimistica
 Eliminato il bug di polling che sovrascriveva la scheda in editing: il polling periodico ora aggiorna solo l'elenco atleti e le relative versioni (`updated_at`), mai `currentProfile`. Aggiunto controllo di concorrenza ottimistico al salvataggio (update condizionato a `updated_at` noto, con avviso esplicito in caso di conflitto). Nuovo chip sticky "Dati aggiornati disponibili — Aggiorna" accanto al chip "Modifiche non salvate", con conferma se si ricaricano dati sopra modifiche locali non salvate. Estratta la logica di confronto "modifiche non salvate" in un composable dedicato (`useDirtyState`, con funzioni pure testate da Vitest), estesa per escludere le voci di `load_metrics_log` sincronizzate da Intervals.icu. Nuova azione `syncLoadMetrics` per persistere le sincronizzazioni Intervals.icu con scrittura mirata sulla copia più recente del server, senza richiedere un salvataggio manuale.
+
+### Fase 5 — Modello dati e form
+Identità divisa in `nome`/`cognome`/`email` (`schema_version` 1.4.0), con migrazione euristica in lettura e avviso al coach quando applicata. Nuova sezione "Connessione con app esterne" tra Identità e Discipline, con la chiave Intervals.icu spostata qui (componente `PasswordField` riutilizzabile) e rimossa dalla vecchia posizione in "Stato di allenamento". Sincronizzazione Intervals.icu resa interamente automatica (composable `useIntervalsSync`, tre trigger lato client con dedup/debounce) al posto del pulsante manuale, con un esito leggero di validità della chiave mostrato in UI. Etichette dei volumi in Discipline rese esplicitamente settimanali. Grafico del carico (`LoadMetricsChart`) ora mantiene sempre la propria struttura (zero-line, barre, curve CTL/ATL) anche senza dati, mostrando un messaggio di stato vuoto al posto dei soli assi.

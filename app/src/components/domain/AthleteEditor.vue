@@ -9,15 +9,17 @@ import {
   TRAINING_SPORT_OPTIONS, LEVEL_OPTIONS, VOLUME_UNITS,
   OBJECTIVE_OPTIONS, SHARED_OBJECTIVE_OPTIONS, EVENT_DISCIPLINE_OPTIONS, EVENT_PRIORITIES,
   LIFESTYLE_FACTOR_OPTIONS, DAY_LABELS, RUN_THRESHOLD_FIELDS, BIKE_THRESHOLD_FIELDS, SWIM_THRESHOLD_FIELDS,
-  TRAINING_PLAN_JSON_SHAPE, todayISO, addDaysISO
+  TRAINING_PLAN_JSON_SHAPE, todayISO, addDaysISO, fullName
 } from "../../constants";
 import { callClaudeProxy, extractJsonBlock, copyToClipboardFallback } from "../../services/claude";
-import { refreshFromIntervalsIcu, fetchLastWeekActivities, plannedWeekFromPlan } from "../../services/intervals";
+import { fetchLastWeekActivities, plannedWeekFromPlan } from "../../services/intervals";
 import { buildPlanPrompt, buildFeedbackPrompt } from "../../services/planPrompt";
 import { showToast } from "../../composables/useToast";
 import { confirmDialog } from "../../composables/useConfirmDialog";
+import { useIntervalsSync } from "../../composables/useIntervalsSync";
 import MetricLogList from "./MetricLogList.vue";
 import LoadMetricsChart from "./LoadMetricsChart.vue";
+import PasswordField from "../ui/PasswordField.vue";
 
 const athletes = useAthletesStore();
 const settings = useSettingsStore();
@@ -69,28 +71,31 @@ function toggleLifestyleFactor(value: string) {
   if (profile.value.training_status) profile.value.training_status.lifestyle_factors = list;
 }
 
-const refreshingIntervals = ref(false);
-async function onRefreshIntervals() {
-  const apiKey = profile.value.integrations?.intervals_icu_api_key;
-  if (!apiKey) {
-    showToast("Inserisci prima la API key di Intervals.icu.");
-    return;
-  }
-  refreshingIntervals.value = true;
-  const currentLog = profile.value.training_status?.load_metrics_log || [];
-  const result = await refreshFromIntervalsIcu(apiKey, currentLog);
-  refreshingIntervals.value = false;
-  if (!result.ok) {
-    showToast(result.error);
-    return;
-  }
-  if ("upToDate" in result) {
-    showToast("Il log è già aggiornato a oggi.");
-    return;
-  }
-  await athletes.syncLoadMetrics(result.log);
-  showToast(result.updatedCount > 0 ? `Aggiornati ${result.updatedCount} giorni da Intervals.icu.` : "Nessun nuovo dato da Intervals.icu.");
-}
+// Sincronizzazione Intervals.icu automatica (§7.2/§7.4): niente più pulsante manuale,
+// la chiave attiva/aggiorna da sola in base ai trigger previsti (digitazione con
+// debounce qui sotto, apertura scheda, pressione "Genera piano").
+const intervalsSync = useIntervalsSync();
+const intervalsSyncing = computed(() => intervalsSync.isSyncing(athletes.currentId));
+const intervalsKeyStatus = computed(() => intervalsSync.statusFor(athletes.currentId));
+const intervalsStatusText = computed(() => {
+  if (intervalsSyncing.value) return "Sincronizzazione in corso…";
+  const status = intervalsKeyStatus.value;
+  if (status === "valid") return "API key valida.";
+  if (status === "invalid") return "API key non valida.";
+  if (status === "offline") return "Non verificabile al momento (rete non disponibile).";
+  return "";
+});
+
+watch(
+  () => profile.value.integrations?.intervals_icu_api_key,
+  (apiKey) => intervalsSync.syncDebounced(athletes.currentId, apiKey)
+);
+
+watch(
+  () => athletes.currentId,
+  (id) => intervalsSync.syncNow(id, athletes.athletes[id ?? ""]?.integrations?.intervals_icu_api_key),
+  { immediate: true }
+);
 
 async function onReloadRemote() {
   if (athletes.isDirty) {
@@ -109,6 +114,7 @@ const planPreviewText = ref("");
 const showPlanPreview = ref(false);
 
 async function generatePlan() {
+  await intervalsSync.syncNow(athletes.currentId, profile.value.integrations?.intervals_icu_api_key);
   const prompt = buildPlanPrompt(profile.value, planWeeks.value || 8, TRAINING_PLAN_JSON_SHAPE, settings.settings.plan_generation_prompt_template);
   if (!settings.settings.claude_api_key) {
     const copied = await copyToClipboardFallback(prompt);
@@ -146,7 +152,7 @@ const comparingWeek = ref(false);
 async function compareWeekWithPlan() {
   const apiKey = profile.value.integrations?.intervals_icu_api_key;
   if (!apiKey) {
-    showToast("Inserisci prima la API key di Intervals.icu (sezione Stato di allenamento).");
+    showToast("Inserisci prima la API key di Intervals.icu (sezione Connessione con app esterne).");
     return;
   }
   if (!profile.value.training_plan) {
@@ -193,7 +199,7 @@ async function onSave() {
 }
 async function onDelete() {
   if (!athletes.currentId) return;
-  const confirmed = await confirmDialog(`Eliminare la scheda di "${profile.value.identity.name}"? L'operazione non è reversibile.`);
+  const confirmed = await confirmDialog(`Eliminare la scheda di "${fullName(profile.value.identity)}"? L'operazione non è reversibile.`);
   if (!confirmed) return;
   const result = await athletes.deleteAthlete(athletes.currentId);
   showToast(result.message);
@@ -206,7 +212,7 @@ function onExport() {
 <template>
   <div class="form-wrap" v-if="profile">
     <div class="form-header">
-      <h2>{{ profile.identity.name || "Nuovo atleta" }}</h2>
+      <h2>{{ fullName(profile.identity) || "Nuovo atleta" }}</h2>
       <span v-if="profile.meta.athlete_id" class="athlete-id-tag">{{ profile.meta.athlete_id }}</span>
     </div>
     <p class="updated-line">Ultimo aggiornamento: {{ profile.meta.updated_at }}</p>
@@ -223,8 +229,18 @@ function onExport() {
       <div class="field-row">
         <div>
           <label>Nome</label>
-          <input type="text" v-model="profile.identity.name" />
+          <input type="text" v-model="profile.identity.nome" />
         </div>
+        <div>
+          <label>Cognome</label>
+          <input type="text" v-model="profile.identity.cognome" />
+        </div>
+        <div>
+          <label>Email</label>
+          <input type="email" v-model="profile.identity.email" />
+        </div>
+      </div>
+      <div class="field-row">
         <div>
           <label>Anno di nascita</label>
           <input type="number" v-model.number="profile.identity.birth_year" />
@@ -248,6 +264,18 @@ function onExport() {
           <input type="number" v-model.number="profile.identity.weight_kg" />
         </div>
       </div>
+    </section>
+
+    <section class="block">
+      <h3>Connessione con app esterne</h3>
+      <div class="field-row">
+        <div>
+          <label>API key Intervals.icu</label>
+          <PasswordField v-model="profile.integrations!.intervals_icu_api_key as string" />
+          <p v-if="intervalsStatusText" class="helper-text">{{ intervalsStatusText }}</p>
+        </div>
+      </div>
+      <p class="helper-text">La sincronizzazione del carico di allenamento parte automaticamente quando inserisci o modifichi la chiave, quando apri la scheda e quando generi un piano.</p>
     </section>
 
     <section class="block">
@@ -277,7 +305,7 @@ function onExport() {
         </div>
         <div class="field-row">
           <div>
-            <label>Volume settimanale attuale</label>
+            <label>Volume settimanale attuale /settimana</label>
             <input type="number" v-model.number="d.current_weekly_volume!.value" />
           </div>
           <div>
@@ -287,9 +315,10 @@ function onExport() {
             </select>
           </div>
         </div>
+        <p class="helper-text">Volume reale attuale (non storico): serve a capire da dove si riparte.</p>
         <div class="field-row">
           <div>
-            <label>Picco settimanale (ultimi 12 mesi)</label>
+            <label>Picco settimanale (ultimi 12 mesi) /settimana</label>
             <input type="number" v-model.number="d.peak_weekly_volume_last_12_months!.value" />
           </div>
           <div>
@@ -299,6 +328,7 @@ function onExport() {
             </select>
           </div>
         </div>
+        <p class="helper-text">Volume massimo raggiunto negli ultimi 12 mesi: riferimento per il ramp-up.</p>
       </div>
       <button type="button" class="add-row" @click="addDiscipline">+ Aggiungi disciplina</button>
     </section>
@@ -372,15 +402,6 @@ function onExport() {
 
       <div class="subsection-title">Carico (CTL/ATL/TSB)</div>
       <LoadMetricsChart :log="profile.training_status!.load_metrics_log as never" />
-      <div class="field-row">
-        <div>
-          <label>API key Intervals.icu</label>
-          <input type="password" v-model="profile.integrations!.intervals_icu_api_key" class="mono-input" />
-        </div>
-      </div>
-      <button type="button" class="secondary" :disabled="refreshingIntervals" @click="onRefreshIntervals">
-        {{ refreshingIntervals ? "Aggiornamento in corso…" : "Aggiorna da Intervals.icu" }}
-      </button>
 
       <div class="subsection-title">Fattori di vita</div>
       <div class="checkbox-grid">

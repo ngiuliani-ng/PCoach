@@ -90,26 +90,34 @@ const hoverEntry = computed(() => (hoverIndex.value !== null ? sorted.value[hove
       @mousemove="onMouseMove"
       @mouseleave="onMouseLeave"
     >
-      <template v-if="sorted.length === 0">
-        <text :x="W / 2" :y="H / 2" text-anchor="middle" fill="var(--text-muted)" font-size="12">Nessun dato di carico.</text>
-      </template>
-      <template v-else>
-        <line :x1="padL" :x2="W - padR" :y1="yZero()" :y2="yZero()" stroke="var(--border)" stroke-dasharray="3,3" />
-        <rect
-          v-for="(e, i) in sorted"
-          :key="'bar-' + i"
-          :x="x(i) - 2"
-          :width="4"
-          :y="padT + innerH - barHeight(e.workouts_count || 0)"
-          :height="barHeight(e.workouts_count || 0)"
-          fill="var(--chart-bar)"
-        />
-        <path :d="pathFor('ctl')" fill="none" stroke="var(--chart-ctl)" stroke-width="2" />
-        <path :d="pathFor('atl')" fill="none" stroke="var(--chart-atl)" stroke-width="2" />
+      <line :x1="padL" :x2="W - padR" :y1="yZero()" :y2="yZero()" stroke="var(--border)" stroke-dasharray="3,3" />
+      <rect
+        v-for="(e, i) in sorted"
+        :key="'bar-' + i"
+        :x="x(i) - 2"
+        :width="4"
+        :y="padT + innerH - barHeight(e.workouts_count || 0)"
+        :height="barHeight(e.workouts_count || 0)"
+        fill="var(--chart-bar)"
+      />
+      <path :d="pathFor('ctl')" fill="none" stroke="var(--chart-ctl)" stroke-width="2" />
+      <path :d="pathFor('atl')" fill="none" stroke="var(--chart-atl)" stroke-width="2" />
+      <template v-if="sorted.length">
         <text :x="padL" :y="H - 4" font-size="10" fill="var(--text-muted)">{{ sorted[0].date }}</text>
         <text :x="W - padR" :y="H - 4" font-size="10" fill="var(--text-muted)" text-anchor="end">{{ sorted.at(-1)?.date }}</text>
-        <line v-if="hoverIndex !== null" :x1="x(hoverIndex)" :x2="x(hoverIndex)" :y1="padT" :y2="padT + innerH" stroke="var(--text-muted)" stroke-dasharray="2,2" />
       </template>
+      <text
+        v-else
+        :x="W / 2"
+        :y="padT + innerH / 2"
+        text-anchor="middle"
+        fill="var(--text-muted)"
+        font-size="11"
+      >
+        <tspan :x="W / 2" dy="-0.6em">Nessun dato di carico.</tspan>
+        <tspan :x="W / 2" dy="1.3em">Inserisci la API key in "Connessione con app esterne".</tspan>
+      </text>
+      <line v-if="hoverIndex !== null" :x1="x(hoverIndex)" :x2="x(hoverIndex)" :y1="padT" :y2="padT + innerH" stroke="var(--text-muted)" stroke-dasharray="2,2" />
     </svg>
     <div class="chart-tooltip" :class="{ visible: hoverEntry }" :style="{ left: tooltipX + 'px', top: tooltipY + 'px' }">
       <template v-if="hoverEntry">

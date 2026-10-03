@@ -4,8 +4,10 @@
 // per rilevare dati più recenti sul server sia come controllo di concorrenza al salvataggio.
 import { defineStore } from "pinia";
 import { supabase, configured } from "../services/supabase";
-import { blankProfile, todayISO } from "../constants";
+import { blankProfile, fullName, todayISO } from "../constants";
 import { hasNewerRemoteVersion, snapshotForCompare } from "../composables/useDirtyState";
+import { migrateProfile } from "../schema/migrations";
+import { showToast } from "../composables/useToast";
 import type { AthleteTrainingProfile } from "../schema/types.generated";
 
 type LoadMetricsLog = AthleteTrainingProfile["training_status"]["load_metrics_log"];
@@ -28,12 +30,13 @@ export const useAthletesStore = defineStore("athletes", {
     baselineSnapshot: null as string | null,
     currentBaseVersion: null as string | null,
     dbAvailable: false,
-    pollHandle: null as ReturnType<typeof setInterval> | null
+    pollHandle: null as ReturnType<typeof setInterval> | null,
+    heuristicallyMigratedIds: new Set<string>()
   }),
   getters: {
     sortedList(state): { id: string; name: string }[] {
       return Object.entries(state.athletes)
-        .map(([id, p]) => ({ id, name: p.identity?.name || "(senza nome)" }))
+        .map(([id, p]) => ({ id, name: fullName(p.identity) || "(senza nome)" }))
         .sort((a, b) => a.name.localeCompare(b.name, "it"));
     },
     isDirty(state): boolean {
@@ -52,8 +55,10 @@ export const useAthletesStore = defineStore("athletes", {
       const map: Record<string, AthleteTrainingProfile> = {};
       const versions: Record<string, string> = {};
       (data || []).forEach((row: { id: string; data: AthleteTrainingProfile; updated_at: string }) => {
-        map[row.id] = row.data;
+        const { profile, heuristicApplied } = migrateProfile(row.data);
+        map[row.id] = profile;
         versions[row.id] = row.updated_at;
+        if (heuristicApplied) this.heuristicallyMigratedIds.add(row.id);
       });
       this.athletes = map;
       this.rowVersions = versions;
@@ -88,6 +93,10 @@ export const useAthletesStore = defineStore("athletes", {
       this.currentProfile = JSON.parse(JSON.stringify(profile));
       this.baselineSnapshot = snapshotForCompare(this.currentProfile!);
       this.currentBaseVersion = this.rowVersions[id] ?? null;
+      if (this.heuristicallyMigratedIds.has(id)) {
+        this.heuristicallyMigratedIds.delete(id);
+        showToast("Nome e cognome separati automaticamente: verifica che siano corretti.");
+      }
     },
     // Ricarica la scheda aperta con i dati più recenti già noti al polling della lista
     // (nessuna richiesta aggiuntiva: this.athletes è già allineato al DB ad ogni poll).
@@ -119,7 +128,7 @@ export const useAthletesStore = defineStore("athletes", {
     async saveCurrent(): Promise<{ ok: boolean; message: string }> {
       const profile = this.currentProfile;
       if (!profile) return { ok: false, message: "Nessuna scheda aperta." };
-      if (!profile.identity?.name?.trim()) {
+      if (!profile.identity?.nome?.trim()) {
         return { ok: false, message: "Il nome dell'atleta è obbligatorio." };
       }
       const isNew = !this.currentId;

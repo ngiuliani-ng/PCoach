@@ -1,4 +1,5 @@
-// File generato automaticamente da athlete_profile.schema.json. Non modificare a mano.\n// Rigenerare con: npm run gen:types
+// File generato automaticamente da athlete_profile.schema.json. Non modificare a mano.
+// Rigenerare con: npm run gen:types
 
 /**
  * Profilo completo di un atleta ai fini della programmazione dell'allenamento. Compilato manualmente dal coach; il campo training_plan può anche essere generato automaticamente dall'app stessa con l'assistenza di Claude (vedi specifica-tecnica.md §5.3).
@@ -32,7 +33,12 @@ export interface AthleteTrainingProfile {
    * Dati anagrafici rilevanti per calcolo carichi/zone (non dati sensibili).
    */
   identity: {
-    name?: string;
+    nome?: string;
+    cognome?: string;
+    /**
+     * Usata per l'invio del feedback settimanale automatico, se attivo.
+     */
+    email?: string;
     /**
      * Usato per stime età-correlate (es. FC max teorica), non l'età esatta.
      */
@@ -59,7 +65,7 @@ export interface AthleteTrainingProfile {
     level: "principiante" | "intermedio" | "avanzato" | "esperto_agonista";
     years_practice?: number;
     /**
-     * Volume attuale reale (non storico), usato per capire da dove si riparte.
+     * Volume settimanale attuale reale (non storico), usato per capire da dove si riparte.
      */
     current_weekly_volume?: {
       value?: number;
@@ -67,7 +73,7 @@ export interface AthleteTrainingProfile {
       [k: string]: unknown;
     };
     /**
-     * Volume massimo raggiunto di recente: serve come riferimento per il ramp-up.
+     * Volume settimanale massimo raggiunto negli ultimi 12 mesi: serve come riferimento per il ramp-up.
      */
     peak_weekly_volume_last_12_months?: {
       value?: number;
@@ -279,7 +285,7 @@ export interface AthleteTrainingProfile {
    */
   integrations?: {
     /**
-     * API key personale Intervals.icu dell'atleta, salvata in chiaro. Usata dal pulsante 'Aggiorna da Intervals.icu'.
+     * API key personale Intervals.icu dell'atleta, salvata in chiaro (compromesso di sicurezza accettato, vedi docs/DOCUMENTAZIONE.md §3). Attiva e aggiorna automaticamente la sincronizzazione del carico di allenamento.
      */
     intervals_icu_api_key?: string;
     [k: string]: unknown;
@@ -292,7 +298,7 @@ export interface AthleteTrainingProfile {
 export interface LoggedEntryMeta {
   date: string;
   /**
-   * 'manual' per voci inserite dal coach, 'intervals_icu_sync' per voci scritte dal pulsante 'Aggiorna da Intervals.icu'. Enum pensato per accogliere in futuro altre fonti (es. garmin_sync) senza cambiare struttura.
+   * 'manual' per voci inserite dal coach, 'intervals_icu_sync' per voci scritte dalla sincronizzazione automatica con Intervals.icu. Enum pensato per accogliere in futuro altre fonti (es. garmin_sync) senza cambiare struttura.
    */
   source: "manual" | "intervals_icu_sync";
   note?: string;
