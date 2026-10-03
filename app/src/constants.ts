@@ -17,6 +17,18 @@ export const TRAINING_SPORT_OPTIONS: [string, string][] = [
   ["strength", "Palestra"]
 ];
 
+// Icona per disciplina nella vista grafica del piano (§8); fallback "•" per
+// discipline non riconosciute (dato libero nel JSON generato da Claude).
+export const DISCIPLINE_ICONS: Record<string, string> = {
+  running: "🏃",
+  cycling: "🚴",
+  swimming: "🏊",
+  strength: "🏋️",
+};
+export function disciplineIcon(discipline: string | null | undefined): string {
+  return (discipline && DISCIPLINE_ICONS[discipline]) || "•";
+}
+
 // Discipline di GARA/RISULTATO: qui "Triathlon" è corretto, è una categoria di evento
 // (con la sua distanza/durata indicata a parte), non un bucket di volume.
 export const EVENT_DISCIPLINE_OPTIONS: [string, string][] = [

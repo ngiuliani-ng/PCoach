@@ -17,8 +17,10 @@ import { buildPlanPrompt, buildFeedbackPrompt } from "../../services/planPrompt"
 import { showToast } from "../../composables/useToast";
 import { confirmDialog } from "../../composables/useConfirmDialog";
 import { useIntervalsSync } from "../../composables/useIntervalsSync";
+import { usePlanWeeksUi } from "../../composables/usePlanWeeksUi";
 import MetricLogList from "./MetricLogList.vue";
 import LoadMetricsChart from "./LoadMetricsChart.vue";
+import PlanView from "./PlanView.vue";
 import PasswordField from "../ui/PasswordField.vue";
 
 const athletes = useAthletesStore();
@@ -75,6 +77,7 @@ function toggleLifestyleFactor(value: string) {
 // la chiave attiva/aggiorna da sola in base ai trigger previsti (digitazione con
 // debounce qui sotto, apertura scheda, pressione "Genera piano").
 const intervalsSync = useIntervalsSync();
+const weeksUi = usePlanWeeksUi();
 const intervalsSyncing = computed(() => intervalsSync.isSyncing(athletes.currentId));
 const intervalsKeyStatus = computed(() => intervalsSync.statusFor(athletes.currentId));
 const intervalsStatusText = computed(() => {
@@ -112,6 +115,17 @@ const planWeeks = ref(8);
 const generatingPlan = ref(false);
 const planPreviewText = ref("");
 const showPlanPreview = ref(false);
+const showAdvancedPlanEdit = ref(false);
+
+const planStateKey = computed(() => (athletes.currentId || "draft") + ":plan");
+const previewStateKey = computed(() => (athletes.currentId || "draft") + ":preview");
+const parsedPlanPreview = computed(() => {
+  try {
+    return JSON.parse(planPreviewText.value);
+  } catch {
+    return null;
+  }
+});
 
 async function generatePlan() {
   await intervalsSync.syncNow(athletes.currentId, profile.value.integrations?.intervals_icu_api_key);
@@ -140,6 +154,8 @@ function confirmPlanPreview() {
   try {
     profile.value.training_plan = JSON.parse(planPreviewText.value);
     showPlanPreview.value = false;
+    showAdvancedPlanEdit.value = false;
+    weeksUi.reset(planStateKey.value);
   } catch {
     showToast("JSON non valido, correggi prima di confermare.");
   }
@@ -548,8 +564,7 @@ function onExport() {
 
     <section class="block">
       <h3>Piano assegnato</h3>
-      <p v-if="profile.training_plan">{{ profile.training_plan.plan_name || "Piano senza nome" }} — {{ profile.training_plan.weeks?.length || 0 }} settimane</p>
-      <p v-else class="helper-text">Nessun piano generato.</p>
+      <PlanView :training-plan="profile.training_plan" :state-key="planStateKey" />
       <div class="field-row">
         <div>
           <label>Settimane da generare</label>
@@ -560,14 +575,20 @@ function onExport() {
         {{ generatingPlan ? "Generazione in corso…" : "Genera piano" }}
       </button>
       <div v-if="showPlanPreview" style="margin-top: 12px">
-        <label>Anteprima piano (JSON)</label>
-        <textarea v-model="planPreviewText" rows="10" class="mono-input"></textarea>
+        <label>Anteprima piano</label>
+        <PlanView :training-plan="parsedPlanPreview" :state-key="previewStateKey" />
+        <p v-if="!parsedPlanPreview" class="helper-text" style="color: var(--danger)">JSON non valido.</p>
+        <button type="button" class="link-btn" @click="showAdvancedPlanEdit = !showAdvancedPlanEdit">
+          {{ showAdvancedPlanEdit ? "Nascondi JSON avanzato" : "Modifica JSON avanzato" }}
+        </button>
+        <textarea v-if="showAdvancedPlanEdit" v-model="planPreviewText" rows="10" class="mono-input" style="margin-top: 8px"></textarea>
         <div class="action-bar">
-          <button type="button" class="primary" @click="confirmPlanPreview">Conferma piano</button>
+          <button type="button" class="primary" :disabled="!parsedPlanPreview" @click="confirmPlanPreview">Conferma piano</button>
           <button type="button" class="ghost" @click="discardPlanPreview">Scarta</button>
         </div>
       </div>
     </section>
+
 
     <section class="block">
       <h3>Feedback settimanale</h3>

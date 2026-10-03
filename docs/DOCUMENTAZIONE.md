@@ -143,7 +143,13 @@ AthleteEditor → confronto tra training_plan e attività reali (services/interv
 
 ## 4. Linee guida grafiche
 
-*Da completare in Fase 8, con riferimento ai componenti `ui/` definitivi e alle regole mobile (Fase 2/Fase 8).*
+*Sezione principale da completare in Fase 8, con riferimento ai componenti `ui/` definitivi e alle regole mobile (Fase 2/Fase 8). Sotto, le convenzioni già stabilite in Fase 6 per la vista grafica del piano.*
+
+### Colori zona e icone disciplina (Fase 6)
+
+- **Colori zona** (`--zone-1` … `--zone-7`, `app/src/styles/tokens.css`): usati solo come tinta di swatch/bordo (barra segmentata, chip zona), mai come sfondo di testo esteso — per questo è definita una sola scala nel blocco `:root`, senza varianti per tema chiaro/scuro. Il campo `zone` nello schema è una stringa libera (non un enum); il colore si ricava estraendo la prima cifra con una regex e mappandola su `--zone-N` (clamp 1–7), con fallback a `--zone-unknown` (alias di `--text-muted`) per stringhe non interpretabili (`zoneColorVar`, `app/src/services/planViewModel.ts`).
+- **Icone disciplina** (`DISCIPLINE_ICONS`/`disciplineIcon()`, `app/src/constants.ts`): emoji per `running`/`cycling`/`swimming`/`strength`, fallback `"•"` per valori non riconosciuti (anche qui `discipline` è un campo libero nel JSON generato da Claude, non garantito all'enum dello schema).
+- **Barra segmentata delle sessioni strutturate**: la larghezza di ogni segmento è una quota proporzionale pulita (`widthPercent`, senza soglia minima artificiale nel calcolo); la leggibilità/tappabilità dei segmenti molto brevi è garantita a livello CSS (`flex-grow: widthPercent` sul contenitore flex + `min-width: 6px` su `.segment`), non deformando la matematica della trasformazione (vedi §10).
 
 ---
 
@@ -240,7 +246,9 @@ I dati sincronizzati sono persistiti con la scrittura mirata `athletes.syncLoadM
 
 ### Claude
 
-*Da completare in Fase 6 (vista grafica del piano) e Fase 7 (aggiornamento prompt per il feedback settimanale). Il contratto corrente del proxy `claude-proxy` è già descritto in §6.*
+Il contratto del proxy `claude-proxy` è descritto in §6. La vista grafica del piano (Fase 6, `app/src/services/planViewModel.ts` e componenti `domain/Plan*.vue`) è una trasformazione puramente client-side dello stesso JSON `training_plan` già prodotto da Claude: non introduce né richiede alcuna modifica al prompt o al contratto del proxy.
+
+*Aggiornamento del prompt per il feedback settimanale: da completare in Fase 7.*
 
 ---
 
@@ -324,6 +332,20 @@ Senza questi due secret configurati, la build in CI fallisce o produce una build
 - *Decisione*: i tre trigger di sincronizzazione automatica lato client (chiave inserita/modificata con debounce, apertura scheda, "Genera piano") condividono stato a livello di modulo (non di istanza componente) in `useIntervalsSync`, sul modello già usato da `useToast`/`useConnectionStatus`.
   - *Motivo*: il dedup (`inFlightIds`) e il debounce devono valere per atleta a prescindere da quale istanza di `AthleteEditor` li invoca; uno stato per-istanza permetterebbe sincronizzazioni concorrenti duplicate se l'editor venisse mai montato più volte.
 
+**Fase 6 — Vista grafica del piano**
+- *Decisione*: la trasformazione `training_plan` (JSON) → view-model (`buildPlanViewModel`, `app/src/services/planViewModel.ts`) è una funzione pura che non legge mai `new Date()` internamente, ma riceve `todayISO` come parametro esplicito, e non lancia mai eccezioni (dati mancanti/malformati producono campi `null`/liste vuote invece di un errore).
+  - *Motivo*: rende la logica interamente testabile con Vitest in modo deterministico (il "today" dei test è controllato dal test stesso) e tollerante ai piani generati da Claude, che non garantiscono la presenza di ogni campo opzionale dello schema.
+  - *Alternativa scartata*: calcolare la settimana corrente dentro i componenti Vue con `new Date()` diretto — non testabile senza mock globali del tempo.
+- *Decisione*: il colore delle zone (`zoneColorVar`) si ricava con un'euristica regex (prima cifra trovata nella stringa `zone`, clamp 1–7) invece di richiedere un campo dedicato o estendere lo schema con un enum di colore.
+  - *Motivo*: `zone` è un campo libero nello schema (non un enum), popolato da Claude con convenzioni non rigide (es. "Z4", "zona 4"); un'euristica tollerante evita di dover validare/normalizzare l'output di Claude solo per colorare la UI, con un fallback neutro (`--zone-unknown`) per i casi non interpretabili.
+  - *Alternativa scartata*: aggiungere un campo `zone_color`/enum allo schema — avrebbe richiesto una migrazione e la modifica del prompt di generazione per un beneficio puramente visivo.
+- *Decisione*: lo stato di apertura/chiusura delle settimane (`usePlanWeeksUi`) vive in un composable a stato di modulo (stesso pattern di `useIntervalsSync`), con una chiave arbitraria (`stateKey`, es. `"<id atleta>:plan"` vs `"<id atleta>:preview"`) e non nel profilo atleta né in `AthleteTrainingProfile`.
+  - *Motivo*: è puro stato di interfaccia (quali settimane sono espanse), che non deve mai comparire nel confronto "modifiche non salvate" (`useDirtyState`) né essere persistito lato server; la chiave distingue lo stato del piano salvato da quello dell'anteprima pre-conferma, che devono potersi aprire/chiudere indipendentemente.
+  - *Alternativa scartata*: stato locale per istanza di componente (`ref` dentro `PlanView.vue`) — si perderebbe riaprendo/richiudendo il componente (es. passando da scheda ad anteprima e ritorno) e non sarebbe condivisibile se la vista venisse mai mostrata da più punti contemporaneamente.
+- *Decisione*: la larghezza dei segmenti nella barra delle sessioni strutturate (`widthPercent`) è una quota proporzionale pulita, senza una soglia minima applicata nel calcolo; la visibilità/tappabilità dei segmenti molto brevi è garantita solo a livello CSS (`min-width` sul singolo segmento).
+  - *Motivo*: mantiene la trasformazione matematicamente corretta e testabile (le percentuali sommano sempre a 100, verificabile nei test) senza mescolare una preoccupazione di layout/accessibilità nella logica pura; il vincolo "resta visibile/tappabile" richiesto dalla specifica è comunque soddisfatto, solo a un livello diverso dello stack.
+  - *Alternativa scartata*: applicare un pavimento minimo di percentuale dentro `planViewModel.ts` — avrebbe reso la somma dei `widthPercent` non più esattamente 100 e complicato i test senza un reale beneficio aggiuntivo rispetto al `min-width` CSS.
+
 ---
 
 ## 11. Limiti noti e roadmap
@@ -352,3 +374,6 @@ Eliminato il bug di polling che sovrascriveva la scheda in editing: il polling p
 
 ### Fase 5 — Modello dati e form
 Identità divisa in `nome`/`cognome`/`email` (`schema_version` 1.4.0), con migrazione euristica in lettura e avviso al coach quando applicata. Nuova sezione "Connessione con app esterne" tra Identità e Discipline, con la chiave Intervals.icu spostata qui (componente `PasswordField` riutilizzabile) e rimossa dalla vecchia posizione in "Stato di allenamento". Sincronizzazione Intervals.icu resa interamente automatica (composable `useIntervalsSync`, tre trigger lato client con dedup/debounce) al posto del pulsante manuale, con un esito leggero di validità della chiave mostrato in UI. Etichette dei volumi in Discipline rese esplicitamente settimanali. Grafico del carico (`LoadMetricsChart`) ora mantiene sempre la propria struttura (zero-line, barre, curve CTL/ATL) anche senza dati, mostrando un messaggio di stato vuoto al posto dei soli assi.
+
+### Fase 6 — Vista grafica del piano
+Nuova trasformazione pura e testata `training_plan` → view-model (`planViewModel.ts`, 13 test Vitest sui casi di dati mancanti/malformati: step assenti, durate null, blocchi `repeat`, settimane vuote, date non valide). Nuovi componenti `PlanView.vue` (intestazione piano, controlli "Apri/Chiudi tutte", ancora alla settimana corrente), `PlanWeekBlock.vue` (settimana comprimibile, corrente aperta di default, badge "Scarico", riepilogo ore/km per disciplina) e `PlanSessionCard.vue` (icona disciplina, chip zona colorato, barra segmentata proporzionale alla durata per sessioni strutturate con testo "6 × (3' Z4 / 2' Z1)" per i blocchi `repeat`, lista testuale step come fallback accessibile, note pieghevoli). Stato di apertura/chiusura delle settimane spostato in un nuovo composable a stato di modulo (`usePlanWeeksUi`), fuori dal profilo atleta e dal confronto "modifiche non salvate". In `AthleteEditor.vue`, sia il piano salvato sia l'anteprima pre-conferma usano ora `PlanView` al posto del riepilogo testuale/JSON grezzo; l'editing JSON manuale resta disponibile dietro un toggle "avanzato" nell'anteprima, con avviso quando il JSON non è valido.
