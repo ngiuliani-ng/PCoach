@@ -88,8 +88,19 @@ async function onRefreshIntervals() {
     showToast("Il log è già aggiornato a oggi.");
     return;
   }
-  if (profile.value.training_status) profile.value.training_status.load_metrics_log = result.log;
+  await athletes.syncLoadMetrics(result.log);
   showToast(result.updatedCount > 0 ? `Aggiornati ${result.updatedCount} giorni da Intervals.icu.` : "Nessun nuovo dato da Intervals.icu.");
+}
+
+async function onReloadRemote() {
+  if (athletes.isDirty) {
+    const confirmed = await confirmDialog(
+      "Hai modifiche non salvate che andranno perse se ricarichi i dati più recenti. Continuare?"
+    );
+    if (!confirmed) return;
+  }
+  athletes.reloadCurrentFromRemote();
+  showToast("Scheda aggiornata con i dati più recenti.");
 }
 
 const planWeeks = ref(8);
@@ -199,7 +210,13 @@ function onExport() {
       <span v-if="profile.meta.athlete_id" class="athlete-id-tag">{{ profile.meta.athlete_id }}</span>
     </div>
     <p class="updated-line">Ultimo aggiornamento: {{ profile.meta.updated_at }}</p>
-    <div v-if="athletes.isDirty" class="unsaved-badge">Modifiche non salvate</div>
+    <div v-if="athletes.isDirty || athletes.hasRemoteUpdate" class="sticky-bar">
+      <span v-if="athletes.isDirty" class="unsaved-badge">Modifiche non salvate</span>
+      <span v-if="athletes.hasRemoteUpdate" class="update-badge">
+        Dati aggiornati disponibili —
+        <button type="button" class="link-btn" @click="onReloadRemote">Aggiorna</button>
+      </span>
+    </div>
 
     <section class="block">
       <h3>Identità</h3>

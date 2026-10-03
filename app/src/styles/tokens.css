@@ -10,6 +10,7 @@
   --danger: #B3261E;
   --danger-bg: #FBEAE9;
   --warning: #9A6B07;
+  --warning-bg: #FBF1DA;
   --focus: #0F6E64;
   --chart-ctl: #2F6FED;
   --chart-atl: #7C3AED;
@@ -30,6 +31,7 @@
     --danger: #E5867E;
     --danger-bg: #3A1F1D;
     --warning: #D9A441;
+    --warning-bg: #3D300F;
     --focus: #37C2AE;
     --chart-ctl: #6FA8FF;
     --chart-atl: #B79CFF;
@@ -47,6 +49,7 @@
   --danger: #E5867E;
   --danger-bg: #3A1F1D;
   --warning: #D9A441;
+  --warning-bg: #3D300F;
   --focus: #37C2AE;
   --chart-ctl: #6FA8FF;
   --chart-atl: #B79CFF;

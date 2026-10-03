@@ -91,9 +91,10 @@ Sidebar (click atleta) → store athletes.openAthlete(id)
 **Salvataggio**
 ```
 AthleteEditor → store athletes.saveCurrent()
-  → upsert su Supabase (tabella athletes: id, data, updated_at)
+  → insert (scheda nuova) oppure update condizionato a updated_at noto (scheda esistente)
+  → in caso di conflitto (nessuna riga aggiornata): avviso, nessuna sovrascrittura
 ```
-*Nota*: nella Fase 1 il salvataggio scrive l'intero blob `data`; il controllo di concorrenza ottimistico basato su `updated_at` è pianificato per la Fase 3 (vedi §11).
+*Nota (Fase 3)*: il salvataggio scrive comunque l'intero blob `data`, ma l'update è condizionato al valore di `updated_at` noto al momento dell'apertura/ultimo salvataggio (controllo di concorrenza ottimistico). Se un'altra sessione ha salvato nel frattempo, l'update non trova righe da modificare e il coach viene avvisato del conflitto invece di sovrascrivere silenziosamente. Rischio residuo e mitigazione completa in §11.
 
 **Generazione piano**
 ```
@@ -172,7 +173,7 @@ alter table athletes disable row level security;
 
 - `id`: identificativo dell'atleta (stringa).
 - `data`: l'intera scheda atleta, conforme a `athlete_profile.schema.json`.
-- `updated_at`: timestamp di ultimo salvataggio, aggiornato lato database. Non ancora usato per il controllo di concorrenza nella Fase 1 (pianificato per la Fase 3, vedi §11).
+- `updated_at`: timestamp di ultimo salvataggio, aggiornato lato client ad ogni scrittura. Usato dalla Fase 3 come campo di versione per il controllo di concorrenza ottimistico e per rilevare quando sul server è disponibile una versione più recente di quella aperta in editor (vedi §11).
 
 ### Tabella `app_settings`
 
@@ -278,14 +279,27 @@ Senza questi due secret configurati, la build in CI fallisce o produce una build
 
 *Sezione popolata progressivamente. Le decisioni principali già prese (risposte alle [DECISIONE] bloccanti e scelte autonome di Fase 1) verranno riportate qui per esteso, con data, motivo e alternative scartate, entro la fine della Fase 1/inizio Fase 2.*
 
+**Fase 3 — Concorrenza ottimistica e scrittura mirata per Intervals.icu**
+- *Decisione*: il salvataggio continua a scrivere l'intero blob `data` (non un merge lato server), ma l'`update` è condizionato al valore di `updated_at` noto quando la scheda è stata aperta/salvata l'ultima volta (`.eq("id", id).eq("updated_at", baseVersion)`), verificando poi che almeno una riga sia stata effettivamente modificata.
+  - *Motivo*: `jsonb` su Postgres non supporta un merge parziale lato server senza funzioni ad hoc; la verifica condizionata è il modo più semplice per rilevare (non per risolvere automaticamente) un conflitto scrittura-scrittura tra due sessioni, coerente con l'uso personale/mono-coach dell'app.
+  - *Alternativa scartata*: merge campo-per-campo lato server (richiede una funzione Postgres dedicata, complessità non giustificata per il volume d'uso previsto).
+- *Decisione*: i dati sincronizzati da Intervals.icu (`training_status.load_metrics_log` con `source === "intervals_icu_sync"`) sono esclusi dal confronto "modifiche non salvate" (vedi `useDirtyState.snapshotForCompare`) e persistiti con una scrittura mirata (`athletes.syncLoadMetrics`) che rilegge la copia più recente da Supabase e vi fonde solo `load_metrics_log`, senza passare dal salvataggio manuale dell'intera scheda.
+  - *Motivo*: i dati di sincronizzazione cambiano in autonomia (non per iniziativa dell'utente) e non devono né far comparire il chip "Modifiche non salvate" né rischiare di sovrascrivere altre modifiche locali dell'utente ancora in corso (che restano solo in `currentProfile` finché non vengono salvate esplicitamente).
+- *Decisione*: il rilevamento di "dati più recenti disponibili sul server" (chip "Aggiorna") si basa sul confronto tra `updated_at` noto all'apertura/ultimo salvataggio e quello osservato dal polling periodico della lista (15s), non su una richiesta dedicata.
+  - *Motivo*: il polling della lista aggiorna già `rowVersions` per tutte le schede; riusarlo evita richieste di rete aggiuntive.
+
 ---
 
 ## 11. Limiti noti e roadmap
 
 *Da completare progressivamente. Debiti tecnici già noti e tracciati nel piano di lavoro (riferimento rapido, da dettagliare qui):*
-- *Fase 1 preserva il bug di polling che può sovrascrivere modifiche in corso durante l'editing (corretto in Fase 3).*
-- *Il salvataggio scrive l'intero blob `data` (nessun controllo di concorrenza ottimistico fino alla Fase 3).*
 - *Nessuna autenticazione/RLS: rischio noto, accettato per uso personale (vedi §8).*
+
+**Rischio residuo: salvataggio dell'intero blob `jsonb` (Fase 3)**
+
+Il salvataggio scrive sempre l'intero oggetto `data`, non un merge parziale lato server. Il controllo di concorrenza ottimistico (condizione su `updated_at`) evita che una sessione sovrascriva silenziosamente le modifiche di un'altra, ma non risolve il conflitto: se due sessioni modificano la stessa scheda in finestre temporali sovrapposte, la seconda a salvare riceve un avviso di conflitto e deve ricaricare i dati più recenti (chip "Aggiorna") e riapplicare manualmente le proprie modifiche, perdendo quindi il lavoro non ancora salvato se non lo riporta a mano.
+
+*Mitigazione scelta*: controllo di concorrenza ottimistico lato client (update condizionato + verifica del numero di righe modificate) più rilevamento proattivo di versioni più recenti tramite polling, così da ridurre la finestra in cui un conflitto può verificarsi e rendere visibile all'utente quando sta per salvare su dati non più aggiornati. Non è stata scelta una soluzione di merge automatico campo-per-campo (vedi §10) perché non giustificata per un uso mono-coach; resta un limite noto accettato, da rivalutare se l'app venisse usata da più coach in concorrenza sulla stessa scheda.
 
 ---
 
@@ -293,3 +307,9 @@ Senza questi due secret configurati, la build in CI fallisce o produce una build
 
 ### Fase 1 — Scaffold + parità funzionale
 Migrazione dell'app da file HTML singolo a Vue 3 + Vite + Pinia + TypeScript, con parità funzionale rispetto alla versione precedente. Tipi generati da `athlete_profile.schema.json`. Setup di build e deploy automatizzato su GitHub Pages. Creazione di questo documento.
+
+### Fase 2 — Sidebar e stato di connessione
+Sidebar definitiva con card "Nuovo atleta" fissa in cima, bozza inline con conferma di chiusura se contiene dati, stato di connessione a 4 stati (`useConnectionStatus`, funzione pura testata) con pallino pulsante rispettoso di `prefers-reduced-motion`. Layout responsive di base (sidebar come drawer sotto breakpoint mobile).
+
+### Fase 3 — Sincronizzazione sicura e concorrenza ottimistica
+Eliminato il bug di polling che sovrascriveva la scheda in editing: il polling periodico ora aggiorna solo l'elenco atleti e le relative versioni (`updated_at`), mai `currentProfile`. Aggiunto controllo di concorrenza ottimistico al salvataggio (update condizionato a `updated_at` noto, con avviso esplicito in caso di conflitto). Nuovo chip sticky "Dati aggiornati disponibili — Aggiorna" accanto al chip "Modifiche non salvate", con conferma se si ricaricano dati sopra modifiche locali non salvate. Estratta la logica di confronto "modifiche non salvate" in un composable dedicato (`useDirtyState`, con funzioni pure testate da Vitest), estesa per escludere le voci di `load_metrics_log` sincronizzate da Intervals.icu. Nuova azione `syncLoadMetrics` per persistere le sincronizzazioni Intervals.icu con scrittura mirata sulla copia più recente del server, senza richiedere un salvataggio manuale.
