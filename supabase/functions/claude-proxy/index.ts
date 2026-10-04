@@ -101,7 +101,7 @@ Deno.serve(async (req: Request) => {
     const text = (data.content || [])
       .map((block: { type: string; text?: string }) => block.text || "")
       .join("\n");
-    return jsonResponse({ text });
+    return jsonResponse({ text, stop_reason: data.stop_reason });
   } catch {
     return jsonResponse({ error: "Impossibile contattare l'API Claude." }, 502);
   }

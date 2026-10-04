@@ -6,13 +6,13 @@ const message = ref("");
 const visible = ref(false);
 let timer: ReturnType<typeof setTimeout> | undefined;
 
-export function showToast(msg: string) {
+export function showToast(msg: string, durationMs = 2200) {
   message.value = msg;
   visible.value = true;
   clearTimeout(timer);
   timer = setTimeout(() => {
     visible.value = false;
-  }, 2200);
+  }, durationMs);
 }
 
 export function useToast() {

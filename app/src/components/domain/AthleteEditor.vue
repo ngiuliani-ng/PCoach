@@ -128,22 +128,31 @@ const parsedPlanPreview = computed(() => {
 
 async function generatePlan() {
   await intervalsSync.syncNow(athletes.currentId, profile.value.integrations?.intervals_icu_api_key);
-  const prompt = buildPlanPrompt(profile.value, planWeeks.value || 8, TRAINING_PLAN_JSON_SHAPE, settings.settings.plan_generation_prompt_template);
+  const weeks = planWeeks.value || 8;
+  const prompt = buildPlanPrompt(profile.value, weeks, TRAINING_PLAN_JSON_SHAPE, settings.settings.plan_generation_prompt_template);
   if (!settings.settings.claude_api_key) {
     const copied = await copyToClipboardFallback(prompt);
     showToast(copied ? "Claude non configurato: prompt copiato negli appunti." : "Claude non configurato e copia negli appunti non riuscita.");
     return;
   }
   generatingPlan.value = true;
-  const result = await callClaudeProxy(prompt, 8000, settings.settings.claude_model);
+  // Un piano richiede all'incirca 1800 token di output a settimana (verificato: 8 settimane
+  // troncavano a 8000 token appena oltre metà piano); margine per preambolo/chiusura JSON.
+  const maxTokens = Math.min(64000, weeks * 1800 + 2000);
+  const result = await callClaudeProxy(prompt, maxTokens, settings.settings.claude_model);
   generatingPlan.value = false;
   if (!result.ok) {
-    showToast(result.error);
+    showToast(result.error, 6000);
     return;
   }
   const parsed = extractJsonBlock(result.text);
   if (!parsed) {
-    showToast("Risposta di Claude non interpretabile come JSON.");
+    showToast(
+      result.truncated
+        ? "Risposta di Claude troncata per limite di token: riduci le settimane da generare o riprova."
+        : "Risposta di Claude non interpretabile come JSON.",
+      6000
+    );
     return;
   }
   planPreviewText.value = JSON.stringify(parsed, null, 2);

@@ -3,7 +3,7 @@
 import { supabase, supabaseUrl, supabaseAnonKey } from "./supabase";
 
 export type ClaudeProxyResult =
-  | { ok: true; text: string }
+  | { ok: true; text: string; truncated: boolean }
   | { ok: false; error: string };
 
 export async function callClaudeProxy(
@@ -32,7 +32,7 @@ export async function callClaudeProxy(
     if (!res.ok || !data || data.error) {
       return { ok: false, error: (data && data.error) || `Errore proxy (${res.status})` };
     }
-    return { ok: true, text: data.text || "" };
+    return { ok: true, text: data.text || "", truncated: data.stop_reason === "max_tokens" };
   } catch {
     return { ok: false, error: "Impossibile contattare la Edge Function claude-proxy." };
   }
