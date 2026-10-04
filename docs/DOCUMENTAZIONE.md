@@ -2,8 +2,6 @@
 
 Fonte unica di verità per architettura, convenzioni, modello dati, backend e processo di sviluppo di PCoach. Sostituisce `docs/specifica-tecnica.md` e `docs/impostazioni-claude.md` (migrati e poi eliminati — vedi §12).
 
-> Documento in costruzione progressiva durante la migrazione a Vue 3 + Vite + Pinia (vedi §10, §12). Le sezioni non ancora completate riportano una nota esplicita con la fase in cui verranno popolate.
-
 ## Indice
 
 1. [Panoramica](#1-panoramica)
@@ -72,6 +70,7 @@ supabase/
   functions/claude-proxy/     Edge Function: proxy verso l'API Claude
   functions/weekly-feedback/  Edge Function schedulata: feedback settimanale + email (Fase 7)
   functions/_shared/          EmailSender astratto + implementazione Resend (Fase 7)
+  migrations/0001_enable_rls.sql  is_coach() + policy RLS su athletes/app_settings (Fase 9)
 .github/workflows/deploy.yml  Build + pubblicazione su GitHub Pages
 docs/
   DOCUMENTAZIONE.md            Questo file
@@ -79,6 +78,29 @@ docs/
 ```
 
 Nessuna chiamata di rete viene fatta direttamente nei componenti `.vue`: ogni accesso a Supabase, Intervals.icu o Claude passa da `services/`.
+
+### Diagramma dei componenti
+
+```
+App.vue
+  ├─ LoginView.vue              (Fase 9: form email+password, mostrato se non autenticato)
+  └─ (autenticato)
+     ├─ domain/AthleteSidebar.vue
+     │    ├─ lista atleti + card "Nuovo atleta" (stato locale)
+     │    ├─ pallino di stato connessione (useConnectionStatus)
+     │    └─ bottone "Esci" (auth.signOut, Fase 9)
+     ├─ domain/AthleteEditor.vue  (scheda atleta, mostrata quando un atleta è aperto)
+     │    ├─ domain/LoadMetricsChart.vue   (grafico CTL/ATL/TSB, tooltip, legenda)
+     │    ├─ domain/MetricLogList.vue      (rilevazioni manuali load_metrics_log)
+     │    ├─ domain/PlanView.vue           (vista grafica del piano generato)
+     │    │    └─ domain/PlanWeekBlock.vue (settimana comprimibile)
+     │    │         └─ domain/PlanSessionCard.vue (card sessione singola)
+     │    └─ ui/PasswordField.vue          (campo API key Intervals.icu, mostra/nascondi)
+     └─ domain/SettingsPanel.vue  (Impostazioni: Claude, prompt, orario feedback settimanale)
+  ui/ConfirmDialog.vue + ui/ToastHost.vue  (montati una volta in App.vue, pilotati da composables condivisi)
+```
+
+Ogni componente `domain/` incapsula markup e stato locale di una sezione; lo stato condiviso (schede atleta, impostazioni, sessione) vive nei store Pinia, mai passato per prop attraverso più livelli.
 
 ### Flussi principali
 
@@ -106,10 +128,12 @@ AthleteEditor → services/planPrompt.ts (costruisce il prompt dal profilo atlet
 ```
 Se non è configurata una chiave Claude in `app_settings`, il prompt viene copiato negli appunti invece di essere inviato (fallback sempre disponibile).
 
-**Feedback settimanale** (generato automaticamente da una Edge Function schedulata, Fase 7 — vedi §6/§7)
+**Feedback settimanale** (generato automaticamente da una Edge Function schedulata, Fase 7, finestra di attivazione e sync rivisti post-Fase 9 — vedi §6/§7/§10)
 ```
-pg_cron (ogni ora) → Edge Function weekly-feedback
-  → se nella finestra giorno/ora configurata (app_settings): per ogni atleta idoneo
+pg_cron (ogni ora, legge la service-role key da Vault) → Edge Function weekly-feedback
+  → verifica che il chiamante presenti la service-role key come bearer (altrimenti 401, Fase 9)
+  → se nel resto della giornata configurata (app_settings, non più un match esatto sull'ora): per ogni atleta idoneo
+  → sincronizza CTL/ATL da Intervals.icu (stessa logica di services/intervals.ts, 4° trigger — vedi §7)
   → confronto tra training_plan e attività reali Intervals.icu
   → prompt di confronto → Claude (stesso pattern di claude-proxy)
   → risultato aggiunto a weekly_feedback_log nella scheda atleta
@@ -152,6 +176,32 @@ pg_cron (ogni ora) → Edge Function weekly-feedback
 
 Tutte le variabili di design (colori, in chiaro/scuro dove previsto, font) vivono in `app/src/styles/tokens.css`; gli stili globali condivisi (layout, form, bottoni, toast, dialog) in `app/src/styles/base.css`. Nessun componente definisce colori o dimensioni "a mano": si usano sempre le variabili CSS (`var(--accent)`, `var(--border)`, `var(--font-ui)`, ...), per poter cambiare tema senza toccare i componenti.
 
+### Palette e colori di stato
+
+Definita in `app/src/styles/tokens.css`, con variante scura automatica (`prefers-color-scheme: dark`) più un override manuale via `:root[data-theme="dark"]` (per un eventuale toggle tema, non ancora esposto in UI):
+
+| Token | Chiaro | Scuro | Uso |
+|---|---|---|---|
+| `--bg` / `--surface` / `--surface-2` | `#F5F6F8` / `#FFFFFF` / `#EEF0F3` | `#14171B` / `#1C2025` / `#262B31` | sfondo pagina / card / hover-sfondo |
+| `--border` | `#DDE1E7` | `#33393F` | bordi di card, input, separatori |
+| `--text` / `--text-muted` | `#14181F` / `#626B79` | `#EDEFF2` / `#97A0AC` | testo principale / secondario |
+| `--accent` / `--accent-contrast` | `#0F6E64` / `#FFFFFF` | `#37C2AE` / `#0A1512` | azioni primarie, stato "online", focus ring |
+| `--danger` / `--danger-bg` | `#B3261E` / `#FBEAE9` | `#E5867E` / `#3A1F1D` | azioni distruttive, stato di errore |
+| `--warning` / `--warning-bg` | `#9A6B07` / `#FBF1DA` | `#D9A441` / `#3D300F` | stato "offline", chip "Dati aggiornati" |
+| `--focus` | `#0F6E64` (= `--accent`) | `#37C2AE` (= `--accent`) | focus ring di input/bottoni |
+| `--chart-ctl` / `--chart-atl` | `#2F6FED` / `#7C3AED` | `#6FA8FF` / `#B79CFF` | linee del grafico carico (§2/§7) |
+| `--zone-1` … `--zone-7` | scala fissa `#2F6FED` → `#B3261E` (blu→rosso, recupero→massimale) | invariata (nessuna variante scuro, vedi §2) | swatch/bordo zona di intensità |
+
+Il colore da solo non è mai l'unico indicatore di stato (vedi "Convenzioni di layout" sotto): ogni chip/pallino colorato è sempre accompagnato da testo o da una label accessibile.
+
+### Tipografia
+
+`--font-ui` (stack di sistema: `-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif`) per tutta l'interfaccia; `--font-mono` (`"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`) solo per valori tecnici (ID atleta, campi numerici, timestamp). Non esiste una scala tipografica formalizzata a step (nessun `--font-size-sm/md/lg`): ogni contesto fissa la propria dimensione in `base.css`, con questi riferimenti ricorrenti — 20px (titolo scheda atleta), 15px (titolo sidebar), 13.5–14px (corpo, input), 12.5–13px (bottoni, titoli di sezione in maiuscolo-soft), 11–12px (metadati, badge, helper text). Il peso (`font-weight`) distingue enfasi (500 per bottoni/nomi, 600 per titoli) senza mai ricorrere a un secondo font.
+
+### Spaziature
+
+Non esiste una scala di spaziatura tokenizzata (nessun `--space-1/2/3`): i valori di `padding`/`margin`/`gap` sono fissati per componente in `base.css`, tipicamente multipli di 2px nell'intervallo 4–20px (es. `gap: 8px` tra bottoni dell'`action-bar`, `padding: 18px 20px 20px` per `section.block`, `margin-bottom: 6px` tra card atleta). Scelta pragmatica per un'interfaccia a superficie contenuta (un solo form centrale, una sidebar): da rivalutare se il numero di componenti crescesse al punto da rendere visibili le incoerenze.
+
 Componenti generici riutilizzabili, in `components/ui/`:
 - **Toast** (`ToastHost.vue` + `useToast`): un solo messaggio visibile alla volta, in basso al centro, si chiude da solo; usato per esiti di operazioni (salvataggio, errori di rete), mai per conferme che richiedono una decisione.
 - **ConfirmDialog** (`ConfirmDialog.vue` + `useConfirmDialog`): dialogo modale disegnato in-page per ogni azione distruttiva o che scarta dati (eliminazione atleta, chiusura di una bozza con contenuto, ricaricamento di dati sopra modifiche non salvate) — mai `window.confirm`/`alert` nativi, per uno stile coerente e per poter controllare la larghezza su mobile (vedi sotto).
@@ -164,7 +214,28 @@ Componenti generici riutilizzabili, in `components/ui/`:
 - **Azioni distruttive**: sempre dietro `ConfirmDialog`, mai immediate al click, e visivamente distinte (classe `button.danger`, colore `--danger`).
 - **Area di lavoro**: un solo form visibile alla volta nella colonna centrale (`main`), largo al massimo 640px (`.form-wrap`) e centrato, per restare leggibile anche su schermi molto larghi.
 
-### Regole mobile (360–430px, Fase 2/Fase 8)
+### Stati dei componenti
+
+Tutti definiti in `app/src/styles/base.css`, mai inline nei singoli componenti:
+
+- **Hover**: card atleta (`--surface-2`), bottoni (`filter: brightness(0.95)` su `primary`, `--surface-2` su `secondary`/`ghost`/`add-row`), pulsante elimina (`rgba(0,0,0,0.08)`).
+- **Focus**: unico stile per input/select/textarea (`border-color: var(--focus)` + `box-shadow` alone sfumato al 22% di opacità), nessun `outline` nativo del browser rimosso senza sostituzione.
+- **Disabled**: solo `button.primary:disabled` è definito esplicitamente (sfondo `--surface-2`, testo `--text-muted`, `cursor: not-allowed`, hover disattivato); usato quando manca una precondizione per l'azione (es. "Genera piano" senza giorni disponibili selezionati).
+- **Errore**: `.unsaved-badge` (chip rossa "Modifiche non salvate", colori `--danger`/`--danger-bg`) e messaggi di errore di rete/validazione via `Toast` (mai bloccanti, si chiudono da soli).
+- **Vuoto**: `.placeholder` (nessun atleta selezionato, emoji + testo guida), `.empty-list` (sidebar senza atleti), grafico carico con assi/legenda sempre presenti ma messaggio esplicito quando `load_metrics_log` è vuoto (vedi §2), nessuna card "Nuovo atleta" nascosta — resta sempre visibile anche a lista vuota.
+- **Caricamento**: un solo stato gestito esplicitamente, il gate di autenticazione in `App.vue` (`auth.loading`) — testo centrato "Caricamento…", nessuno spinner animato. Le operazioni di salvataggio/sincronizzazione non hanno un indicatore di caricamento dedicato: l'esito (successo o errore) è comunicato solo a posteriori via `Toast`, senza un indicatore "in corso" nell'intervallo — limite noto, accettabile per operazioni tipicamente sotto il secondo.
+
+### Accessibilità
+
+- **Testo nascosto per screen reader**: `.visually-hidden` (clip a 1px, non `display: none`) per etichette non visibili ma annunciate, es. `aria-label` sui pulsanti icona-soltanto.
+- **Riduzione del movimento**: ogni animazione (`status-pulse` sul pallino di stato, transizione del drawer sidebar) è disabilitata sotto `@media (prefers-reduced-motion: reduce)`, senza eccezioni.
+- **Target di tocco**: il pulsante flottante che apre la sidebar su mobile è 44×44px, la soglia minima comunemente raccomandata (WCAG 2.5.5); le card atleta hanno `min-height: 44px`.
+- **Colore + testo, mai solo colore**: ogni chip/pallino di stato è sempre accompagnato da un testo (vedi "Convenzioni di layout" sopra); `::selection` personalizzato resta sufficientemente contrastato sia in chiaro che in scuro (sfumatura di `--accent` al 30%, non un colore fisso).
+- **Focus da tastiera**: unico stile di focus coerente su tutti i campi (vedi "Stati dei componenti" sopra); nessun elemento interattivo con `tabindex="-1"` che lo escluda dalla navigazione da tastiera.
+
+### Regole mobile (Fase 2/Fase 8)
+
+Il documento `PROMPT-PCoach.md` indicava un intervallo di riferimento di 360–430px (larghezza tipica di smartphone); i breakpoint CSS effettivi sono impostati più in alto per includere anche tablet piccoli/finestre ridotte (720px per il passaggio a drawer della sidebar, 480px per la singola colonna nei form), così la fascia 360–430px indicata nel prompt ricade sempre dentro entrambi i breakpoint, con margine, invece di essere il limite esatto:
 
 - **Sidebar**: sotto i 720px diventa un drawer (`position: fixed`, scorrimento con `transform: translateX`), aperto/chiuso da un pulsante flottante a tocco (44×44px, soglia minima consigliata per i target touch) e da un overlay di sfondo cliccabile per chiudere; si chiude da sola alla selezione di un atleta o all'apertura delle Impostazioni (vedi `App.vue`). La transizione è disabilitata sotto `prefers-reduced-motion: reduce`, stesso trattamento già riservato al pallino di stato pulsante.
 - **Form a colonna singola**: sotto i 480px, le griglie `field-row`/`checkbox-grid` (altrimenti `auto-fit, minmax(...)`, che su schermi di 360–430px possono ancora produrre due colonne strette) e la barra azioni (`action-bar`) passano a una sola colonna, per evitare celle troppo strette per input ed etichette.
@@ -195,6 +266,32 @@ Nuova sezione `integrations` nel profilo (oggi con il solo campo `intervals_icu_
 
 Le etichette dei volumi sono state rese esplicitamente settimanali ("Volume settimanale attuale /settimana", "Picco settimanale (ultimi 12 mesi) /settimana"), con testo d'aiuto a corredo. Nessuna migrazione dati: i valori esistenti si considerano già settimanali, solo l'etichetta era ambigua.
 
+### Sezioni di `AthleteTrainingProfile`
+
+Riferimento completo: `app/src/schema/athlete_profile.schema.json`. Di seguito il significato di ogni sezione di primo livello; i dettagli dei singoli campi sono nelle `description` dello schema stesso (non duplicate qui per intero, per non disallinearsi quando lo schema cambia).
+
+- **`schema_version`**: versione dello schema per gestire le migrazioni (vedi "Storico di `schema_version`" sotto).
+- **`meta`**: metadati sulla scheda, non sull'atleta — `athlete_id` (generato alla creazione, non derivato dal nome), `coach_id`, `created_at`/`updated_at` (date, non il timestamp `updated_at` della riga DB di §6: coesistono con significati diversi), `data_source` (origine prevalente dei dati: `manual`/`garmin_export`/`intervals_icu_api`/`mixed`).
+- **`identity`**: dati anagrafici utili al calcolo di carichi/zone — `nome`/`cognome`/`email` (vedi "Identità" sopra), `birth_year` (per stime età-correlate, non l'età esatta), `biological_sex` (per formule fisiologiche standard, opzionale), `height_cm`/`weight_kg`.
+- **`disciplines`**: un array con una voce per sport praticato (`running`/`cycling`/`swimming`/`strength`); il triathlon non è un valore qui, si rappresenta come tre righe separate. Ogni voce ha `level`, `years_practice` e i due volumi settimanali (vedi "Discipline" sopra).
+- **`physiological_thresholds`**: soglie per sport, con `zone_system` (configurazione, cambia raramente) e `thresholds_log` — uno storico datato per sport (`running`/`cycling`/`swimming`), dove il valore corrente è sempre la voce con la data più recente, non un campo a sé da sovrascrivere (stesso pattern di `load_metrics_log`, vedi §6). Ogni voce dello storico condivide i metadati comuni `date`/`source`/`note` (`$defs/loggedEntryMeta`) più i campi specifici dello sport (`threshold_pace_per_km`/`lthr_bpm`/`vo2max_estimated`/`test_type` per `running`; `ftp_watts` per `cycling`; `css_pace_per_100m` per `swimming`).
+- **`training_status`**: fotografia dello stato di allenamento attuale — `detraining_period` (se l'atleta è reduce da un calo, con `cause`/`severity`/`duration_weeks`), `load_metrics_log` (storico CTL/ATL/TSB, vedi "Scrittura mirata delle sincronizzazioni" in §6), `lifestyle_factors`/`lifestyle_factors_note` (fattori di vita ricorrenti e strutturali, non un evento isolato, che condizionano quanto essere aggressivi con i carichi).
+- **`goals`**: `primary_objective` (enum, con `primary_objective_detail` libero solo per `altro`), `secondary_objective` (solo obiettivi "di sviluppo", esclusi `preparazione_gara`/`ripartenza_post_stop` che riguardano solo l'obiettivo principale), `periodization_model` (derivato automaticamente da `primary_objective`, non scelto indipendentemente in UI), `target_events` (array di eventi target con priorità A/B/C).
+- **`constraints`**: `days_available` (un elemento per giorno della settimana; `active`/`max_duration_minutes` sono il vincolo reale di disponibilità, `fixed_activity` è puramente informativo e non vincola la programmazione futura), `sessions_per_week_target`.
+- **`methodology_preferences`**: `intensity_distribution_model` (es. `polarizzato_80_20`), `load_deload_pattern` (formato testuale `N:1`, es. `"3:1"`).
+- **`notes_free_text`**: testo libero per qualsiasi informazione non modellata altrove.
+- **`training_plan`**: piano assegnato (`null` se non ancora generato), generato con l'assistenza di Claude (vedi §7) — `plan_name`, `start_date`, `weeks[]` con `sessions[]` (vedi §2 per la vista grafica e `$defs/trainingSession`/`$defs/trainingStep` per la struttura delle sessioni strutturate).
+- **`weekly_feedback_log`**: storico dei feedback generati confrontando il piano con gli allenamenti reali (vedi §6/§7) — `date` (fine settimana confrontata), `note`, `generated_by` (`claude`/`manual`).
+- **`integrations`**: credenziali/config per sincronizzazioni automatiche per-atleta — oggi solo `intervals_icu_api_key` (vedi "Connessione con app esterne" sopra e §8 per il compromesso di sicurezza accettato), pensata per essere estesa con altre integrazioni future senza cambiare struttura.
+
+### Storico di `schema_version`
+
+Un solo incremento tracciato finora: **`1.4.0`**, introdotto in Fase 5 insieme allo split `identity.name` → `nome`/`cognome`/`email` (vedi "Identità" sopra e §12). Le versioni precedenti non sono documentate singolarmente perché precedono questo documento (la cronologia di `index.html` in git ne è l'unica traccia); la funzione `migrateProfile` applica le migrazioni necessarie in lettura, al volo, qualunque sia la versione di partenza della scheda.
+
+### Sezioni volutamente non presenti
+
+Un elenco di sezioni progettate e poi scartate su richiesta esplicita del coach (infortuni/limitazioni, eccezioni temporanee, risultati recenti, forza in palestra, monitoraggio, regole di adattamento automatico del piano) è in §11 — da non reintrodurre per iniziativa autonoma, solo su nuova richiesta esplicita.
+
 ---
 
 ## 6. Database e backend
@@ -204,7 +301,7 @@ Le etichette dei volumi sono state rese esplicitamente settimanali ("Volume sett
 Una riga per scheda atleta.
 
 ```sql
-create table athletes (
+create table if not exists athletes (
   id text primary key,
   data jsonb not null,
   updated_at timestamptz not null default now()
@@ -212,11 +309,16 @@ create table athletes (
 
 -- RLS abilitata (Fase 9): accesso ristretto al singolo utente coach tramite
 -- la funzione public.is_coach() e le policy sottostanti. Vedi §8 per il modello
--- di sicurezza e il setup manuale richiesto.
+-- di sicurezza e il setup manuale richiesto. "drop policy if exists" rende il
+-- blocco ri-eseguibile senza errori su un database già migrato.
 alter table athletes enable row level security;
+drop policy if exists "athletes_select_coach" on athletes;
 create policy "athletes_select_coach" on athletes for select to authenticated using (public.is_coach());
+drop policy if exists "athletes_insert_coach" on athletes;
 create policy "athletes_insert_coach" on athletes for insert to authenticated with check (public.is_coach());
+drop policy if exists "athletes_update_coach" on athletes;
 create policy "athletes_update_coach" on athletes for update to authenticated using (public.is_coach()) with check (public.is_coach());
+drop policy if exists "athletes_delete_coach" on athletes;
 create policy "athletes_delete_coach" on athletes for delete to authenticated using (public.is_coach());
 ```
 
@@ -229,7 +331,7 @@ create policy "athletes_delete_coach" on athletes for delete to authenticated us
 Configurazione globale del coach (non per-atleta): riga singola con `id = 1`.
 
 ```sql
-create table app_settings (
+create table if not exists app_settings (
   id integer primary key,
   claude_api_key text,
   claude_model text,
@@ -238,16 +340,20 @@ create table app_settings (
 );
 
 -- Fase 7: impostazioni del feedback settimanale automatico.
-alter table app_settings add column weekly_feedback_day text not null default 'domenica';
-alter table app_settings add column weekly_feedback_time text not null default '08:00';
-alter table app_settings add column weekly_feedback_timezone text not null default 'Europe/Rome';
-alter table app_settings add column weekly_feedback_email_enabled boolean not null default false;
+alter table app_settings add column if not exists weekly_feedback_day text not null default 'domenica';
+alter table app_settings add column if not exists weekly_feedback_time text not null default '08:00';
+alter table app_settings add column if not exists weekly_feedback_timezone text not null default 'Europe/Rome';
+alter table app_settings add column if not exists weekly_feedback_email_enabled boolean not null default false;
 
 -- Fase 9: RLS abilitata, stesse policy coach di athletes (vedi sopra e §8).
 alter table app_settings enable row level security;
+drop policy if exists "app_settings_select_coach" on app_settings;
 create policy "app_settings_select_coach" on app_settings for select to authenticated using (public.is_coach());
+drop policy if exists "app_settings_insert_coach" on app_settings;
 create policy "app_settings_insert_coach" on app_settings for insert to authenticated with check (public.is_coach());
+drop policy if exists "app_settings_update_coach" on app_settings;
 create policy "app_settings_update_coach" on app_settings for update to authenticated using (public.is_coach()) with check (public.is_coach());
+drop policy if exists "app_settings_delete_coach" on app_settings;
 create policy "app_settings_delete_coach" on app_settings for delete to authenticated using (public.is_coach());
 ```
 
@@ -260,6 +366,18 @@ create policy "app_settings_delete_coach" on app_settings for delete to authenti
 - `weekly_feedback_email_enabled` (Fase 7): se `true`, oltre a salvare il feedback in `weekly_feedback_log` la funzione schedulata prova a inviarlo via email all'atleta (se ha un `identity.email`); se `false`, il feedback viene comunque generato e salvato, ma nessuna email viene inviata.
 
 Queste quattro colonne sono editabili dal coach nel pannello Impostazioni (sezione "Feedback settimanale automatico"); modificarle non richiede alcuna modifica alla configurazione dello scheduler (`pg_cron`, vedi sotto), perché la funzione schedulata le rilegge ad ogni invocazione.
+
+### Scrittura mirata delle sincronizzazioni (`syncLoadMetrics`)
+
+`app/src/stores/athletes.ts` → azione `syncLoadMetrics(log)`, usata dai trigger automatici di sincronizzazione Intervals.icu (§7) per persistere `training_status.load_metrics_log` senza passare dal salvataggio manuale dell'intera scheda:
+
+1. Aggiorna subito `currentProfile.training_status.load_metrics_log` in memoria (la UI riflette il nuovo grafico immediatamente), poi — se la scheda ha un `id` ed è raggiungibile il database — procede con la persistenza.
+2. Rilegge da Supabase la copia **corrente** di `data`/`updated_at` per quella riga (non la versione nota quando la scheda è stata aperta, `currentBaseVersion`): questa è la "versione di base" usata per il merge, non quella dell'editor.
+3. Fonde `load_metrics_log` dentro quella copia appena riletta (`{ ...row.data, training_status: { ...row.data.training_status, load_metrics_log: log } }`), preservando qualunque altro campo come si trova sul server in quel momento — non sovrascrive con lo stato eventualmente in editing non ancora salvato.
+4. Scrive con `update(...).eq("id", id).eq("updated_at", row.updated_at)`: condizionata alla versione appena riletta al passo 2, non a `currentBaseVersion`. Questo protegge solo contro un salvataggio concorrente avvenuto nella strettissima finestra tra il passo 2 e questo update; in caso di conflitto (nessuna riga aggiornata) la sincronizzazione fallisce silenziosamente per quel ciclo, senza avviso in UI — verrà ritentata al trigger successivo.
+5. In caso di successo, aggiorna `rowVersions[id]` (usato dal polling/dall'elenco) **e**, solo se l'atleta sincronizzato è quello correntemente aperto in editor (`currentId === id`), aggiorna anche `currentBaseVersion` allo stesso nuovo `updated_at`.
+
+Il passo 5 è il motivo per cui il proprio sync non fa scattare il chip "Dati aggiornati disponibili" (`hasRemoteUpdate`, confronto tra `rowVersions[id]` e `currentBaseVersion`): aggiornando entrambi allo stesso valore quando la scheda sincronizzata è quella aperta, non si crea mai un disallineamento tra le due versioni per colpa della propria scrittura. Se invece la sincronizzazione riguarda un atleta diverso da quello aperto, solo `rowVersions[id]` cambia — innocuo, perché quell'atleta non ha una `currentBaseVersion` con cui confrontarsi finché non viene aperto.
 
 ### Autenticazione e RLS (Fase 9)
 
@@ -302,20 +420,30 @@ Percorso: `supabase/functions/claude-proxy/index.ts`. Scopo: inoltrare una richi
 
 Percorso: `supabase/functions/weekly-feedback/index.ts`, più `supabase/functions/_shared/emailSender.ts` (interfaccia astratta `EmailSender`) e `supabase/functions/_shared/resendEmailSender.ts` (implementazione su Resend). Scopo: generare automaticamente il feedback settimanale per ogni atleta idoneo e, se attivo, inviarlo via email.
 
-- **Trigger**: HTTP, pensata per essere invocata **ogni ora** da `pg_cron` (via `pg_net`, vedi setup sotto). Non esegue nulla all'ora sbagliata: la funzione stessa confronta giorno/ora correnti (nel fuso `weekly_feedback_timezone`) con `weekly_feedback_day`/`weekly_feedback_time` e restituisce `{ skipped: true, reason: "..." }` se non corrispondono. Questo disaccoppia la cadenza del cron (fissa, configurata una volta) dalle impostazioni modificabili dal coach in UI (vedi §6 sopra).
+- **Trigger**: HTTP, pensata per essere invocata **ogni ora** da `pg_cron` (via `pg_net`, vedi setup sotto), con verifica esplicita del chiamante (Fase 9 — vedi §8): il bearer ricevuto deve coincidere esattamente con la service-role key, altrimenti `401`. Solo `pg_cron` (che la legge da Vault, vedi setup sotto) può invocarla con successo — la anon key pubblica non basta, a differenza di quanto accetterebbe da solo il gateway JWT di Supabase. La finestra di attivazione è il **resto della giornata configurata** (`currentDay === configuredDay && currentHour >= configuredHour`, nel fuso `weekly_feedback_timezone`), non un match esatto sull'ora: un confronto esatto renderebbe un'invocazione oraria mancata (cron saltato, cold start, errore di rete transitorio) irrecuperabile fino alla settimana successiva. L'idempotenza del passo 4 sotto (una voce di `weekly_feedback_log` già presente per oggi) resta l'unica guardia contro invocazioni ripetute nella stessa finestra. Questo disaccoppia la cadenza del cron (fissa, configurata una volta) dalle impostazioni modificabili dal coach in UI (vedi §6 sopra).
 - **Comportamento per atleta** (ogni atleta gestito in un blocco try/catch isolato, un errore non blocca gli altri):
-  1. Salta (con motivo in log) se l'atleta non ha una chiave Intervals.icu o non ha un `training_plan`.
-  2. Salta (idempotenza) se `weekly_feedback_log` ha già una voce con `date` uguale a oggi (nel fuso configurato) — garantisce **mai due feedback/email per la stessa settimana**, indipendentemente da `generated_by`.
-  3. Recupera le attività Intervals.icu degli ultimi 7 giorni e le sessioni pianificate nello stesso intervallo da `training_plan` (stessa logica, duplicata in forma Deno, di `app/src/services/intervals.ts`/`planPrompt.ts` — vedi §10 per il perché della duplicazione).
-  4. Costruisce il prompt di confronto (`weekly_feedback_prompt_template` da `app_settings`) e chiama `api.anthropic.com/v1/messages` direttamente (stesso pattern di `claude-proxy`, chiave letta da `app_settings.claude_api_key`).
-  5. Salva la nuova voce in `weekly_feedback_log` con lo stesso controllo di concorrenza ottimistico usato dal client (`update` condizionato a `id` + `updated_at` noto; in caso di conflitto, il feedback di quell'atleta viene segnalato come errore in quel ciclo e ritentato al prossimo trigger orario, dato che l'idempotenza del passo 2 non ha ancora trovato una voce per oggi).
-  6. Se `weekly_feedback_email_enabled` è `true` e l'atleta ha `identity.email`, invia il feedback via `ResendEmailSender`; altrimenti registra nel risultato che l'invio è stato saltato (provider non configurato, nessuna email, o toggle disattivato).
+  1. Salta (con motivo in log) se l'atleta non ha una chiave Intervals.icu.
+  2. Sincronizza CTL/ATL da Intervals.icu nel log dell'atleta (`training_status.load_metrics_log`), dalla voce più recente già presente fino a oggi (o dagli ultimi 30 giorni se il log è vuoto): stessa logica di merge di `app/src/services/intervals.ts` (`refreshFromIntervalsIcu`), duplicata in forma Deno — non sovrascrive mai una voce con `source === "manual"`, calcola `tsb` come `round((ctl − atl) × 10) / 10` (vedi §1 Glossario) e conta gli allenamenti del giorno dalle attività Intervals.icu. Scrittura condizionata a `updated_at` noto (stesso controllo di concorrenza ottimistico del passo 7 sotto); un fallimento Intervals.icu o un conflitto di concorrenza in questo passo **non** interrompe il ciclo per l'atleta, che prosegue comunque con i dati disponibili (è il "4° trigger" già descritto in §7).
+  3. Salta (con motivo in log) se l'atleta non ha un `training_plan` assegnato.
+  4. Salta (idempotenza) se `weekly_feedback_log` ha già una voce con `date` uguale a oggi (nel fuso configurato) — garantisce **mai due feedback/email per la stessa settimana**, indipendentemente da `generated_by`.
+  5. Recupera le attività Intervals.icu degli ultimi 7 giorni e le sessioni pianificate nello stesso intervallo da `training_plan` (stessa logica, duplicata in forma Deno, di `app/src/services/intervals.ts`/`planPrompt.ts` — vedi §10 per il perché della duplicazione).
+  6. Costruisce il prompt di confronto (`weekly_feedback_prompt_template` da `app_settings`) e chiama `api.anthropic.com/v1/messages` direttamente (stesso pattern di `claude-proxy`, chiave letta da `app_settings.claude_api_key`).
+  7. Salva la nuova voce in `weekly_feedback_log` con lo stesso controllo di concorrenza ottimistico usato dal client (`update` condizionato a `id` + `updated_at` noto; in caso di conflitto, il feedback di quell'atleta viene segnalato come errore in quel ciclo — la finestra "resto della giornata" del trigger sopra permette comunque un nuovo tentativo più tardi nella stessa giornata, non solo alla settimana successiva).
+  8. Se `weekly_feedback_email_enabled` è `true` e l'atleta ha `identity.email`, invia il feedback via `ResendEmailSender`; altrimenti registra nel risultato che l'invio è stato saltato (provider non configurato, nessuna email, o toggle disattivato).
 - **Output**: `{ ranAt, newest, results: [{ athleteId, status: "ok"|"skipped"|"error", detail? }] }`, oppure `{ skipped: true, ... }` se fuori dalla finestra oraria configurata.
 - **Setup richiesto** (manuale, lato coach, una tantum):
   1. Eseguire la migrazione SQL delle quattro nuove colonne di `app_settings` (vedi sopra).
   2. Deploy della function: `supabase functions deploy weekly-feedback`.
   3. Configurare il secret `RESEND_API_KEY` (API key Resend) e `RESEND_FROM_ADDRESS` (indirizzo mittente verificato su Resend) con `supabase secrets set RESEND_API_KEY=... RESEND_FROM_ADDRESS=...` — **mai** in `app_settings` o nel client.
-  4. Creare un cron job orario che invoca la function via `pg_net` (richiede le estensioni `pg_cron` e `pg_net` abilitate sul progetto Supabase):
+  4. Salvare la service-role key in Supabase Vault invece di incollarla in chiaro nel comando del cron job: la colonna `cron.job.command` non è cifrata ed è leggibile da chiunque abbia accesso di lettura al catalogo `cron.job` (richiede l'estensione `supabase_vault`, abilitata di default sui progetti Supabase recenti):
+     ```sql
+     select vault.create_secret(
+       '<SERVICE_ROLE_KEY>',
+       'weekly_feedback_service_role_key',
+       'Service-role key usata dal cron weekly-feedback-hourly per autenticarsi presso la Edge Function (Fase 9).'
+     );
+     ```
+  5. Creare un cron job orario che invoca la function via `pg_net` (richiede le estensioni `pg_cron` e `pg_net` abilitate sul progetto Supabase), leggendo la chiave da Vault invece di incollarla in chiaro:
      ```sql
      select cron.schedule(
        'weekly-feedback-hourly',
@@ -323,13 +451,16 @@ Percorso: `supabase/functions/weekly-feedback/index.ts`, più `supabase/function
        $$
        select net.http_post(
          url := '<URL_PROGETTO>.supabase.co/functions/v1/weekly-feedback',
-         headers := jsonb_build_object('Authorization', 'Bearer <SERVICE_ROLE_KEY>', 'Content-Type', 'application/json'),
+         headers := jsonb_build_object(
+           'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'weekly_feedback_service_role_key'),
+           'Content-Type', 'application/json'
+         ),
          body := '{}'::jsonb
        );
        $$
      );
      ```
-     Questo passo è manuale e una tantum: non va ripetuto quando il coach cambia giorno/orario/fuso/toggle email dalle Impostazioni (vedi §6 sopra).
+     Questo passo è manuale e una tantum: non va ripetuto quando il coach cambia giorno/orario/fuso/toggle email dalle Impostazioni (vedi §6 sopra), né quando ruota la service-role key (in quel caso va solo aggiornato il secret in Vault con `select vault.update_secret(...)`, non il cron job).
 
 ---
 
@@ -337,20 +468,26 @@ Percorso: `supabase/functions/weekly-feedback/index.ts`, più `supabase/function
 
 ### Intervals.icu (Fase 5)
 
-La chiave API si inserisce nella sezione "Connessione con app esterne" dell'editor atleta (vedi §5). `app/src/services/intervals.ts` (`refreshFromIntervalsIcu`) interroga Intervals.icu e confronta il log restituito con quello già salvato, evitando scritture inutili quando non ci sono novità (`upToDate`).
+La chiave API si inserisce nella sezione "Connessione con app esterne" dell'editor atleta (vedi §5). `app/src/services/intervals.ts` (`refreshFromIntervalsIcu`) interroga due endpoint REST di Intervals.icu, `GET https://intervals.icu/api/v1/athlete/0/wellness` (CTL/ATL giornalieri) e `GET https://intervals.icu/api/v1/athlete/0/activities` (usato per contare gli allenamenti/giorno), entrambi filtrati per intervallo con i parametri di query `oldest`/`newest` (date `YYYY-MM-DD`). Lo `0` nel percorso è letterale: Intervals.icu risolve l'atleta dalla chiave stessa (una chiave è sempre legata a un solo atleta), non da un ID nel percorso. Autenticazione HTTP Basic non standard: username letterale `API_KEY`, password la chiave personale dell'atleta (header `Authorization: "Basic " + btoa("API_KEY:" + apiKey)`), per entrambi gli endpoint. Le chiamate partono direttamente dal browser (nessun proxy server-side, a differenza di Claude): Intervals.icu espone `Access-Control-Allow-Origin` permissivo sulle proprie risposte, quindi non serve una Edge Function solo per aggirare CORS; la chiave resta comunque visibile lato client per costruzione (è salvata in chiaro nel profilo, vedi §8), non per questa scelta architetturale.
 
-La sincronizzazione è automatica, non più legata a un pulsante manuale, tramite il composable singleton `app/src/composables/useIntervalsSync.ts`, invocata da tre trigger lato client (il quarto, il job di feedback settimanale, è lato backend — Fase 7):
+Il risultato (`ctl`/`atl` per data) viene fuso con il log già salvato (`training_status.load_metrics_log`): per ogni data, se esiste già una voce con `source === "manual"` non viene mai sovrascritta — **regola di protezione delle rilevazioni manuali**: una misura inserita a mano dal coach vince sempre su quella sincronizzata, in entrambe le implementazioni (client e `weekly-feedback`, vedi §6). Altrimenti si scrive/aggiorna una voce con `source: "intervals_icu_sync"`, `tsb` calcolato come `round((ctl − atl) × 10) / 10` (vedi §1 Glossario) e `workouts_count` dal conteggio delle attività dello stesso giorno. Il confronto evita scritture inutili quando non ci sono novità (`upToDate`).
+
+La sincronizzazione è automatica, non più legata a un pulsante manuale. Lato client, il composable singleton `app/src/composables/useIntervalsSync.ts` la invoca da tre trigger:
 1. chiave inserita o modificata (con debounce di 1,5s, per non lanciare una richiesta ad ogni tasto premuto);
 2. apertura della scheda atleta;
 3. avvio della generazione di un piano ("Genera piano").
 
+Il quarto trigger è lato backend (Fase 7, finestra di attivazione rivista post-Fase 9 — vedi §6/§10): la Edge Function schedulata `weekly-feedback` esegue la stessa logica di fusione (duplicata in forma Deno, stessa regola sulle rilevazioni manuali) per ogni atleta con una chiave configurata, prima del confronto piano/reale, indipendentemente dal fatto che il coach abbia aperto la scheda di recente.
+
 Il composable mantiene uno stato a livello di modulo (non per istanza di componente) per evitare chiamate concorrenti sullo stesso atleta (dedup via `inFlightIds`) e per tracciare un esito leggero per chiave (`valid` / `invalid` / `offline`), derivato dal messaggio di errore di `refreshFromIntervalsIcu` (`"...non valida"` → chiave non valida, altrimenti → rete/CORS non disponibile), mostrato come testo accanto al campo. Non è una validazione formale (nessun endpoint dedicato di verifica): è un sottoprodotto del primo tentativo di sincronizzazione.
 
-I dati sincronizzati sono persistiti con la scrittura mirata `athletes.syncLoadMetrics` (vedi §10, Fase 3), non tramite il salvataggio manuale della scheda.
+I dati sincronizzati sono persistiti con la scrittura mirata `athletes.syncLoadMetrics` (vedi §6/§10, Fase 3), non tramite il salvataggio manuale della scheda.
 
 ### Claude
 
-Il contratto del proxy `claude-proxy` è descritto in §6. La vista grafica del piano (Fase 6, `app/src/services/planViewModel.ts` e componenti `domain/Plan*.vue`) è una trasformazione puramente client-side dello stesso JSON `training_plan` già prodotto da Claude: non introduce né richiede alcuna modifica al prompt o al contratto del proxy.
+Il contratto del proxy `claude-proxy` è descritto in §6. Il template `plan_generation_prompt_template` (`app_settings`) supporta i segnaposto `{{settimane}}` (numero di settimane richieste), `{{nome_atleta}}`, `{{contesto_atleta_json}}` e `{{formato_training_plan_json}}` (`app/src/services/planPrompt.ts`, funzioni pure `buildPlanPrompt`/`interpolate`, testate con Vitest). `{{contesto_atleta_json}}` non è l'intero profilo ma un sottoinsieme compatto costruito da `buildAthleteContextForPrompt`: identità, discipline, solo l'ultima soglia nota per sport, stato di allenamento filtrato ai soli ultimi 30 giorni di `load_metrics_log`, obiettivi, vincoli, preferenze di metodologia e note libere — una riduzione deliberata per restare entro un budget di token ragionevole nella chiamata a Claude. `{{formato_training_plan_json}}` è lo schema JSON della forma attesa in output, iniettato per vincolare la risposta. Il template `weekly_feedback_prompt_template` usa invece `{{nome_atleta}}`, `{{settimana_pianificata_json}}` e `{{settimana_reale_json}}` (vedi sopra) — due template distinti, non condivisi, perché costruiscono contesti diversi (profilo compatto per la generazione, confronto pianificato/reale per il feedback).
+
+La vista grafica del piano (Fase 6, `app/src/services/planViewModel.ts` e componenti `domain/Plan*.vue`) è una trasformazione puramente client-side dello stesso JSON `training_plan` già prodotto da Claude: non introduce né richiede alcuna modifica al prompt o al contratto del proxy.
 
 ### Feedback settimanale automatico ed email (Fase 7)
 
@@ -374,7 +511,7 @@ URL e anon key del progetto Supabase sono variabili d'ambiente Vite (`VITE_SUPAB
 
 Un solo utente coach, creato manualmente da dashboard Supabase (Authentication → Users → Add user), nessuna sign-up pubblica (disattivata esplicitamente in Authentication → Providers → Email — passo manuale una tantum, vedi sotto). Il login (`app/src/stores/auth.ts`, `app/src/components/domain/LoginView.vue`) è il gate reale d'accesso all'app: senza una sessione valida, `App.vue` mostra solo il form di login e non carica né atleti né impostazioni. Il messaggio d'errore su credenziali errate è generico ("Credenziali non valide."), uguale sia per email inesistente sia per password sbagliata, per non facilitare l'enumerazione di account.
 
-Le policy RLS (§6) restano l'effettivo confine di sicurezza: anche conoscendo URL e anon key pubblici (che finiscono comunque nel bundle, vedi sopra), senza un bearer di sessione valido del coach nessuna richiesta a `athletes`/`app_settings` restituisce o modifica righe. La Edge Function `claude-proxy` applica lo stesso principio sul proprio endpoint: verifica il bearer ricevuto con `auth.getUser()` (chiave service-role) e rifiuta (401) chi non ha una sessione valida, impedendo che chiunque conosca la sola anon key possa consumare quota Claude a carico del coach (vedi §6).
+Le policy RLS (§6) restano l'effettivo confine di sicurezza: anche conoscendo URL e anon key pubblici (che finiscono comunque nel bundle, vedi sopra), senza un bearer di sessione valido del coach nessuna richiesta a `athletes`/`app_settings` restituisce o modifica righe. La Edge Function `claude-proxy` applica lo stesso principio sul proprio endpoint: verifica il bearer ricevuto con `auth.getUser()` (chiave service-role) e rifiuta (401) chi non ha una sessione valida, impedendo che chiunque conosca la sola anon key possa consumare quota Claude a carico del coach (vedi §6). La Edge Function schedulata `weekly-feedback` applica un controllo diverso perché non riceve mai un bearer di sessione del coach (è invocata solo da `pg_cron`, mai dal browser): verifica invece che il bearer ricevuto coincida esattamente con la service-role key del progetto, rifiutando (401) qualunque altra richiesta — stessa ragione di fondo (il gateway JWT di Supabase da solo accetterebbe anche la anon key pubblica). La chiave non è incollata in chiaro nel comando del cron job: vive in Supabase Vault e viene letta a runtime (vedi §6).
 
 **Setup manuale una tantum (lato coach, dashboard Supabase)**:
 1. Authentication → Providers → Email → disattivare "Allow new users to sign up".
@@ -395,7 +532,7 @@ File in root del repository, non tracciato da git (`.gitignore` lo esclude espli
 
 **Fase 7 — Secret della Edge Function `weekly-feedback`**
 
-La API key Resend (`RESEND_API_KEY`) e l'indirizzo mittente (`RESEND_FROM_ADDRESS`) sono configurati esclusivamente come secret della Edge Function (`supabase secrets set ...`), mai come colonne di `app_settings` né esposti al client: a differenza di `claude_api_key` (letta anche da `claude-proxy` dal DB), non esiste alcun flusso in cui il coach debba vederla/modificarla da UI, quindi non c'è motivo di accettare lo stesso compromesso "chiave in chiaro nel DB" già fatto per `claude_api_key`/Intervals.icu.
+La API key Resend (`RESEND_API_KEY`) e l'indirizzo mittente (`RESEND_FROM_ADDRESS`) sono configurati esclusivamente come secret della Edge Function (`supabase secrets set ...`), mai come colonne di `app_settings` né esposti al client: a differenza di `claude_api_key` (letta anche da `claude-proxy` dal DB), non esiste alcun flusso in cui il coach debba vederla/modificarla da UI, quindi non c'è motivo di accettare lo stesso compromesso "chiave in chiaro nel DB" già fatto per `claude_api_key`/Intervals.icu. La service-role key usata dal cron per autenticarsi presso `weekly-feedback` (vedi §8 sopra e §6) segue lo stesso principio: vive in Supabase Vault (`vault.create_secret`), non in chiaro nel comando `cron.schedule`.
 
 ---
 
@@ -430,7 +567,7 @@ Rigenera `src/schema/types.generated.ts` da `src/schema/athlete_profile.schema.j
 ```bash
 npm run test
 ```
-Esegue la suite Vitest (`vitest run`). Nella Fase 1 la suite è ancora vuota/minima: i test di logica pura (confronto dirty, macchina a stati connessione, trasformazione piano, migrazioni schema) vengono aggiunti dalla Fase 2 in poi, insieme alla logica che testano.
+Esegue la suite Vitest (`vitest run`): logica pura (confronto dirty, macchina a stati connessione, trasformazione piano, migrazioni schema, interpolazione prompt, store di autenticazione — vedi §10/§12 per la cronologia di come la suite è cresciuta fase per fase) coperta da test unitari, nessuna copertura end-to-end.
 
 ### Build di produzione
 
@@ -457,6 +594,7 @@ Senza questi due secret configurati, la build in CI fallisce o produce una build
 - *Decisione*: sicurezza delle credenziali Supabase → variabili d'ambiente Vite (`VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY`), centralizzate in `services/supabase.ts`, nessun Supabase Auth/RLS per ora (2026-09-30, risposta alla [DECISIONE] bloccante §3 del documento di specifica originale).
   - *Motivo*: è l'opzione raccomandata a parità di perimetro d'uso (mono-coach, link non condiviso): introdurre Auth/RLS avrebbe un costo di implementazione non giustificato per il rischio accettato, mentre spostare le credenziali fuori dal sorgente versionato rende possibile ruotarle senza un nuovo commit (vedi §8).
   - *Alternativa scartata*: Supabase Auth + RLS completo — rimandato, non scartato in modo permanente: resta l'opzione da adottare se il perimetro d'uso cambiasse (vedi §11).
+  - **Superata dalla Fase 9**: un audit di sicurezza pre-pubblicazione del repository ha fatto rivalutare il rischio accettato qui; Auth+RLS reale è stato introdotto (vedi blocco "Fase 9" più sotto), rendendo questa voce storica.
 - *Decisione*: invio email del feedback settimanale → Resend, dietro un'interfaccia astratta `EmailSender` (2026-09-30, risposta alla [DECISIONE] bloccante §9.2).
   - *Motivo*: opzione raccomandata; l'interfaccia astratta tiene il provider sostituibile senza toccare la logica di business della Edge Function (vedi dettaglio Fase 7 sotto).
   - *Alternativa scartata*: invio diretto senza interfaccia astratta — avrebbe reso un futuro cambio di provider un refactor della function invece che l'aggiunta di una classe.
@@ -533,6 +671,18 @@ Senza questi due secret configurati, la build in CI fallisce o produce una build
   - *Motivo*: `blankProfile()` (`app/src/constants.ts`) popola `training_status` come oggetto completo per ogni scheda, nuova o esistente — non è mai omesso a runtime. Lo schema non lo dichiarava `required` semplicemente perché il campo esisteva già prima dell'introduzione dei tipi generati (Fase 1) e nessuno aveva ancora allineato i due; con i tipi generati un disallineamento tra schema e invariante reale va corretto nello schema (fonte di verità), non con controlli difensivi nel codice applicativo (vedi §10 Fase 1/2). Nessun validatore a runtime legge questo schema (è usato solo per la generazione dei tipi), quindi il cambio non ha effetto sui dati già salvati su Supabase.
   - *Alternativa scartata*: aggiungere controlli `?.`/asserzioni non-null nei punti d'uso — avrebbe nascosto il disallineamento invece di correggerlo, lasciando lo schema a descrivere un'invariante falsa.
 
+**Fase 9 — Autenticazione minimale + RLS reale**
+- *Decisione*: introdurre un'autenticazione minima a singolo utente (il coach) con Supabase Auth, e basare le policy RLS sul suo UUID tramite una funzione `public.is_coach()` — non una piattaforma multi-utente, solo un gate di accesso reale al posto della sola segretezza della anon key (2026-10-xx).
+  - *Motivo*: un audit di sicurezza pre-pubblicazione del repository (richiesto dal coach prima di abilitare GitHub Pages) ha rilevato che la anon key Supabase era rimasta per anni hardcoded in chiaro nella cronologia git ed è stata considerata compromessa (già ruotata); reso pubblico il repository, chiunque può comunque leggere la (nuova) anon key dal bundle JS pubblicato — è incorporata nel client statico per design, non occultabile. Con RLS disabilitata (stato ereditato dalla Fase 1/2), chiunque conosca URL+anon key potrebbe leggere/scrivere liberamente `athletes` e `app_settings`: un rischio non più accettabile una volta reso pubblico il repository.
+  - *Alternativa scartata*: nessun login + RLS default-deny + Edge Function con segreto condiviso — il segreto condiviso finirebbe comunque nel bundle pubblico (nessun guadagno di sicurezza reale rispetto alla anon key) a fronte di una riscrittura sostanziale della data-access layer esistente (6 chiamate in `athletes.ts`, 2 in `settings.ts`, 1 in `useConnectionStatus.ts`, con reimplementazione manuale di concorrenza ottimistica, `abortSignal`, `head:true`).
+- *Decisione*: `supabase-js` allega automaticamente il JWT di sessione a ogni `.from(...)` dopo il login — nessuna modifica alle query esistenti in `athletes.ts`/`settings.ts`/`useConnectionStatus.ts`; solo `App.vue` (gate di login) e `AthleteSidebar.vue` (bottone "Esci") sono stati toccati per il wiring.
+  - *Motivo*: minimizza la superficie di modifica e il rischio di regressioni in store già maturi e testati; l'intero meccanismo di autenticazione si riduce a un gate davanti all'albero dei componenti esistente, non a una riscrittura.
+- *Decisione*: hardening contestuale di `claude-proxy` (bearer di sessione verificato con `auth.getUser()` invece della sola anon key) nello stesso commit delle policy RLS, pur essendo un problema ortogonale a RLS.
+  - *Motivo*: costo marginale quasi nullo nella stessa fase (stessa infrastruttura di sessione appena introdotta) a fronte di un rischio concreto già esistente — chiunque con la sola anon key pubblica poteva invocare `claude-proxy` e consumare quota Claude a carico del coach.
+  - *Alternativa scartata*: rimandare l'hardening a una fase futura separata — avrebbe lasciato esposto un costo diretto (consumo quota Claude) per un tempo indefinito a fronte di un beneficio di separazione concettuale minimo.
+- *Decisione*: `weekly-feedback` non viene toccata dall'introduzione di RLS/Auth (usa solo la service-role key, che bypassa RLS per design, ed è invocata solo da `pg_cron`, mai dal browser); il suo hardening (verifica del bearer contro la service-role key, lettura da Vault) è stato comunque introdotto nella stessa fase per coerenza con `claude-proxy`.
+  - *Motivo*: senza una verifica propria, il gateway JWT di Supabase accetterebbe comunque qualunque JWT valido (anon key pubblica inclusa) per invocare la function — un problema analogo a quello di `claude-proxy`, sebbene la function non tocchi mai dati protetti da RLS.
+
 ---
 
 ## 11. Limiti noti e roadmap
@@ -571,6 +721,8 @@ Sidebar definitiva con card "Nuovo atleta" fissa in cima, bozza inline con confe
 ### Fase 3 — Sincronizzazione sicura e concorrenza ottimistica
 Eliminato il bug di polling che sovrascriveva la scheda in editing: il polling periodico ora aggiorna solo l'elenco atleti e le relative versioni (`updated_at`), mai `currentProfile`. Aggiunto controllo di concorrenza ottimistico al salvataggio (update condizionato a `updated_at` noto, con avviso esplicito in caso di conflitto). Nuovo chip sticky "Dati aggiornati disponibili — Aggiorna" accanto al chip "Modifiche non salvate", con conferma se si ricaricano dati sopra modifiche locali non salvate. Estratta la logica di confronto "modifiche non salvate" in un composable dedicato (`useDirtyState`, con funzioni pure testate da Vitest), estesa per escludere le voci di `load_metrics_log` sincronizzate da Intervals.icu. Nuova azione `syncLoadMetrics` per persistere le sincronizzazioni Intervals.icu con scrittura mirata sulla copia più recente del server, senza richiedere un salvataggio manuale.
 
+*Nota sulla Fase 4*: non esiste una voce "Fase 4" in questo changelog né un commit corrispondente — il piano di migrazione (vedi §10) l'ha assorbita interamente in Fase 3 (sincronizzazione, §6 del documento di specifica originale) e Fase 5 (modello dati, §7), per non lasciare una fase a sé stante vuota. Non è un'omissione.
+
 ### Fase 5 — Modello dati e form
 Identità divisa in `nome`/`cognome`/`email` (`schema_version` 1.4.0), con migrazione euristica in lettura e avviso al coach quando applicata. Nuova sezione "Connessione con app esterne" tra Identità e Discipline, con la chiave Intervals.icu spostata qui (componente `PasswordField` riutilizzabile) e rimossa dalla vecchia posizione in "Stato di allenamento". Sincronizzazione Intervals.icu resa interamente automatica (composable `useIntervalsSync`, tre trigger lato client con dedup/debounce) al posto del pulsante manuale, con un esito leggero di validità della chiave mostrato in UI. Etichette dei volumi in Discipline rese esplicitamente settimanali. Grafico del carico (`LoadMetricsChart`) ora mantiene sempre la propria struttura (zero-line, barre, curve CTL/ATL) anche senza dati, mostrando un messaggio di stato vuoto al posto dei soli assi.
 
@@ -588,3 +740,6 @@ Il deploy falliva in CI (`vue-tsc -b`, 4 errori) perché `training_status` non e
 
 ### Fase 9 — Autenticazione minimale + RLS reale
 Nuovo store `stores/auth.ts` (Pinia) e componente `LoginView.vue`: gate di accesso reale con Supabase Auth, un solo utente coach creato manualmente da dashboard (nessuna sign-up pubblica). `App.vue` mostra il form di login finché non c'è una sessione valida; atleti e impostazioni vengono caricati solo dopo il login (`watch(() => auth.isAuthenticated, ...)`), non più incondizionatamente al mount. Aggiunto pulsante "Esci" in sidebar. Abilitata RLS su `athletes`/`app_settings` (prima disabilitata): policy basate su una nuova funzione `public.is_coach()` che confronta `auth.uid()` con l'UUID del coach, nessuna policy per il ruolo `anon` (prima migrazione SQL tracciata del repository, `supabase/migrations/0001_enable_rls.sql`, da eseguire manualmente dal coach dopo aver creato il proprio utente). Hardening della Edge Function `claude-proxy`: verifica ora il bearer ricevuto con `auth.getUser()` (chiave service-role) e rifiuta (401) le richieste prive di una sessione valida, invece di fidarsi di chiunque conosca la anon key pubblica; `services/claude.ts` invia il token di sessione del coach come bearer al posto della anon key. Nessuna modifica alle query esistenti in `athletes.ts`/`settings.ts`/`useConnectionStatus.ts`: `supabase-js` allega automaticamente il JWT di sessione ad ogni chiamata dopo il login.
+
+### Fix post-Fase 9 — hardening `weekly-feedback`
+Con `claude-proxy` già irrobustito in Fase 9.2, `weekly-feedback` restava invocabile da chiunque conoscesse la anon key pubblica (il gateway JWT di Supabase accetta qualunque JWT valido). Aggiunta una verifica esplicita del chiamante: il bearer deve coincidere esattamente con la service-role key, altrimenti 401; la chiave usata dal cron per autenticarsi non è più incollata in chiaro nel comando `cron.schedule`, ma letta a runtime da Supabase Vault (`vault.create_secret`/`vault.decrypted_secrets`). Corretta anche la finestra di attivazione: da un confronto sull'ora esatta (un'invocazione oraria mancata rendeva il feedback irrecuperabile fino alla settimana successiva) al "resto della giornata configurata" (`currentDay === configuredDay && currentHour >= configuredHour`), con l'idempotenza su `weekly_feedback_log` come unica guardia contro invocazioni ripetute nella stessa finestra. Aggiunta la sincronizzazione CTL/ATL da Intervals.icu come passo preliminare del ciclo per-atleta (stessa logica di merge di `refreshFromIntervalsIcu`, mai sovrascrive voci `source === "manual"`), così il confronto piano/reale si basa su dati di carico aggiornati anche per gli atleti che non aprono mai la scheda nella finestra del cron.

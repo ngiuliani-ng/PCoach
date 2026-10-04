@@ -1,10 +1,17 @@
 // Edge Function schedulata per il feedback settimanale (Fase 7): per ogni atleta con piano
-// e chiave Intervals.icu, confronta la settimana pianificata con quella reale, genera un
+// e chiave Intervals.icu, sincronizza CTL/ATL da Intervals.icu (stesso 4° trigger descritto in
+// docs/DOCUMENTAZIONE.md §7), confronta la settimana pianificata con quella reale, genera un
 // feedback con Claude, lo salva in weekly_feedback_log e invia un'email opzionale.
 // Pensata per essere invocata frequentemente (es. ogni ora) da pg_cron: internamente verifica
-// se il momento attuale corrisponde a giorno/ora configurati in app_settings e non fa nulla
-// altrimenti, cosi' le impostazioni modificabili dall'UI (§9.1) sono effettive senza dover
-// toccare la configurazione del cron (vedi docs/DOCUMENTAZIONE.md §6/§10).
+// se il giorno attuale e' quello configurato e l'ora e' arrivata o passata quella configurata
+// (finestra "resto della giornata", non match esatto sull'ora: un'invocazione oraria mancata
+// non blocca piu' l'esecuzione fino alla settimana successiva), cosi' le impostazioni
+// modificabili dall'UI (§9.1) sono effettive senza dover toccare la configurazione del cron
+// (vedi docs/DOCUMENTAZIONE.md §6/§10). L'idempotenza (un solo feedback/settimana per atleta,
+// vedi sotto) resta l'unica guardia contro invocazioni ripetute nella stessa finestra.
+// Verifica del chiamante (Fase 9): accetta solo richieste con la service-role key come bearer
+// (vedi docs/DOCUMENTAZIONE.md §8) — il gateway JWT di Supabase da solo accetterebbe anche la
+// anon key pubblica, che non deve poter invocare questa function.
 // Duplicazione deliberata della logica di app/src/services/intervals.ts e planPrompt.ts:
 // le Edge Function Deno non possono importare moduli TypeScript da app/src (runtime/bundling
 // separati).
@@ -85,6 +92,55 @@ async function fetchLastWeekActivities(apiKey: string, oldest: string, newest: s
   }
 }
 
+type WellnessEntry = { id: string; ctl?: number; atl?: number };
+type FetchWellnessResult = { ok: true; wellness: WellnessEntry[] } | { ok: false; error: string };
+
+async function fetchWellness(apiKey: string, oldest: string, newest: string): Promise<FetchWellnessResult> {
+  try {
+    const auth = "Basic " + btoa("API_KEY:" + apiKey);
+    const res = await fetch(`https://intervals.icu/api/v1/athlete/0/wellness?oldest=${oldest}&newest=${newest}`, { headers: { Authorization: auth } });
+    if (res.status === 401) return { ok: false, error: "API key di Intervals.icu non valida." };
+    if (!res.ok) return { ok: false, error: `Errore Intervals.icu (${res.status}).` };
+    const wellness = await res.json();
+    return { ok: true, wellness };
+  } catch {
+    return { ok: false, error: "Impossibile contattare Intervals.icu (rete o CORS)." };
+  }
+}
+
+type LoadMetricsEntry = { date: string; source?: string; ctl?: number; atl?: number; tsb?: number; workouts_count?: number; note?: string };
+
+// Stessa logica di merge di app/src/services/intervals.ts (refreshFromIntervalsIcu): non
+// sovrascrive mai una voce inserita manualmente (source === "manual") per la stessa data.
+function mergeWellnessIntoLog(
+  currentLog: LoadMetricsEntry[],
+  wellness: WellnessEntry[],
+  workoutsByDate: Record<string, number>
+): { log: LoadMetricsEntry[]; updatedCount: number } {
+  const log = [...currentLog];
+  let updatedCount = 0;
+  wellness.forEach((w) => {
+    const date = w.id;
+    if (!date || w.ctl == null || w.atl == null) return;
+    const existingIdx = log.findIndex((e) => e.date === date);
+    if (existingIdx >= 0 && log[existingIdx].source === "manual") return;
+    const entry: LoadMetricsEntry = {
+      date,
+      source: "intervals_icu_sync",
+      ctl: w.ctl,
+      atl: w.atl,
+      tsb: Math.round((w.ctl - w.atl) * 10) / 10,
+      workouts_count: workoutsByDate[date] || 0,
+      note: "Sincronizzato da Intervals.icu"
+    };
+    if (existingIdx >= 0) log[existingIdx] = entry;
+    else log.push(entry);
+    updatedCount++;
+  });
+  log.sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  return { log, updatedCount };
+}
+
 // deno-lint-ignore no-explicit-any
 function plannedWeekFromPlan(trainingPlan: any, oldest: string, newest: string): unknown[] {
   if (!trainingPlan?.weeks) return [];
@@ -129,6 +185,16 @@ Deno.serve(async (req: Request) => {
   if (!supabaseUrl || !serviceRoleKey) {
     return jsonResponse({ error: "Configurazione Supabase mancante nella Edge Function." }, 500);
   }
+
+  // Verifica del chiamante (Fase 9, §8): il gateway Supabase accetta qualunque JWT valido,
+  // anon key pubblica inclusa. Qui si richiede esplicitamente la service-role key: solo
+  // pg_cron (che la legge da Vault, vedi §6) puo' invocare questa function con successo.
+  const authHeader = req.headers.get("Authorization") || "";
+  const bearer = authHeader.replace(/^Bearer\s+/i, "");
+  if (bearer !== serviceRoleKey) {
+    return jsonResponse({ error: "Non autorizzato." }, 401);
+  }
+
   const restHeaders = { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}`, "Content-Type": "application/json" };
 
   // deno-lint-ignore no-explicit-any
@@ -148,7 +214,7 @@ Deno.serve(async (req: Request) => {
   const configuredHour = configuredTime.slice(0, 2).padStart(2, "0");
 
   const { day: currentDay, hour: currentHour } = currentDayAndHour(timezone);
-  if (currentDay !== configuredDay || currentHour !== configuredHour) {
+  if (currentDay !== configuredDay || currentHour < configuredHour) {
     return jsonResponse({ skipped: true, reason: "Fuori dalla finestra schedulata.", currentDay, currentHour, configuredDay, configuredHour });
   }
 
@@ -186,6 +252,45 @@ Deno.serve(async (req: Request) => {
         results.push({ athleteId, status: "skipped", detail: "Nessuna API key Intervals.icu." });
         continue;
       }
+      // Sync CTL/ATL (4° trigger, §7.4/§7.7): stessa logica di refreshFromIntervalsIcu, eseguita
+      // qui prima del confronto piano/reale cosi' il feedback si basa su dati aggiornati.
+      // Non blocca la generazione del feedback in caso di errore o conflitto di concorrenza.
+      const currentLog: LoadMetricsEntry[] = profile?.training_status?.load_metrics_log || [];
+      const syncOldest = currentLog.length > 0 ? addDaysISO(currentLog[currentLog.length - 1].date, 1) : addDaysISO(newest, -30);
+      if (syncOldest <= newest) {
+        const [wellnessRes, activitiesForSyncRes] = await Promise.all([
+          fetchWellness(apiKey, syncOldest, newest),
+          fetchLastWeekActivities(apiKey, syncOldest, newest),
+        ]);
+        if (wellnessRes.ok) {
+          const workoutsByDate: Record<string, number> = {};
+          if (activitiesForSyncRes.ok) {
+            (activitiesForSyncRes.activities as Array<{ start_date_local?: string }>).forEach((a) => {
+              const date = a.start_date_local?.slice(0, 10);
+              if (date) workoutsByDate[date] = (workoutsByDate[date] || 0) + 1;
+            });
+          }
+          const { log: mergedLog, updatedCount } = mergeWellnessIntoLog(currentLog, wellnessRes.wellness, workoutsByDate);
+          if (updatedCount > 0) {
+            const syncedData = { ...profile, training_status: { ...profile.training_status, load_metrics_log: mergedLog } };
+            const syncNowIso = new Date().toISOString();
+            const syncRes = await fetch(
+              `${supabaseUrl}/rest/v1/athletes?id=eq.${encodeURIComponent(athleteId)}&updated_at=eq.${encodeURIComponent(row.updated_at)}`,
+              {
+                method: "PATCH",
+                headers: { ...restHeaders, Prefer: "return=representation" },
+                body: JSON.stringify({ data: syncedData, updated_at: syncNowIso }),
+              }
+            );
+            const syncedRows = await syncRes.json();
+            if (syncRes.ok && Array.isArray(syncedRows) && syncedRows.length > 0) {
+              profile.training_status = syncedData.training_status;
+              row.updated_at = syncNowIso;
+            }
+          }
+        }
+      }
+
       if (!profile?.training_plan) {
         results.push({ athleteId, status: "skipped", detail: "Nessun piano assegnato." });
         continue;
