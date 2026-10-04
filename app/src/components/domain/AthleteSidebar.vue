@@ -3,12 +3,14 @@
 // cima, bozza inline selezionata, impostazioni, stato app con pallino a 4 stati.
 import { computed } from "vue";
 import { useAthletesStore } from "../../stores/athletes";
+import { useAuthStore } from "../../stores/auth";
 import { confirmDialog } from "../../composables/useConfirmDialog";
 import { showToast } from "../../composables/useToast";
 import { CONNECTION_STATUS_LABELS, useConnectionStatus } from "../../composables/useConnectionStatus";
 import { fullName } from "../../constants";
 
 const athletes = useAthletesStore();
+const auth = useAuthStore();
 const { status } = useConnectionStatus();
 
 const emit = defineEmits<{ (e: "open-settings"): void }>();
@@ -90,6 +92,7 @@ async function onDelete(id: string, name: string) {
     </ul>
     <div class="sidebar-footer-actions">
       <button type="button" class="ghost" @click="onOpenSettings">Impostazioni app</button>
+      <button type="button" class="ghost" @click="auth.signOut()">Esci</button>
     </div>
     <div class="sidebar-separator"></div>
     <div class="conn-status" aria-live="polite">
