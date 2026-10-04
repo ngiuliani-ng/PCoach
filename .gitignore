@@ -12,6 +12,9 @@ app/node_modules/.tmp/
 # File con credenziali in chiaro (vedi nota in docs/DOCUMENTAZIONE.md)
 PW.md
 
+# Cache locale del Supabase CLI (generata da "supabase link"/"login", non va versionata)
+supabase/.temp/
+
 # Editor/OS
 .DS_Store
 *.log
