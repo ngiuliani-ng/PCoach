@@ -2,6 +2,10 @@
 // (verificato: api.anthropic.com rifiuta le richieste cross-origin salvo l'header
 // "dangerous" sconsigliato da Anthropic stessa — vedi docs/specifica-tecnica.md §5.5).
 // La Claude API key vive in Supabase (tabella app_settings) e non lascia mai questa funzione.
+// Fase 9: il bearer deve essere il token di sessione del coach, non la sola anon key
+// pubblica — altrimenti chiunque conoscesse la anon key potrebbe consumare quota Claude
+// a carico del coach. Verificato via auth.getUser() con la service-role key.
+import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -46,6 +50,14 @@ Deno.serve(async (req: Request) => {
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!supabaseUrl || !serviceRoleKey) {
     return jsonResponse({ error: "Configurazione Supabase mancante nella Edge Function." }, 500);
+  }
+
+  const authHeader = req.headers.get("Authorization") || "";
+  const bearerToken = authHeader.replace(/^Bearer\s+/i, "");
+  const adminClient = createClient(supabaseUrl, serviceRoleKey);
+  const { data: userData, error: userError } = await adminClient.auth.getUser(bearerToken);
+  if (userError || !userData.user) {
+    return jsonResponse({ error: "Non autenticato." }, 401);
   }
 
   let claudeApiKey: string | undefined;

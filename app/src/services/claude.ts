@@ -1,6 +1,6 @@
 // Client per la Edge Function "claude-proxy": porting diretto della funzione
 // originale in index.html, che bypassa i limiti CORS chiamando Claude lato server.
-import { supabaseUrl, supabaseAnonKey } from "./supabase";
+import { supabase, supabaseUrl, supabaseAnonKey } from "./supabase";
 
 export type ClaudeProxyResult =
   | { ok: true; text: string }
@@ -12,12 +12,18 @@ export async function callClaudeProxy(
   model: string
 ): Promise<ClaudeProxyResult> {
   const url = supabaseUrl.replace(/\/$/, "") + "/functions/v1/claude-proxy";
+  // Il bearer è il token della sessione del coach (non la anon key pubblica): la funzione
+  // verifica l'identità del chiamante prima di consumare quota Claude (vedi Fase 9).
+  const sessionToken = (await supabase?.auth.getSession())?.data.session?.access_token;
+  if (!sessionToken) {
+    return { ok: false, error: "Sessione non valida: effettua di nuovo l'accesso." };
+  }
   try {
     const res = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: "Bearer " + supabaseAnonKey,
+        Authorization: "Bearer " + sessionToken,
         apikey: supabaseAnonKey
       },
       body: JSON.stringify({ prompt: promptText, max_tokens: maxTokens || 4096, model })
