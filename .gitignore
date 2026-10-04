@@ -10,7 +10,7 @@ app/node_modules/.tmp/
 !app/.env.example
 
 # File con credenziali in chiaro (vedi nota in docs/DOCUMENTAZIONE.md)
-DB_PW.md
+PW.md
 
 # Editor/OS
 .DS_Store
