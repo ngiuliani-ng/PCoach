@@ -4,6 +4,7 @@ import { onMounted, ref, watch } from "vue";
 import { useAthletesStore } from "./stores/athletes";
 import { useSettingsStore } from "./stores/settings";
 import { useAuthStore } from "./stores/auth";
+import { useMobileSidebar } from "./composables/useMobileSidebar";
 import AthleteSidebar from "./components/domain/AthleteSidebar.vue";
 import AthleteEditor from "./components/domain/AthleteEditor.vue";
 import SettingsPanel from "./components/domain/SettingsPanel.vue";
@@ -15,7 +16,12 @@ const athletes = useAthletesStore();
 const settings = useSettingsStore();
 const auth = useAuthStore();
 const showSettings = ref(false);
-const mobileSidebarOpen = ref(false);
+const sidebarToggleEl = ref<HTMLElement | null>(null);
+const {
+  open: mobileSidebarOpen,
+  openSidebar: openMobileSidebar,
+  closeSidebar: closeMobileSidebar,
+} = useMobileSidebar({ sidebarId: "athlete-sidebar", toggleEl: sidebarToggleEl });
 
 onMounted(() => {
   auth.init();
@@ -32,12 +38,6 @@ watch(
   { immediate: true }
 );
 
-function toggleMobileSidebar() {
-  mobileSidebarOpen.value = !mobileSidebarOpen.value;
-}
-function closeMobileSidebar() {
-  mobileSidebarOpen.value = false;
-}
 function openSettings() {
   showSettings.value = true;
   closeMobileSidebar();
@@ -58,13 +58,18 @@ watch(
   <LoginView v-else-if="!auth.isAuthenticated" />
   <div v-else class="app">
     <button
+      v-show="!mobileSidebarOpen"
+      ref="sidebarToggleEl"
       type="button"
       class="sidebar-toggle"
       :aria-expanded="mobileSidebarOpen"
-      aria-label="Apri o chiudi la barra laterale"
-      @click="toggleMobileSidebar"
+      aria-controls="athlete-sidebar"
+      aria-label="Apri la barra laterale"
+      @click="openMobileSidebar"
     >☰</button>
-    <div v-if="mobileSidebarOpen" class="sidebar-backdrop" @click="closeMobileSidebar"></div>
+    <Transition name="backdrop-fade">
+      <div v-if="mobileSidebarOpen" class="sidebar-backdrop" aria-hidden="true" @click="closeMobileSidebar"></div>
+    </Transition>
     <AthleteSidebar :class="{ open: mobileSidebarOpen }" @open-settings="openSettings" />
     <main class="main">
       <SettingsPanel v-if="showSettings" />
