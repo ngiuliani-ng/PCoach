@@ -28,7 +28,7 @@ Fonte unica di verità per architettura, convenzioni, modello dati, backend e pr
 **Perimetro**: applicazione mono-coach, pensata per uso personale con un link non condiviso pubblicamente. Non è un prodotto multi-tenant.
 
 **Cosa NON è**:
-- Non è una piattaforma multi-coach o multi-organizzazione: non esiste login/autenticazione, non esiste separazione di permessi tra utenti diversi.
+- Non è una piattaforma multi-coach o multi-organizzazione: l'autenticazione (Fase 9) identifica un singolo utente coach, senza alcuna separazione di permessi tra utenti diversi.
 - Non è un sistema di allenamento in tempo reale (niente dati live durante l'allenamento): i carichi arrivano da Intervals.icu con la cadenza della sincronizzazione.
 - Non è un sostituto del giudizio del coach: piano e feedback generati da Claude sono una bozza da rivedere, non un output automatico definitivo.
 
@@ -210,9 +210,14 @@ create table athletes (
   updated_at timestamptz not null default now()
 );
 
--- RLS disabilitata: uso personale, accesso protetto solo dalla segretezza
--- del link e della anon key. Vedi §8 per i rischi e le alternative valutate.
-alter table athletes disable row level security;
+-- RLS abilitata (Fase 9): accesso ristretto al singolo utente coach tramite
+-- la funzione public.is_coach() e le policy sottostanti. Vedi §8 per il modello
+-- di sicurezza e il setup manuale richiesto.
+alter table athletes enable row level security;
+create policy "athletes_select_coach" on athletes for select to authenticated using (public.is_coach());
+create policy "athletes_insert_coach" on athletes for insert to authenticated with check (public.is_coach());
+create policy "athletes_update_coach" on athletes for update to authenticated using (public.is_coach()) with check (public.is_coach());
+create policy "athletes_delete_coach" on athletes for delete to authenticated using (public.is_coach());
 ```
 
 - `id`: identificativo dell'atleta (stringa).
@@ -232,13 +237,18 @@ create table app_settings (
   weekly_feedback_prompt_template text
 );
 
-alter table app_settings disable row level security;
-
 -- Fase 7: impostazioni del feedback settimanale automatico.
 alter table app_settings add column weekly_feedback_day text not null default 'domenica';
 alter table app_settings add column weekly_feedback_time text not null default '08:00';
 alter table app_settings add column weekly_feedback_timezone text not null default 'Europe/Rome';
 alter table app_settings add column weekly_feedback_email_enabled boolean not null default false;
+
+-- Fase 9: RLS abilitata, stesse policy coach di athletes (vedi sopra e §8).
+alter table app_settings enable row level security;
+create policy "app_settings_select_coach" on app_settings for select to authenticated using (public.is_coach());
+create policy "app_settings_insert_coach" on app_settings for insert to authenticated with check (public.is_coach());
+create policy "app_settings_update_coach" on app_settings for update to authenticated using (public.is_coach()) with check (public.is_coach());
+create policy "app_settings_delete_coach" on app_settings for delete to authenticated using (public.is_coach());
 ```
 
 - `claude_api_key`: API key personale del coach per Anthropic Claude, salvata in chiaro. Stesso compromesso di sicurezza già accettato per la chiave Intervals.icu per-atleta (vedi §8), qui con un impatto potenzialmente più costoso in caso di fuga (fatturazione Claude a carico del coach).
@@ -251,11 +261,31 @@ alter table app_settings add column weekly_feedback_email_enabled boolean not nu
 
 Queste quattro colonne sono editabili dal coach nel pannello Impostazioni (sezione "Feedback settimanale automatico"); modificarle non richiede alcuna modifica alla configurazione dello scheduler (`pg_cron`, vedi sotto), perché la funzione schedulata le rilegge ad ogni invocazione.
 
+### Autenticazione e RLS (Fase 9)
+
+Le policy RLS di `athletes`/`app_settings` (sopra) si basano su una funzione SQL che identifica il singolo utente coach:
+
+```sql
+create or replace function public.is_coach()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select auth.uid() = '<uuid-utente-coach>'::uuid;
+$$;
+```
+
+- `auth.uid()` è l'id dell'utente Supabase Auth autenticato nella sessione corrente (vedi §8); la funzione lo confronta con l'UUID del coach, incollato al posto del placeholder al momento della migrazione.
+- Nessuna policy è definita per il ruolo `anon`: con RLS abilitata, Postgres nega di default ogni richiesta priva di policy applicabile — una chiamata REST con la sola anon key, senza un bearer di sessione valido, non restituisce né modifica alcuna riga.
+- Migrazione tracciata in `supabase/migrations/0001_enable_rls.sql` (prima migrazione SQL versionata del repository; prima di questa fase lo schema viveva solo come commento DDL in questo documento). Va eseguita manualmente nel SQL Editor del dashboard Supabase, dopo aver creato l'utente coach e sostituito il placeholder dell'UUID — setup completo in §8.
+
 ### Edge Function `claude-proxy`
 
 Percorso: `supabase/functions/claude-proxy/index.ts`. Scopo: inoltrare una richiesta a Claude senza esporre la API key nel browser.
 
-- **Trigger**: HTTP, chiamata dal client autenticata con la anon key (header `Authorization: Bearer <anonKey>` e `apikey: <anonKey>`).
+- **Trigger**: HTTP, chiamata dal client con bearer il token di sessione del coach (header `Authorization: Bearer <sessionToken>`, `apikey: <anonKey>`); la function verifica il bearer con `auth.getUser()` (chiave service-role) e rifiuta (401) le richieste prive di una sessione valida (Fase 9) — vedi §8.
 - **Input** (corpo della richiesta POST, JSON): `{ prompt: string, max_tokens?: number, model?: string }`.
 - **Comportamento**: legge `claude_api_key` e `claude_model` dalla tabella `app_settings` usando la chiave service-role (iniettata automaticamente nell'ambiente della Edge Function da Supabase, nessun secret da configurare a mano per questo), poi chiama `api.anthropic.com/v1/messages` server-side.
 - **Output**: `{ text: string }` in caso di successo, `{ error: string }` in caso di errore (chiave assente, errore dell'API Claude, ecc.).
@@ -336,17 +366,28 @@ Provider email dietro l'interfaccia astratta `EmailSender` (`supabase/functions/
 
 ### Credenziali Supabase (client)
 
-URL e anon key del progetto Supabase sono variabili d'ambiente Vite (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`), lette in un unico punto (`app/src/services/supabase.ts`) e mai cablate nel codice. In locale vivono in `app/.env` (non committato, escluso da `.gitignore`; `.env.example` è il template committato senza valori reali). In CI sono due secret del repository GitHub, iniettati in build da `.github/workflows/deploy.yml` (vedi §9). La anon key resta comunque pubblica per costruzione (finisce nel bundle statico distribuito su GitHub Pages): la sicurezza dell'app non dipende dalla sua segretezza, ma dal fatto che RLS è disabilitata e l'accesso è protetto solo dalla segretezza del link (vedi sotto) — spostarla in una variabile d'ambiente serve a evitare di doverla ruotare ad ogni commit del sorgente, non a nasconderla.
+URL e anon key del progetto Supabase sono variabili d'ambiente Vite (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`), lette in un unico punto (`app/src/services/supabase.ts`) e mai cablate nel codice. In locale vivono in `app/.env` (non committato, escluso da `.gitignore`; `.env.example` è il template committato senza valori reali). In CI sono due secret del repository GitHub, iniettati in build da `.github/workflows/deploy.yml` (vedi §9). La anon key resta comunque pubblica per costruzione (finisce nel bundle statico distribuito su GitHub Pages): da sola non basta più ad accedere ai dati (Fase 9), perché ogni richiesta a `athletes`/`app_settings` richiede anche un bearer di sessione valido del coach, verificato da Postgres tramite le policy RLS (vedi sotto e §6) — spostarla in una variabile d'ambiente resta comunque utile per poterla ruotare senza un nuovo commit del sorgente.
 
 **Rotazione della anon key (Fase 1)**: la chiave originale era stata committata in chiaro in `index.html` nella cronologia git (versione pre-migrazione). È stata ruotata dal dashboard Supabase e il nuovo valore comunicato solo tramite `.env` locale/secret GitHub Actions, mai rientrato nel repository. La vecchia chiave resta recuperabile da chiunque ispezioni la cronologia git pubblica: ruotarla rende quel valore storico inutilizzabile, azione reversibile e a basso rischio che non richiede riscrivere la cronologia.
 
-### Nessuna autenticazione/RLS
+### Autenticazione (Fase 9)
 
-Sia `athletes` sia `app_settings` hanno la Row Level Security disabilitata (vedi SQL in §6): non esiste login, non esiste separazione tra utenti. Chiunque conosca l'URL dell'app e la anon key (pubblica, vedi sopra) può leggere e scrivere entrambe le tabelle. Rischio accettato esplicitamente per il perimetro d'uso dichiarato in §1 (un singolo coach, link non condiviso pubblicamente); da rivedere se l'uso cambiasse (multi-coach, link condiviso pubblicamente) — richiederebbe introdurre Supabase Auth e riscrivere le policy RLS da zero, fuori dallo scope di questa migrazione.
+Un solo utente coach, creato manualmente da dashboard Supabase (Authentication → Users → Add user), nessuna sign-up pubblica (disattivata esplicitamente in Authentication → Providers → Email — passo manuale una tantum, vedi sotto). Il login (`app/src/stores/auth.ts`, `app/src/components/domain/LoginView.vue`) è il gate reale d'accesso all'app: senza una sessione valida, `App.vue` mostra solo il form di login e non carica né atleti né impostazioni. Il messaggio d'errore su credenziali errate è generico ("Credenziali non valide."), uguale sia per email inesistente sia per password sbagliata, per non facilitare l'enumerazione di account.
+
+Le policy RLS (§6) restano l'effettivo confine di sicurezza: anche conoscendo URL e anon key pubblici (che finiscono comunque nel bundle, vedi sopra), senza un bearer di sessione valido del coach nessuna richiesta a `athletes`/`app_settings` restituisce o modifica righe. La Edge Function `claude-proxy` applica lo stesso principio sul proprio endpoint: verifica il bearer ricevuto con `auth.getUser()` (chiave service-role) e rifiuta (401) chi non ha una sessione valida, impedendo che chiunque conosca la sola anon key possa consumare quota Claude a carico del coach (vedi §6).
+
+**Setup manuale una tantum (lato coach, dashboard Supabase)**:
+1. Authentication → Providers → Email → disattivare "Allow new users to sign up".
+2. Authentication → Providers → disattivare i provider non usati (OAuth, phone, anonymous).
+3. Authentication → Users → Add user: creare l'utente coach (email+password reali, "Auto Confirm User" spuntato).
+4. Copiare l'UUID dell'utente creato e sostituirlo al placeholder in `supabase/migrations/0001_enable_rls.sql`.
+5. Eseguire la migrazione nel SQL Editor del dashboard.
+
+**Limite noto**: un solo utente, nessuna autenticazione a più fattori né un flusso di recupero password configurato esplicitamente in questa fase (resta quello di default di Supabase Auth) — accettabile per il perimetro mono-coach dichiarato in §1; da rivedere se il perimetro cambiasse (vedi §11).
 
 ### Chiavi di terze parti salvate in chiaro
 
-`app_settings.claude_api_key` (per-coach) e `integrations.intervals_icu_api_key` (per-atleta, dentro il blob `data`) sono salvate in chiaro nel database, senza cifratura applicativa. Stesso compromesso di fondo del punto precedente (nessuna autenticazione a proteggerle oltre alla segretezza del link), ma con impatto diverso in caso di fuga: la chiave Claude è legata alla fatturazione Anthropic del coach (impatto economico diretto), quella Intervals.icu ai dati di allenamento di un singolo atleta (impatto più contenuto). Non è stata introdotta cifratura lato applicazione perché richiederebbe comunque decifrare la chiave in un contesto fidato per poterla usare (client per Intervals.icu, Edge Function per Claude), spostando il problema invece di risolverlo, senza autenticazione reale a monte.
+`app_settings.claude_api_key` (per-coach) e `integrations.intervals_icu_api_key` (per-atleta, dentro il blob `data`) sono salvate in chiaro nel database, senza cifratura applicativa. Le policy RLS (Fase 9) impediscono l'accesso diretto da un client senza sessione valida, ma non proteggono dentro al perimetro autenticato: chiunque acceda con le credenziali del coach (o qualunque codice server-side con la chiave service-role, che bypassa RLS per design — Edge Function incluse) vede comunque queste chiavi in chiaro. Impatto diverso in caso di fuga: la chiave Claude è legata alla fatturazione Anthropic del coach (impatto economico diretto), quella Intervals.icu ai dati di allenamento di un singolo atleta (impatto più contenuto). Non è stata introdotta cifratura lato applicazione perché richiederebbe comunque decifrare la chiave in un contesto fidato per poterla usare (client per Intervals.icu, Edge Function per Claude), spostando il problema invece di risolverlo.
 
 ### `DB_PW.md`
 
@@ -374,6 +415,8 @@ npm run dev
 Variabili d'ambiente richieste in `app/.env` (mai committato; vedi `.env.example` per il formato):
 - `VITE_SUPABASE_URL`: URL del progetto Supabase.
 - `VITE_SUPABASE_ANON_KEY`: anon key pubblica del progetto Supabase (vedi §8 per la natura di questa chiave).
+
+All'avvio (`npm run dev`), l'app mostra il form di login (Fase 9): serve un utente coach già creato nel progetto Supabase collegato (vedi §8 per i passi di creazione) per poter accedere e testare in locale — non esiste più un flusso di sviluppo senza autenticazione.
 
 ### Generazione dei tipi dallo schema
 
@@ -494,7 +537,7 @@ Senza questi due secret configurati, la build in CI fallisce o produce una build
 
 ## 11. Limiti noti e roadmap
 
-- Nessuna autenticazione/RLS: rischio noto, accettato per uso personale (vedi §8).
+- Autenticazione a singolo utente coach, senza autenticazione a più fattori né un flusso di recupero password configurato esplicitamente: rischio noto, accettato per uso personale (vedi §8).
 - Nessuna cifratura applicativa per le chiavi di terze parti salvate in chiaro nel database (vedi §8).
 
 **Sezioni volutamente non presenti nel modello dati**
@@ -542,3 +585,6 @@ Sidebar trasformata in drawer sotto i 720px (`position: fixed` + `transform: tra
 
 ### Fix post-Fase 8 — build GitHub Pages
 Il deploy falliva in CI (`vue-tsc -b`, 4 errori) perché `training_status` non era `required` in `athlete_profile.schema.json` pur essendo sempre popolato da `blankProfile()`. Aggiunto ai campi `required` dello schema (in entrambe le copie, `docs/` e `app/src/schema/`) e rigenerati i tipi; build e suite Vitest (33 test) verificati in locale.
+
+### Fase 9 — Autenticazione minimale + RLS reale
+Nuovo store `stores/auth.ts` (Pinia) e componente `LoginView.vue`: gate di accesso reale con Supabase Auth, un solo utente coach creato manualmente da dashboard (nessuna sign-up pubblica). `App.vue` mostra il form di login finché non c'è una sessione valida; atleti e impostazioni vengono caricati solo dopo il login (`watch(() => auth.isAuthenticated, ...)`), non più incondizionatamente al mount. Aggiunto pulsante "Esci" in sidebar. Abilitata RLS su `athletes`/`app_settings` (prima disabilitata): policy basate su una nuova funzione `public.is_coach()` che confronta `auth.uid()` con l'UUID del coach, nessuna policy per il ruolo `anon` (prima migrazione SQL tracciata del repository, `supabase/migrations/0001_enable_rls.sql`, da eseguire manualmente dal coach dopo aver creato il proprio utente). Hardening della Edge Function `claude-proxy`: verifica ora il bearer ricevuto con `auth.getUser()` (chiave service-role) e rifiuta (401) le richieste prive di una sessione valida, invece di fidarsi di chiunque conosca la anon key pubblica; `services/claude.ts` invia il token di sessione del coach come bearer al posto della anon key. Nessuna modifica alle query esistenti in `athletes.ts`/`settings.ts`/`useConnectionStatus.ts`: `supabase-js` allega automaticamente il JWT di sessione ad ogni chiamata dopo il login.
