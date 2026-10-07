@@ -15,15 +15,23 @@ as $$
 $$;
 
 alter table athletes enable row level security;
+drop policy if exists "athletes_select_coach" on athletes;
 create policy "athletes_select_coach" on athletes for select to authenticated using (public.is_coach());
+drop policy if exists "athletes_insert_coach" on athletes;
 create policy "athletes_insert_coach" on athletes for insert to authenticated with check (public.is_coach());
+drop policy if exists "athletes_update_coach" on athletes;
 create policy "athletes_update_coach" on athletes for update to authenticated using (public.is_coach()) with check (public.is_coach());
+drop policy if exists "athletes_delete_coach" on athletes;
 create policy "athletes_delete_coach" on athletes for delete to authenticated using (public.is_coach());
 
 alter table app_settings enable row level security;
+drop policy if exists "app_settings_select_coach" on app_settings;
 create policy "app_settings_select_coach" on app_settings for select to authenticated using (public.is_coach());
+drop policy if exists "app_settings_insert_coach" on app_settings;
 create policy "app_settings_insert_coach" on app_settings for insert to authenticated with check (public.is_coach());
+drop policy if exists "app_settings_update_coach" on app_settings;
 create policy "app_settings_update_coach" on app_settings for update to authenticated using (public.is_coach()) with check (public.is_coach());
+drop policy if exists "app_settings_delete_coach" on app_settings;
 create policy "app_settings_delete_coach" on app_settings for delete to authenticated using (public.is_coach());
 
 -- Rollback (se necessario): alter table athletes/app_settings disable row level security;

@@ -8,4 +8,4 @@ fatto, via Intervals.icu.
 Vue 3 + Vite + Pinia + TypeScript, con Supabase come backend e deploy su GitHub Pages.
 
 Documentazione completa (architettura, setup, modello dati, sicurezza, decisioni prese, limiti
-noti): [docs/DOCUMENTAZIONE.md](docs/DOCUMENTAZIONE.md).
+noti): [CLAUDE.md](CLAUDE.md).
