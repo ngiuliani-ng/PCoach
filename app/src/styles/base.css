@@ -28,7 +28,7 @@ body {
 }
 .sidebar-header {
   padding: 20px 18px 14px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: none;
 }
 .sidebar-header h1 {
   font-size: 15px;
