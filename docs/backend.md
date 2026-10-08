@@ -4,17 +4,17 @@
 
 ## Tabelle Postgres
 
-Le tabelle `athletes` e `app_settings` sono create direttamente nel progetto Supabase (dashboard/SQL editor); non esiste una migrazione `create table` versionata nel repository — solo l'abilitazione di RLS e le policy sono tracciate in `supabase/migrations/0001_enable_rls.sql`.
+Le tabelle `athletes` e `app_settings` sono create direttamente nel progetto Supabase (dashboard/SQL editor); non esiste una migrazione `create table` versionata nel repository — solo l'abilitazione di RLS, le policy e la funzione `is_coach()` sono tracciate in `supabase/migrations/` (`0001_enable_rls.sql`, `0002_move_is_coach_private.sql`).
 
 - **`athletes`**: `id` (uuid, chiave primaria), `data` (jsonb, l'intero `AthleteTrainingProfile` — vedi [modello-dati.md](modello-dati.md)), `updated_at` (timestamptz, usato per il controllo di concorrenza ottimistico).
 - **`app_settings`**: riga singola (`id = 1`), contiene configurazione globale del coach: `claude_api_key`, `claude_model`, `weekly_feedback_*` (timezone, giorno, ora, template prompt, `email_enabled`).
 
 ## Autenticazione e RLS
 
-Supabase Auth a singolo utente coach (vedi [sicurezza.md](sicurezza.md) per setup). `supabase/migrations/0001_enable_rls.sql` definisce:
+Supabase Auth a singolo utente coach (vedi [sicurezza.md](sicurezza.md) per setup). `supabase/migrations/0001_enable_rls.sql` e `supabase/migrations/0002_move_is_coach_private.sql` (da eseguire in quest'ordine) definiscono:
 
-- `public.is_coach()`: funzione SQL `security definer` che confronta `auth.uid()` con l'UUID letterale dell'utente coach (incollato nel file al posto del placeholder `INCOLLA-QUI-UUID-UTENTE-COACH`).
-- RLS abilitata su `athletes` e `app_settings`, con 4 policy ciascuna (select/insert/update/delete, tutte `to authenticated using/with check (public.is_coach())`). Nessuna policy per il ruolo `anon`: con RLS abilitata, Postgres nega di default ogni richiesta priva di policy applicabile.
+- `private.is_coach()`: funzione SQL `security definer` con `search_path` vuoto, che confronta `auth.uid()` con l'UUID letterale dell'utente coach (incollato in `0001` al posto del placeholder `INCOLLA-QUI-UUID-UTENTE-COACH`). Vive nello schema `private`, che non è esposto da PostgREST: non esiste un endpoint `/rest/v1/rpc/is_coach` e nessun client può chiamarla direttamente. `EXECUTE` è revocato a `public` e `anon` e concesso solo ad `authenticated` (con `USAGE` sullo schema `private`), perché le policy RLS sono valutate con i privilegi del chiamante. Motivazione in [decisioni/0012-is-coach-schema-privato.md](decisioni/0012-is-coach-schema-privato.md).
+- RLS abilitata su `athletes` e `app_settings`, con 4 policy ciascuna (select/insert/update/delete, tutte `to authenticated using/with check (private.is_coach())`). Nessuna policy per il ruolo `anon`: con RLS abilitata, Postgres nega di default ogni richiesta priva di policy applicabile.
 - Il JWT del coach autenticato è allegato automaticamente dal client `supabase-js`: nessuna modifica è stata necessaria alle query esistenti per abilitare RLS (vedi [decisioni/0010-autenticazione-coach-rls-reale.md](decisioni/0010-autenticazione-coach-rls-reale.md)).
 
 ## Concorrenza ottimistica: `syncLoadMetrics`

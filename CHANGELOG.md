@@ -6,6 +6,11 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
+**2026-10-08 — Hardening: `is_coach()` in schema `private`**
+`public.is_coach()` spostata in `private.is_coach()` (migrazione `0002_move_is_coach_private.sql`) con `search_path` vuoto e `EXECUTE` revocato a `public`/`anon` e concesso solo ad `authenticated`; le policy RLS la referenziano per OID e non sono state riscritte. Nessuna modifica al codice dell'app. Verificato: `GET /rest/v1/rpc/is_coach` risponde `404` (`PGRST202`). Documentato come passo di setup opzionale l'attivazione di *Prevent use of leaked passwords*.
+*Motivazione*: il Security Advisor di Supabase segnalava la funzione `SECURITY DEFINER` come eseguibile da `anon` e `authenticated` tramite `/rest/v1/rpc/is_coach`.
+*Docs aggiornati*: [backend.md](docs/backend.md), [sicurezza.md](docs/sicurezza.md), [architettura.md](docs/architettura.md), [decisioni/0012](docs/decisioni/0012-is-coach-schema-privato.md).
+
 **2026-10-04 — Fix generazione piano senza esito a schermo**
 `max_tokens` calcolato in proporzione al numero di settimane richieste (invece di un valore fisso), propagazione di `stop_reason` da `claude-proxy` fino al client per distinguere un piano troncato per limite di token da un JSON malformato, toast di errore reso persistente invece di sparire prima che il coach potesse leggerlo. Verificato end-to-end sul backend reale. Indagato e documentato `ERR_ABORTED` su richieste HEAD come artefatto innocuo di Chromium.
 *Motivazione*: piani lunghi (molte settimane) venivano troncati silenziosamente dal limite di token fisso, risultando in un JSON incompleto senza un messaggio d'errore comprensibile per il coach.

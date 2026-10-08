@@ -14,9 +14,10 @@ Setup in dashboard Supabase, da eseguire una sola volta:
 
 1. Creare l'utente coach da **Authentication → Users → Add user**, con "Auto Confirm User" spuntato (nessun flusso di conferma email necessario per un utente creato manualmente).
 2. Disabilitare tutti gli altri provider di autenticazione (nessuna sign-up pubblica, nessun OAuth): l'app espone solo login email+password per l'unico utente coach.
-3. Copiare l'UUID dell'utente creato e incollarlo al posto del placeholder in `supabase/migrations/0001_enable_rls.sql` (`public.is_coach()`), poi eseguire la migrazione.
-4. Verificare che RLS sia attiva su `athletes`/`app_settings` e che le policy risultino presenti (vedi [backend.md](backend.md)).
+3. Copiare l'UUID dell'utente creato e incollarlo al posto del placeholder in `supabase/migrations/0001_enable_rls.sql` (`is_coach()`), poi eseguire `0001_enable_rls.sql` e subito dopo `0002_move_is_coach_private.sql`.
+4. Verificare che RLS sia attiva su `athletes`/`app_settings`, che le policy risultino presenti e che `is_coach()` sia solo in `private` (`anon` senza `EXECUTE`; `GET /rest/v1/rpc/is_coach` risponde `404`) — vedi [backend.md](backend.md). Il Security Advisor di Supabase non deve più segnalare funzioni `SECURITY DEFINER` eseguibili da `anon` o `authenticated`.
 5. Il login (`stores/auth.ts`, `supabase.auth.signInWithPassword`) è l'unico gate d'accesso reale all'app: senza sessione valida, `App.vue` mostra solo `LoginView.vue`. Le policy RLS lato database si basano sulla stessa sessione, allegata automaticamente dal client `supabase-js`.
+6. Se il piano Supabase lo consente (Pro), attivare **Prevent use of leaked passwords** in Authentication → Sign In / Providers → Email, che rifiuta password presenti in database di compromissioni note (HaveIBeenPwned). Altrimenti, usare per il coach una password lunga e unica.
 
 ## Chiavi API in chiaro (compromesso accettato)
 

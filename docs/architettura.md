@@ -50,6 +50,7 @@ supabase/
   functions/weekly-feedback/  Edge Function schedulata: feedback settimanale + email
   functions/_shared/          EmailSender astratto + implementazione Resend
   migrations/0001_enable_rls.sql  is_coach() + policy RLS su athletes/app_settings
+  migrations/0002_move_is_coach_private.sql  sposta is_coach() nello schema private (non esposto)
 .github/workflows/deploy.yml  Build + pubblicazione su GitHub Pages
 ```
 
