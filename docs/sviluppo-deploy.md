@@ -60,3 +60,14 @@ Workflow `.github/workflows/deploy.yml`, innescato da push su `main` (o manualme
 3. Upload di `app/dist` come artifact Pages, poi deploy.
 
 `vite.config.ts` imposta `base: '/PCoach/'`, necessario perché l'app è servita da un sotto-percorso (`https://<utente>.github.io/PCoach/`) e non dalla radice del dominio.
+
+## PWA (Progressive Web App)
+
+L'app è installabile su dispositivi mobili e desktop tramite un Web App Manifest generato da `vite-plugin-pwa`. Non è attivo alcun Service Worker (configurazione `selfDestroying: true`): l'app **non funziona offline**, ma può essere aggiunta alla schermata home e si apre senza barra del browser (`display: standalone`). Motivazione della scelta in [decisioni/0013](decisioni/0013-pwa-manifest-only.md).
+
+**Componenti della PWA:**
+- `vite.config.ts`: configurazione `VitePWA()` — manifest, icone, `start_url: /PCoach/`, `scope: /PCoach/`.
+- `app/public/icons/icon-192.png` e `icon-512.png`: icone PNG generate, necessarie per manifest e `apple-touch-icon`.
+- `index.html`: meta tag `theme-color`, `apple-mobile-web-app-capable`, `apple-touch-icon`.
+
+**Per aggiungere offline support in futuro:** rimuovere `selfDestroying: true` da `vite.config.ts` e configurare una strategia Workbox (es. `NetworkFirst` per le API Supabase, `CacheFirst` per gli asset statici).

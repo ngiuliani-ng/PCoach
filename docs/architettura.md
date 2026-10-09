@@ -29,6 +29,7 @@ Applicazione mono-coach, pensata per uso personale con un link non condiviso pub
 - **Backend**: Supabase (Postgres + REST autogenerata tramite `@supabase/supabase-js`), più Edge Functions (Deno) per operazioni che richiedono un segreto lato server — vedi [backend.md](backend.md).
 - **Integrazioni esterne**: Intervals.icu, Anthropic Claude — vedi [integrazioni.md](integrazioni.md).
 - **Hosting**: GitHub Pages, build statica via GitHub Actions — vedi [sviluppo-deploy.md](sviluppo-deploy.md).
+- **PWA**: l'app è installabile come Progressive Web App (manifest + icone, nessun Service Worker attivo). Configurata tramite `vite-plugin-pwa` con `selfDestroying: true` — vedi [sviluppo-deploy.md](sviluppo-deploy.md).
 
 ## Struttura delle cartelle
 
@@ -44,6 +45,9 @@ app/
     services/    Accesso a sistemi esterni: supabase.ts, intervals.ts, claude.ts, planPrompt.ts
     schema/      athlete_profile.schema.json (sorgente di verità, vedi modello-dati.md), types.generated.ts (generato, non modificare a mano), migrations/
     styles/      tokens.css (variabili di design), base.css (stili globali)
+  public/
+    favicon.svg             Icona SVG del browser
+    icons/                  Icone PNG per la PWA (192×192 e 512×512)
   index.html, main.ts, App.vue  Bootstrap applicazione
 supabase/
   functions/claude-proxy/     Edge Function: proxy verso l'API Claude

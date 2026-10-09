@@ -6,6 +6,11 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
+**2026-10-09 — PWA installabile (manifest + icone)**
+Aggiunta configurazione `vite-plugin-pwa` in `vite.config.ts` con manifest Web App (nome, colori brand, `start_url`/`scope` relativi alla base `/PCoach/`, icone 192×512 px). Nessun Service Worker attivo (`selfDestroying: true`): l'app è installabile dalla schermata home ma non funziona offline. Aggiunti meta tag PWA in `index.html` (`theme-color`, `apple-mobile-web-app-*`, `apple-touch-icon`). Icone PNG generate in `app/public/icons/`.
+*Motivazione*: rendere l'app aggiungibile alla schermata home su mobile/desktop senza barra del browser, con il minimo di complessità (nessuna strategia offline da gestire).
+*Docs aggiornati*: [architettura.md](docs/architettura.md), [sviluppo-deploy.md](docs/sviluppo-deploy.md), [decisioni/0013](docs/decisioni/0013-pwa-manifest-only.md).
+
 **2026-10-08 — Hardening: `is_coach()` in schema `private`**
 `public.is_coach()` spostata in `private.is_coach()` (migrazione `0002_move_is_coach_private.sql`) con `search_path` vuoto e `EXECUTE` revocato a `public`/`anon` e concesso solo ad `authenticated`; le policy RLS la referenziano per OID e non sono state riscritte. Nessuna modifica al codice dell'app. Verificato: `GET /rest/v1/rpc/is_coach` risponde `404` (`PGRST202`). Documentato come passo di setup opzionale l'attivazione di *Prevent use of leaked passwords*.
 *Motivazione*: il Security Advisor di Supabase segnalava la funzione `SECURITY DEFINER` come eseguibile da `anon` e `authenticated` tramite `/rest/v1/rpc/is_coach`.
