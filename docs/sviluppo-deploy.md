@@ -68,6 +68,6 @@ L'app è installabile su dispositivi mobili e desktop tramite un Web App Manifes
 **Componenti della PWA:**
 - `vite.config.ts`: configurazione `VitePWA()` — manifest, icone, `start_url: /PCoach/`, `scope: /PCoach/`.
 - `app/public/icons/icon-192.png` e `icon-512.png`: icone PNG generate, necessarie per manifest e `apple-touch-icon`.
-- `index.html`: meta tag `theme-color` (due tag con `prefers-color-scheme: dark/light`, valori `#14171B`/`#F5F6F8`), `apple-mobile-web-app-capable`, `apple-touch-icon`.
+- `index.html`: meta tag `theme-color` (due tag con `prefers-color-scheme: dark/light`, valori `#1C2025`/`#FFFFFF`), `apple-mobile-web-app-capable`, `apple-touch-icon`.
 
 **Per aggiungere offline support in futuro:** rimuovere `selfDestroying: true` da `vite.config.ts` e configurare una strategia Workbox (es. `NetworkFirst` per le API Supabase, `CacheFirst` per gli asset statici).

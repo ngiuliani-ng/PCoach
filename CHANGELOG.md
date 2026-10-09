@@ -6,9 +6,9 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
-**2026-10-09 — Allineamento colore barra PWA ai token di design**
-`theme-color` in `index.html` sostituito da due meta tag con `prefers-color-scheme: dark/light` (`#14171B` / `#F5F6F8`), corrispondenti al token `--bg` nei due temi. `theme_color` e `background_color` nel manifest (`vite.config.ts`) aggiornati da `#863bff`/`#ffffff` a `#14171B`. Il precedente viola era un residuo della configurazione iniziale non allineato alla palette di progetto.
-*Motivazione*: la barra del titolo della finestra PWA si fondeva in modo dissonante con l'interfaccia; la nuova configurazione la rende trasparente al tema.
+**2026-10-09 — Allineamento colore barra PWA allo sfondo sidebar**
+`theme-color` in `index.html` impostato tramite due meta tag con `prefers-color-scheme: dark/light` (`#1C2025` / `#FFFFFF`), corrispondenti al token `--surface` (sfondo della sidebar) per garantire continuità visiva verticale. `theme_color` e `background_color` nel manifest (`vite.config.ts`) impostati su `#1C2025`.
+*Motivazione*: creare continuità cromatica diretta tra la barra del titolo della finestra PWA e la testata della sidebar sia in modalità scura che in modalità chiara.
 *Docs aggiornati*: [design-ui.md](docs/design-ui.md), [sviluppo-deploy.md](docs/sviluppo-deploy.md), [decisioni/0013](docs/decisioni/0013-pwa-manifest-only.md).
 
 **2026-10-09 — Iconografia unificata (lucide-vue-next) e rimozione tooltip nativi**
