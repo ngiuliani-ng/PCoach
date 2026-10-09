@@ -6,6 +6,11 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
+**2026-10-09 — Nuova icona app (favicon + icone PWA)**
+Icona dell'app sostituita con un'immagine gradiente multicolore personalizzata. Generati `app/public/favicon.png` (32×32 px, usato come favicon del browser), `app/public/icons/icon-192.png` e `app/public/icons/icon-512.png` (icone PWA per manifest e `apple-touch-icon`). `index.html` aggiornato: `<link rel="icon">` punta ora a `favicon.png` (PNG) invece di `favicon.svg`.
+*Motivazione*: allineare l'identità visiva dell'app all'immagine scelta dal coach.
+*Docs aggiornati*: [sviluppo-deploy.md](docs/sviluppo-deploy.md).
+
 **2026-10-09 — Bump GitHub Actions a runtime Node.js 24**
 `actions/checkout` v4→v7, `actions/setup-node` v4→v7, `actions/upload-pages-artifact` v3→v5, `actions/deploy-pages` v4→v5 in `.github/workflows/deploy.yml`.
 *Motivazione*: GitHub ha deprecato il runtime Node.js 20 su tutte le runner; le action precedenti venivano forzate su Node.js 24 generando warning nei log di CI/CD.
