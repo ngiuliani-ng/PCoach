@@ -63,7 +63,7 @@ async function onSave() {
       </div>
       <p class="helper-text">
         La generazione del feedback avviene automaticamente al momento configurato, tramite una funzione schedulata lato server
-        (vedi <code>docs/DOCUMENTAZIONE.md</code> per l'impostazione una tantum dello scheduler). Questa sezione cambia solo
+        (vedi <code>docs/backend.md</code> per l'impostazione una tantum dello scheduler). Questa sezione cambia solo
         giorno/orario/fuso e l'invio email: non è necessario modificare la configurazione dello scheduler per cambiarli.
       </p>
     </section>

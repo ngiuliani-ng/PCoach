@@ -6,6 +6,11 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
+**2026-10-09 — Iconografia unificata (lucide-vue-next) e rimozione tooltip nativi**
+Introdotta la libreria `lucide-vue-next` come dipendenza in `app/package.json` per uniformare l'iconografia dell'interfaccia ed eliminare glifi Unicode, emoji e SVG inline: icone `Settings` e `LogOut` nella sidebar (`AthleteSidebar.vue`), `X` per l'eliminazione atleta e `UserPlus` per la card nuovo atleta, `Menu` per il toggle mobile (`App.vue`), `User` per il placeholder, `Eye`/`EyeOff` per il toggle password (`PasswordField.vue`) e `ChevronDown`/`ChevronRight` per le sezioni comprimibili del piano (`PlanWeekBlock.vue`). Contestualmente rimossi gli attributi `title`/`:title` a favore di `aria-label` su tutti i controlli a icona e sull'icona disciplina in `PlanSessionCard.vue` per evitare la comparsa di tooltip nativi del browser al passaggio del puntatore preservando la piena accessibilità; armonizzata la label del bottone impostazioni in `AthleteSidebar.vue` e corretto un riferimento documentale obsoleto in `SettingsPanel.vue`.
+*Motivazione*: garantire coerenza stilistica e dimensionale nell'iconografia UI, prevenire tooltip nativi ridondanti sui comandi visuali e mantenere piena accessibilità assistiva.
+*Docs aggiornati*: [architettura.md](docs/architettura.md), [design-ui.md](docs/design-ui.md).
+
 **2026-10-09 — PWA installabile (manifest + icone)**
 Aggiunta configurazione `vite-plugin-pwa` in `vite.config.ts` con manifest Web App (nome, colori brand, `start_url`/`scope` relativi alla base `/PCoach/`, icone 192×512 px). Nessun Service Worker attivo (`selfDestroying: true`): l'app è installabile dalla schermata home ma non funziona offline. Aggiunti meta tag PWA in `index.html` (`theme-color`, `apple-mobile-web-app-*`, `apple-touch-icon`). Icone PNG generate in `app/public/icons/`.
 *Motivazione*: rendere l'app aggiungibile alla schermata home su mobile/desktop senza barra del browser, con il minimo di complessità (nessuna strategia offline da gestire).

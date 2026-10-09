@@ -1,12 +1,12 @@
 <script setup lang="ts">
 // Pulsante-icona quadrato riutilizzabile (es. footer della sidebar). L'icona va
-// passata come SVG inline nello slot; "label" alimenta title e aria-label.
+// passata nello slot (es. componente Lucide); "label" alimenta aria-label (nessun tooltip title).
 defineProps<{ label: string }>();
 defineEmits<{ (e: "click"): void }>();
 </script>
 
 <template>
-  <button type="button" class="icon-square-btn" :title="label" :aria-label="label" @click="$emit('click')">
+  <button type="button" class="icon-square-btn" :aria-label="label" @click="$emit('click')">
     <slot />
   </button>
 </template>

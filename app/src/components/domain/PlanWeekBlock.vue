@@ -5,6 +5,7 @@
 // cosi' lo stato resta nello store/composable UI e non qui.
 import type { WeekViewModel } from "../../services/planViewModel";
 import PlanSessionCard from "./PlanSessionCard.vue";
+import { ChevronDown, ChevronRight } from "lucide-vue-next";
 
 defineProps<{ week: WeekViewModel; open: boolean }>();
 defineEmits<{ (e: "toggle"): void }>();
@@ -30,7 +31,10 @@ function shortDate(iso: string | null): string {
           · {{ disc }}: {{ km.toFixed(1) }} km
         </template>
       </span>
-      <span class="plan-week-caret">{{ open ? "▾" : "▸" }}</span>
+      <span class="plan-week-caret">
+        <ChevronDown v-if="open" :size="16" aria-hidden="true" />
+        <ChevronRight v-else :size="16" aria-hidden="true" />
+      </span>
     </button>
     <div v-if="open" class="plan-week-body">
       <p v-if="!week.sessions.length" class="helper-text">Nessuna sessione in questa settimana.</p>

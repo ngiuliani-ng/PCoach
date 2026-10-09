@@ -30,7 +30,7 @@ const durationOrDistanceText = computed(() => {
   <div class="plan-session">
     <div class="plan-session-head">
       <span class="plan-session-day">
-        <span class="discipline-icon" :title="session.discipline">{{ disciplineIcon(session.discipline) }}</span>
+        <span class="discipline-icon" role="img" :aria-label="session.discipline">{{ disciplineIcon(session.discipline) }}</span>
         {{ session.day || "—" }}<span v-if="session.date" class="plan-session-date"> · {{ session.date }}</span>
       </span>
       <span class="plan-session-type">{{ session.sessionType || "Allenamento" }}</span>

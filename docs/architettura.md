@@ -24,7 +24,7 @@ Applicazione mono-coach, pensata per uso personale con un link non condiviso pub
 
 ## Stack
 
-- **Frontend**: Vue 3 (Composition API, `<script setup>`), Vite, Pinia (store), TypeScript.
+- **Frontend**: Vue 3 (Composition API, `<script setup>`), Vite, Pinia (store), TypeScript, `lucide-vue-next` (icone).
 - **Tipi**: generati automaticamente dallo schema JSON tramite `json-schema-to-typescript` (script `npm run gen:types` — vedi [sviluppo-deploy.md](sviluppo-deploy.md)), per evitare disallineamenti manuali tra schema e codice.
 - **Backend**: Supabase (Postgres + REST autogenerata tramite `@supabase/supabase-js`), più Edge Functions (Deno) per operazioni che richiedono un segreto lato server — vedi [backend.md](backend.md).
 - **Integrazioni esterne**: Intervals.icu, Anthropic Claude — vedi [integrazioni.md](integrazioni.md).

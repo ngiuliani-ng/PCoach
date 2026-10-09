@@ -11,6 +11,7 @@ import SettingsPanel from "./components/domain/SettingsPanel.vue";
 import LoginView from "./components/domain/LoginView.vue";
 import ToastHost from "./components/ui/ToastHost.vue";
 import ConfirmDialog from "./components/ui/ConfirmDialog.vue";
+import { Menu, User } from "lucide-vue-next";
 
 const athletes = useAthletesStore();
 const settings = useSettingsStore();
@@ -66,7 +67,7 @@ watch(
       aria-controls="athlete-sidebar"
       aria-label="Apri la barra laterale"
       @click="openMobileSidebar"
-    >☰</button>
+    ><Menu :size="20" aria-hidden="true" /></button>
     <Transition name="backdrop-fade">
       <div v-if="mobileSidebarOpen" class="sidebar-backdrop" aria-hidden="true" @click="closeMobileSidebar"></div>
     </Transition>
@@ -75,7 +76,7 @@ watch(
       <SettingsPanel v-if="showSettings" />
       <AthleteEditor v-else-if="athletes.currentProfile" />
       <div v-else class="placeholder">
-        <span class="big-emoji">👤</span>
+        <User :size="44" stroke-width="1.5" class="placeholder-icon" aria-hidden="true" style="margin-bottom: 12px; opacity: 0.6;" />
         <p>Seleziona un atleta dalla barra laterale oppure creane uno nuovo.</p>
       </div>
     </main>
