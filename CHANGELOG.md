@@ -6,6 +6,11 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
+**2026-10-09 — Allineamento colore barra PWA ai token di design**
+`theme-color` in `index.html` sostituito da due meta tag con `prefers-color-scheme: dark/light` (`#14171B` / `#F5F6F8`), corrispondenti al token `--bg` nei due temi. `theme_color` e `background_color` nel manifest (`vite.config.ts`) aggiornati da `#863bff`/`#ffffff` a `#14171B`. Il precedente viola era un residuo della configurazione iniziale non allineato alla palette di progetto.
+*Motivazione*: la barra del titolo della finestra PWA si fondeva in modo dissonante con l'interfaccia; la nuova configurazione la rende trasparente al tema.
+*Docs aggiornati*: [design-ui.md](docs/design-ui.md), [sviluppo-deploy.md](docs/sviluppo-deploy.md), [decisioni/0013](docs/decisioni/0013-pwa-manifest-only.md).
+
 **2026-10-09 — Iconografia unificata (lucide-vue-next) e rimozione tooltip nativi**
 Introdotta la libreria `lucide-vue-next` come dipendenza in `app/package.json` per uniformare l'iconografia dell'interfaccia ed eliminare glifi Unicode, emoji e SVG inline: icone `Settings` e `LogOut` nella sidebar (`AthleteSidebar.vue`), `X` per l'eliminazione atleta e `UserPlus` per la card nuovo atleta, `Menu` per il toggle mobile (`App.vue`), `User` per il placeholder, `Eye`/`EyeOff` per il toggle password (`PasswordField.vue`) e `ChevronDown`/`ChevronRight` per le sezioni comprimibili del piano (`PlanWeekBlock.vue`). Contestualmente rimossi gli attributi `title`/`:title` a favore di `aria-label` su tutti i controlli a icona e sull'icona disciplina in `PlanSessionCard.vue` per evitare la comparsa di tooltip nativi del browser al passaggio del puntatore preservando la piena accessibilità; armonizzata la label del bottone impostazioni in `AthleteSidebar.vue` e corretto un riferimento documentale obsoleto in `SettingsPanel.vue`.
 *Motivazione*: garantire coerenza stilistica e dimensionale nell'iconografia UI, prevenire tooltip nativi ridondanti sui comandi visuali e mantenere piena accessibilità assistiva.

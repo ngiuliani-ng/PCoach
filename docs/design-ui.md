@@ -18,6 +18,8 @@ Variabili CSS definite in `app/src/styles/tokens.css`, con supporto a tema chiar
 | `--radius` | Raggio di bordo standard per card/input/bottoni |
 | `--shadow` | Ombra standard delle card sollevate |
 
+La barra del titolo della finestra PWA e la barra di stato mobile seguono `--bg`: `#14171B` su tema scuro e `#F5F6F8` su tema chiaro, dichiarati via `prefers-color-scheme` in `index.html` (vedi [sviluppo-deploy.md § PWA](sviluppo-deploy.md#pwa-progressive-web-app)).
+
 ## Tipografia e spaziatura
 
 - Font di sistema (stack `-apple-system, ...`), nessun web font caricato da remoto.

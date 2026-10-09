@@ -10,7 +10,7 @@ L'app è servita come build statica su GitHub Pages (`https://<utente>.github.io
 
 ## Decisione
 
-- `vite-plugin-pwa` è aggiunto come devDependency e configurato in `vite.config.ts` per generare un `manifest.webmanifest` con nome, colori brand, `start_url` e `scope` relativi alla base `/PCoach/`, e icone PNG 192×192 e 512×512.
+- `vite-plugin-pwa` è aggiunto come devDependency e configurato in `vite.config.ts` per generare un `manifest.webmanifest` con nome, `theme_color`/`background_color` pari a `#14171B` (valore del token `--bg` scuro, tema default), `start_url` e `scope` relativi alla base `/PCoach/`, e icone PNG 192×192 e 512×512. Il colore barra si adatta al tema del dispositivo tramite due meta tag `theme-color` con `prefers-color-scheme` in `index.html` (vedi [design-ui.md](../design-ui.md#design-token)).
 - `selfDestroying: true`: il Service Worker viene auto-disattivato (o non registrato); l'app **non funziona offline**.
 - Le icone PNG sono generate a partire dal favicon SVG esistente e messe in `app/public/icons/`.
 - `index.html` riceve i meta tag necessari: `theme-color`, `apple-mobile-web-app-capable`, `apple-touch-icon`.
