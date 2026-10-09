@@ -15,7 +15,7 @@ export default defineConfig({
       injectRegister: null,
       manifest: {
         name: 'PCoach',
-        short_name: '',
+        short_name: 'PCoach',
         description: 'Strumento di lavoro per il coach: schede atleti, piani di allenamento e feedback settimanali.',
         theme_color: '#1C2025',
         background_color: '#1C2025',

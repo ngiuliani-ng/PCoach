@@ -68,7 +68,7 @@ Actions usate: `actions/checkout@v7`, `actions/setup-node@v7`, `actions/upload-p
 L'app è installabile su dispositivi mobili e desktop tramite un Web App Manifest generato da `vite-plugin-pwa`. Non è attivo alcun Service Worker (configurazione `selfDestroying: true`): l'app **non funziona offline**, ma può essere aggiunta alla schermata home e si apre senza barra del browser (`display: standalone`). Motivazione della scelta in [decisioni/0013](decisioni/0013-pwa-manifest-only.md) e [decisioni/0014](decisioni/0014-colore-finestra-pwa-continuita-sidebar.md).
 
 **Componenti della PWA:**
-- `vite.config.ts`: configurazione `VitePWA()` — manifest (`name`, `short_name: ''` per evitare la visualizzazione del nome breve nella barra superiore della finestra su Windows), icone, `start_url: /PCoach/`, `scope: /PCoach/`.
+- `vite.config.ts`: configurazione `VitePWA()` — manifest, icone, `start_url: /PCoach/`, `scope: /PCoach/`.
 - `app/public/favicon.png`: icona circolare 32×32 px usata come favicon nel browser (`<link rel="icon">` in `index.html`).
 - `app/public/icons/icon-192.png` e `icon-512.png`: icone PNG circolari 192×192 e 512×512 px (con angoli trasparenti), necessarie per manifest e `apple-touch-icon`.
 - `index.html`: meta tag `theme-color` (due tag con `prefers-color-scheme: dark/light`, valori `#1C2025`/`#FFFFFF`), `apple-mobile-web-app-capable`, `apple-touch-icon`.
