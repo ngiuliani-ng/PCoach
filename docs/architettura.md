@@ -46,8 +46,8 @@ app/
     schema/      athlete_profile.schema.json (sorgente di verità, vedi modello-dati.md), types.generated.ts (generato, non modificare a mano), migrations/
     styles/      tokens.css (variabili di design), base.css (stili globali)
   public/
-    favicon.svg             Icona SVG del browser
-    icons/                  Icone PNG per la PWA (192×192 e 512×512)
+    favicon.png             Favicon del browser (PNG circolare 32×32)
+    icons/                  Icone PNG per la PWA (circolari 192×192 e 512×512)
   index.html, main.ts, App.vue  Bootstrap applicazione
 supabase/
   functions/claude-proxy/     Edge Function: proxy verso l'API Claude

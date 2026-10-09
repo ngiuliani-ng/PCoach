@@ -6,6 +6,11 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
+**2026-10-09 — Icona app e favicon ritagliate in formato circolare**
+Rigenerate `app/public/favicon.png` (32×32 px), `app/public/icons/icon-192.png` (192×192 px) e `app/public/icons/icon-512.png` (512×512 px) con maschera circolare e trasparenza negli angoli (anti-aliasing tramite supersampling).
+*Motivazione*: richiesta del coach di visualizzare l'immagine dell'app e la favicon in forma circolare.
+*Docs aggiornati*: [sviluppo-deploy.md](docs/sviluppo-deploy.md).
+
 **2026-10-09 — Nuova icona app (favicon + icone PWA)**
 Icona dell'app sostituita con un'immagine gradiente multicolore personalizzata. Generati `app/public/favicon.png` (32×32 px, usato come favicon del browser), `app/public/icons/icon-192.png` e `app/public/icons/icon-512.png` (icone PWA per manifest e `apple-touch-icon`). `index.html` aggiornato: `<link rel="icon">` punta ora a `favicon.png` (PNG) invece di `favicon.svg`.
 *Motivazione*: allineare l'identità visiva dell'app all'immagine scelta dal coach.
