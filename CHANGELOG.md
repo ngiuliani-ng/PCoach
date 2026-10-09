@@ -6,6 +6,11 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
+**2026-10-09 — Rimozione short_name dal manifest PWA**
+`short_name` impostato a stringa vuota (`''`) nella configurazione del manifest Web App in `app/vite.config.ts`.
+*Motivazione*: tentare di evitare la visualizzazione del nome breve nella barra superiore della finestra PWA installata su Windows.
+*Docs aggiornati*: [sviluppo-deploy.md](docs/sviluppo-deploy.md).
+
 **2026-10-09 — Icona app e favicon ritagliate in formato circolare**
 Rigenerate `app/public/favicon.png` (32×32 px), `app/public/icons/icon-192.png` (192×192 px) e `app/public/icons/icon-512.png` (512×512 px) con maschera circolare e trasparenza negli angoli (anti-aliasing tramite supersampling).
 *Motivazione*: richiesta del coach di visualizzare l'immagine dell'app e la favicon in forma circolare.
