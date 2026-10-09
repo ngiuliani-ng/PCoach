@@ -55,6 +55,8 @@ Esegue `vue-tsc -b` (type-check, build incrementale) seguito da `vite build`. Un
 
 Workflow `.github/workflows/deploy.yml`, innescato da push su `main` (o manualmente via `workflow_dispatch`):
 
+Actions usate: `actions/checkout@v7`, `actions/setup-node@v7`, `actions/upload-pages-artifact@v5`, `actions/deploy-pages@v5` (tutte su runtime Node.js 24).
+
 1. Checkout, setup Node 22, `npm ci` (dentro `app/`, con cache su `package-lock.json`).
 2. `npm run build`, con `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` presi dai **repository secrets** GitHub (non dal file `.env` locale).
 3. Upload di `app/dist` come artifact Pages, poi deploy.
@@ -63,7 +65,7 @@ Workflow `.github/workflows/deploy.yml`, innescato da push su `main` (o manualme
 
 ## PWA (Progressive Web App)
 
-L'app è installabile su dispositivi mobili e desktop tramite un Web App Manifest generato da `vite-plugin-pwa`. Non è attivo alcun Service Worker (configurazione `selfDestroying: true`): l'app **non funziona offline**, ma può essere aggiunta alla schermata home e si apre senza barra del browser (`display: standalone`). Motivazione della scelta in [decisioni/0013](decisioni/0013-pwa-manifest-only.md).
+L'app è installabile su dispositivi mobili e desktop tramite un Web App Manifest generato da `vite-plugin-pwa`. Non è attivo alcun Service Worker (configurazione `selfDestroying: true`): l'app **non funziona offline**, ma può essere aggiunta alla schermata home e si apre senza barra del browser (`display: standalone`). Motivazione della scelta in [decisioni/0013](decisioni/0013-pwa-manifest-only.md) e [decisioni/0014](decisioni/0014-colore-finestra-pwa-continuita-sidebar.md).
 
 **Componenti della PWA:**
 - `vite.config.ts`: configurazione `VitePWA()` — manifest, icone, `start_url: /PCoach/`, `scope: /PCoach/`.

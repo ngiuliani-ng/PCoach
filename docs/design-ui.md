@@ -18,7 +18,7 @@ Variabili CSS definite in `app/src/styles/tokens.css`, con supporto a tema chiar
 | `--radius` | Raggio di bordo standard per card/input/bottoni |
 | `--shadow` | Ombra standard delle card sollevate |
 
-La barra del titolo della finestra PWA e la barra di stato mobile seguono `--surface` (lo sfondo della sidebar): `#1C2025` su tema scuro e `#FFFFFF` su tema chiaro, dichiarati via `prefers-color-scheme` in `index.html` (vedi [sviluppo-deploy.md § PWA](sviluppo-deploy.md#pwa-progressive-web-app)).
+La barra del titolo della finestra PWA e la barra di stato mobile seguono `--surface` (lo sfondo della sidebar): `#1C2025` su tema scuro e `#FFFFFF` su tema chiaro, dichiarati via `prefers-color-scheme` in `index.html` (vedi [sviluppo-deploy.md § PWA](sviluppo-deploy.md#pwa-progressive-web-app) e [decisioni/0014](decisioni/0014-colore-finestra-pwa-continuita-sidebar.md)).
 
 ## Tipografia e spaziatura
 

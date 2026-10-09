@@ -6,10 +6,15 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
+**2026-10-09 — Bump GitHub Actions a runtime Node.js 24**
+`actions/checkout` v4→v7, `actions/setup-node` v4→v7, `actions/upload-pages-artifact` v3→v5, `actions/deploy-pages` v4→v5 in `.github/workflows/deploy.yml`.
+*Motivazione*: GitHub ha deprecato il runtime Node.js 20 su tutte le runner; le action precedenti venivano forzate su Node.js 24 generando warning nei log di CI/CD.
+*Docs aggiornati*: [sviluppo-deploy.md](docs/sviluppo-deploy.md).
+
 **2026-10-09 — Allineamento colore barra PWA allo sfondo sidebar**
 `theme-color` in `index.html` impostato tramite due meta tag con `prefers-color-scheme: dark/light` (`#1C2025` / `#FFFFFF`), corrispondenti al token `--surface` (sfondo della sidebar) per garantire continuità visiva verticale. `theme_color` e `background_color` nel manifest (`vite.config.ts`) impostati su `#1C2025`.
 *Motivazione*: creare continuità cromatica diretta tra la barra del titolo della finestra PWA e la testata della sidebar sia in modalità scura che in modalità chiara.
-*Docs aggiornati*: [design-ui.md](docs/design-ui.md), [sviluppo-deploy.md](docs/sviluppo-deploy.md), [decisioni/0013](docs/decisioni/0013-pwa-manifest-only.md).
+*Docs aggiornati*: [design-ui.md](docs/design-ui.md), [sviluppo-deploy.md](docs/sviluppo-deploy.md), [decisioni/0013](docs/decisioni/0013-pwa-manifest-only.md), [decisioni/0014](docs/decisioni/0014-colore-finestra-pwa-continuita-sidebar.md).
 
 **2026-10-09 — Iconografia unificata (lucide-vue-next) e rimozione tooltip nativi**
 Introdotta la libreria `lucide-vue-next` come dipendenza in `app/package.json` per uniformare l'iconografia dell'interfaccia ed eliminare glifi Unicode, emoji e SVG inline: icone `Settings` e `LogOut` nella sidebar (`AthleteSidebar.vue`), `X` per l'eliminazione atleta e `UserPlus` per la card nuovo atleta, `Menu` per il toggle mobile (`App.vue`), `User` per il placeholder, `Eye`/`EyeOff` per il toggle password (`PasswordField.vue`) e `ChevronDown`/`ChevronRight` per le sezioni comprimibili del piano (`PlanWeekBlock.vue`). Contestualmente rimossi gli attributi `title`/`:title` a favore di `aria-label` su tutti i controlli a icona e sull'icona disciplina in `PlanSessionCard.vue` per evitare la comparsa di tooltip nativi del browser al passaggio del puntatore preservando la piena accessibilità; armonizzata la label del bottone impostazioni in `AthleteSidebar.vue` e corretto un riferimento documentale obsoleto in `SettingsPanel.vue`.
