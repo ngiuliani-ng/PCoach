@@ -6,6 +6,15 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
+**2026-10-10 — Rimossa la migrazione nome/cognome dello schema 1.4.0**
+- Eliminata `app/src/schema/migrations/`: la migrazione euristica `identitySplit.ts`, il suo test e il punto d'ingresso `migrateProfile`.
+- Lo store atleti carica le schede così come sono, senza l'avviso «Nome e cognome separati automaticamente».
+- Verificato in produzione che tutte e 4 le schede sono alla versione 1.5.0 con `nome` e `cognome` separati e senza il vecchio campo `name`.
+- Test: 62 unitari.
+
+*Motivazione*: tutte le schede erano già state corrette; la migrazione non aveva più nulla da fare.
+*Docs aggiornati*: [architettura.md](docs/architettura.md), [modello-dati.md](docs/modello-dati.md), [sviluppo-deploy.md](docs/sviluppo-deploy.md), [decisioni/0006](docs/decisioni/0006-modello-dati-identita-e-sync-automatica.md).
+
 **2026-10-10 — Pulizia: atleti senza piani generati, rimozione del codice legacy e dei backup**
 - **Dati in produzione**: cancellati piani, generazioni, sedute, cronologia e i 2 feedback settimanali dei 4 atleti, e `training_plan` dalle schede. Profilo, soglie, carico CTL/ATL, vincoli e chiavi sono rimasti. Le schede passano a `schema_version` 1.5.0.
 - **Intervals.icu**: rimossi dal calendario di un atleta gli eventi creati da PCoach (7 eliminati, 7 già assenti), lasciando quelli creati fuori da PCoach. Cancellati i backup nello schema `private`.

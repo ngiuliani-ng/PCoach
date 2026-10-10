@@ -10,7 +10,7 @@ Procedura per aggiungere un campo: [architettura.md](architettura.md#come-aggiun
 
 ## `AthleteTrainingProfile`: sezioni principali
 
-- **`schema_version`**: versione dello schema (attuale: `1.5.0`, senza il piano: le sedute sono in tabelle proprie), usata per capire se una scheda salvata richiede una migrazione all'apertura.
+- **`schema_version`**: versione dello schema (attuale: `1.5.0`, senza il piano: le sedute sono in tabelle proprie). Tutte le schede salvate sono a questa versione; serve a riconoscere le schede da aggiornare se lo schema cambierà.
 - **`meta`**: metadati della scheda stessa (non dell'atleta) — `athlete_id` (generato alla creazione, non derivato dal nome), `coach_id`, `created_at`/`updated_at`, `data_source` (`manual` / `garmin_export` / `intervals_icu_api` / `mixed`).
 - **`identity`**: `nome`, `cognome` (campi separati dallo schema 1.4.0, vedi [decisioni/0006-modello-dati-identita-e-sync-automatica.md](decisioni/0006-modello-dati-identita-e-sync-automatica.md)), `email` (usata per l'invio del feedback settimanale automatico), `birth_year`, `biological_sex` (per formule fisiologiche standard, opzionale), `height_cm`, `weight_kg`.
 - **`disciplines`**: una voce per sport praticato (`running`/`cycling`/`swimming`/`strength`; il triathlon non è una disciplina a sé, ma tre righe separate), con livello, anni di pratica, volume settimanale attuale e picco volume ultimi 12 mesi.

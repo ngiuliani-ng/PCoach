@@ -2,7 +2,7 @@
 
 **Quando leggerlo**: per capire perché `identity` ha `nome`/`cognome` separati invece di un campo unico, e perché la sincronizzazione Intervals.icu è pilotata da stato di modulo invece che da un parametro esplicito.
 
-**Stato**: attiva.
+**Stato**: attiva. La migrazione euristica `identitySplit.ts` è stata rimossa il 2026-10-10, dopo aver verificato che tutte le schede avevano già `nome` e `cognome` separati.
 
 ## Contesto
 

@@ -6,8 +6,6 @@ import { defineStore } from "pinia";
 import { supabase, configured } from "../services/supabase";
 import { blankProfile, fullName, todayISO } from "../constants";
 import { hasNewerRemoteVersion, snapshotForCompare } from "../composables/useDirtyState";
-import { migrateProfile } from "../schema/migrations";
-import { showToast } from "../composables/useToast";
 import type { AthleteTrainingProfile } from "../schema/types.generated";
 
 type LoadMetricsLog = AthleteTrainingProfile["training_status"]["load_metrics_log"];
@@ -30,8 +28,7 @@ export const useAthletesStore = defineStore("athletes", {
     baselineSnapshot: null as string | null,
     currentBaseVersion: null as string | null,
     dbAvailable: false,
-    pollHandle: null as ReturnType<typeof setInterval> | null,
-    heuristicallyMigratedIds: new Set<string>()
+    pollHandle: null as ReturnType<typeof setInterval> | null
   }),
   getters: {
     sortedList(state): { id: string; name: string }[] {
@@ -55,10 +52,8 @@ export const useAthletesStore = defineStore("athletes", {
       const map: Record<string, AthleteTrainingProfile> = {};
       const versions: Record<string, string> = {};
       (data || []).forEach((row: { id: string; data: AthleteTrainingProfile; updated_at: string }) => {
-        const { profile, heuristicApplied } = migrateProfile(row.data);
-        map[row.id] = profile;
+        map[row.id] = row.data;
         versions[row.id] = row.updated_at;
-        if (heuristicApplied) this.heuristicallyMigratedIds.add(row.id);
       });
       this.athletes = map;
       this.rowVersions = versions;
@@ -93,10 +88,6 @@ export const useAthletesStore = defineStore("athletes", {
       this.currentProfile = JSON.parse(JSON.stringify(profile));
       this.baselineSnapshot = snapshotForCompare(this.currentProfile!);
       this.currentBaseVersion = this.rowVersions[id] ?? null;
-      if (this.heuristicallyMigratedIds.has(id)) {
-        this.heuristicallyMigratedIds.delete(id);
-        showToast("Nome e cognome separati automaticamente: verifica che siano corretti.");
-      }
     },
     // Ricarica la scheda aperta con i dati più recenti già noti al polling della lista
     // (nessuna richiesta aggiuntiva: this.athletes è già allineato al DB ad ogni poll).

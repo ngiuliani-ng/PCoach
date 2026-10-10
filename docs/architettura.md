@@ -46,7 +46,7 @@ app/
     domain/      Funzioni pure delle sedute: calendario e vincoli di disponibilità, lettura della proposta di Claude e differenze di una rigenerazione, stati derivati
     stores/      Pinia: athletes.ts (schede atleti, CRUD, polling), workouts.ts (sedute, piani e stato di sincronizzazione dell'atleta aperto), settings.ts (impostazioni globali del coach), auth.ts (sessione del coach)
     services/    Accesso a sistemi esterni: supabase.ts, intervals.ts (lettura del carico), intervalsSync.ts (Edge Function intervals-sync), claude.ts, planPrompt.ts
-    schema/      athlete_profile.schema.json (sorgente di verità, vedi modello-dati.md), types.generated.ts (generato, non modificare a mano), migrations/
+    schema/      athlete_profile.schema.json (sorgente di verità, vedi modello-dati.md), types.generated.ts (generato, non modificare a mano)
     styles/      tokens.css (variabili di design), base.css (stili globali)
   public/
     favicon.png             Favicon del browser (PNG circolare 32×32)
@@ -182,7 +182,7 @@ Dettagli completi in [backend.md](backend.md) (contratto della function) e [inte
 ## Come aggiungere un campo al modello dati
 
 1. Modificare `app/src/schema/athlete_profile.schema.json` (unica sorgente di verità — vedi [modello-dati.md](modello-dati.md)).
-2. Se il nuovo campo richiede un valore di default per le schede esistenti, incrementare `schema_version` e aggiungere una migrazione in `app/src/schema/migrations/`.
+2. Se il nuovo campo richiede un valore di default per le schede esistenti, incrementare `schema_version` e aggiornare le schede salvate: con una migrazione SQL una tantum sul blob `athletes.data`, oppure con una funzione di migrazione applicata in `athletes.loadAthletesFromSupabase()`. Oggi non ne esiste nessuna: tutte le schede sono alla versione corrente.
 3. Rigenerare i tipi: `npm run gen:types` (dentro `app/`).
 4. Aggiornare `blankProfile()`/i default usati per le nuove schede.
 5. Aggiornare il componente del form interessato (`components/domain/AthleteEditor.vue` o un suo sotto-componente).
