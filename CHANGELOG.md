@@ -6,6 +6,12 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
+**2026-10-11 — Audit del feedback settimanale**
+- Nuova cartella `docs/audit/2026-10-feedback/` con sette documenti: stato attuale e problemi verificati, modello di dominio del feedback endurance, contratto dati, abbinamento e metriche, strategia di test, architettura raccomandata e piano, sintesi. Nessuna modifica al codice o ai dati.
+
+*Motivazione*: verificare se il feedback confronta i dati corretti prima di riprogettarlo. L'audit ha trovato, fra l'altro, un periodo di 8 giorni, le bozze incluse, l'abbinamento delegato a Claude e l'invio all'atleta senza revisione.
+*Docs aggiornati*: [CLAUDE.md](CLAUDE.md) (mappa), [docs/audit/2026-10-feedback/](docs/audit/2026-10-feedback/07-executive-summary.md).
+
 **2026-10-11 — Ciclo di carico aggiunto ai due piani attivi generati prima dell'ancoraggio**
 - In produzione, nei piani attivi di due atleti (schema 3:1), aggiunto `cycle_week` a ogni settimana di `weeks_meta`, contato dalla prima settimana del piano: 1-4 e 1-4-1-4. Gli scarichi già salvati coincidono.
 - Nel piano che inizia domenica 11 ottobre, con una seduta approvata in quel giorno, aggiunta la settimana del 5 ottobre come «Raccordo», senza `cycle_week`, come la salverebbe oggi il codice.

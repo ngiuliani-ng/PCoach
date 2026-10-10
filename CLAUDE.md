@@ -15,6 +15,7 @@
 | Sviluppo e deploy | [docs/sviluppo-deploy.md](docs/sviluppo-deploy.md) |
 | Limiti noti e roadmap | [docs/limiti-roadmap.md](docs/limiti-roadmap.md) |
 | Decisioni (ADR) | [docs/decisioni/](docs/decisioni/) — un file per decisione/iniziativa, `NNNN-titolo-kebab.md` |
+| Audit | [docs/audit/](docs/audit/) — una cartella per audit (`AAAA-MM-argomento`), fotografia datata: non descrive lo stato corrente |
 | Changelog | [CHANGELOG.md](CHANGELOG.md) |
 
 ## Regole di manutenzione della documentazione
