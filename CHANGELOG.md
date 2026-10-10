@@ -6,6 +6,11 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
+**2026-10-10 — Barra del titolo PWA desktop senza nome, con linea di separazione (Window Controls Overlay)**
+Aggiunto `display_override: ['window-controls-overlay']` al manifest (`vite.config.ts`). Nuovo token `--titlebar-h` (`tokens.css`) e fascia di trascinamento `body::before` con sfondo `--surface` e linea inferiore di 1px in `--border` (`base.css`), attiva solo in quella modalità. Altezze `100vh`, sidebar sticky, drawer/toggle/backdrop mobile e schermate di caricamento/login (`App.vue`, `LoginView.vue`) adeguate a `--titlebar-h`.
+*Motivazione*: togliere il nome dell'app dalla barra di trascinamento di Windows e distinguere la barra dal resto dell'interfaccia con una linea dello stesso colore dei bordi della sidebar.
+*Docs aggiornati*: [design-ui.md](docs/design-ui.md), [sviluppo-deploy.md](docs/sviluppo-deploy.md), [decisioni/0015](docs/decisioni/0015-barra-titolo-window-controls-overlay.md).
+
 **2026-10-09 — Icona app e favicon ritagliate in formato circolare**
 Rigenerate `app/public/favicon.png` (32×32 px), `app/public/icons/icon-192.png` (192×192 px) e `app/public/icons/icon-512.png` (512×512 px) con maschera circolare e trasparenza negli angoli (anti-aliasing tramite supersampling).
 *Motivazione*: richiesta del coach di visualizzare l'immagine dell'app e la favicon in forma circolare.

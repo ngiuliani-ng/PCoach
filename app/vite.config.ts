@@ -20,6 +20,9 @@ export default defineConfig({
         theme_color: '#1C2025',
         background_color: '#1C2025',
         display: 'standalone',
+        // Desktop Chromium (Edge/Chrome): barra del titolo disegnata dall'app, senza nome/icona di sistema.
+        // `standalone` resta il fallback per i browser che non supportano la modalità.
+        display_override: ['window-controls-overlay'],
         orientation: 'portrait',
         start_url: '/PCoach/',
         scope: '/PCoach/',

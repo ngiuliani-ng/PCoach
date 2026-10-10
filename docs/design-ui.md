@@ -17,8 +17,17 @@ Variabili CSS definite in `app/src/styles/tokens.css`, con supporto a tema chiar
 | `--chart-bar` | Colore delle barre nel grafico del carico (TSS giornaliero) |
 | `--radius` | Raggio di bordo standard per card/input/bottoni |
 | `--shadow` | Ombra standard delle card sollevate |
+| `--titlebar-h` | Altezza della barra di trascinamento della PWA desktop (linea di 1px inclusa); `0px` fuori da Window Controls Overlay |
 
 La barra del titolo della finestra PWA e la barra di stato mobile seguono `--surface` (lo sfondo della sidebar): `#1C2025` su tema scuro e `#FFFFFF` su tema chiaro, dichiarati via `prefers-color-scheme` in `index.html` (vedi [sviluppo-deploy.md § PWA](sviluppo-deploy.md#pwa-progressive-web-app) e [decisioni/0014](decisioni/0014-colore-finestra-pwa-continuita-sidebar.md)).
+
+## Barra di trascinamento (PWA desktop)
+
+Sulla PWA installata su desktop Chromium (Edge/Chrome) la finestra usa Window Controls Overlay: la barra di sistema non mostra nome né icona dell'app, il contenuto si estende sotto di essa e restano visibili solo i pulsanti di sistema. La fascia superiore è disegnata dall'app (`body::before` in `base.css`, attivo solo con `@media (display-mode: window-controls-overlay)`): sfondo `--surface`, linea inferiore di 1px in `--border` (lo stesso colore dei bordi della sidebar) e `app-region: drag` per trascinare la finestra. L'altezza è `--titlebar-h`; fuori da quella modalità la fascia non esiste. Il manifest che attiva la modalità è descritto in [sviluppo-deploy.md § PWA](sviluppo-deploy.md#pwa-progressive-web-app), le motivazioni in [decisioni/0015](decisioni/0015-barra-titolo-window-controls-overlay.md).
+
+Regole per chi modifica il layout:
+- Ogni regola che assume una viewport che parte da 0 usa `--titlebar-h`: `.app`, `.sidebar` e le schermate di caricamento e login sottraggono `--titlebar-h` a `100vh`; sidebar sticky, drawer, toggle e backdrop mobile partono da `--titlebar-h`.
+- Un elemento interattivo posto dentro la fascia deve dichiarare `app-region: no-drag`, altrimenti non riceve i click.
 
 ## Tipografia e spaziatura
 

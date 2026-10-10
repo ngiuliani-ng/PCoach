@@ -11,7 +11,28 @@ body {
 #app { height: 100%; }
 .app {
   display: flex;
-  min-height: 100vh;
+  min-height: calc(100vh - var(--titlebar-h));
+}
+
+/* ---------- Barra di trascinamento (PWA desktop, Window Controls Overlay) ---------- */
+/* Il contenuto si estende sotto la barra di sistema: nome e icona non compaiono, restano solo
+   i pulsanti di sistema. Questa fascia fa da area di trascinamento e da separatore (1px). */
+@media (display-mode: window-controls-overlay) {
+  body { padding-top: var(--titlebar-h); }
+  body::before {
+    content: "";
+    box-sizing: border-box; /* `*` non copre i pseudo-elementi */
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--titlebar-h);
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    -webkit-app-region: drag;
+    app-region: drag;
+    z-index: 10; /* sopra il contenuto, sotto drawer/toast/dialog (14-30) */
+  }
 }
 
 /* ---------- Sidebar ---------- */
@@ -22,9 +43,9 @@ body {
   background: var(--surface);
   display: flex;
   flex-direction: column;
-  max-height: 100vh;
+  max-height: calc(100vh - var(--titlebar-h));
   position: sticky;
-  top: 0;
+  top: var(--titlebar-h);
 }
 .sidebar-header {
   padding: 20px 18px 14px;
@@ -501,11 +522,11 @@ button.add-row:hover { background: var(--surface-2); }
   .app { flex-direction: column; }
   .sidebar {
     position: fixed;
-    top: 0;
+    top: var(--titlebar-h);
     left: 0;
     bottom: 0;
     width: min(300px, 85vw);
-    max-height: 100vh;
+    max-height: calc(100vh - var(--titlebar-h));
     z-index: 15;
     transform: translateX(-100%);
     transition: transform 0.2s ease;
@@ -517,7 +538,7 @@ button.add-row:hover { background: var(--surface-2); }
     align-items: center;
     justify-content: center;
     position: fixed;
-    top: 10px;
+    top: calc(var(--titlebar-h) + 10px);
     left: 10px;
     width: 44px;
     height: 44px;
@@ -532,7 +553,7 @@ button.add-row:hover { background: var(--surface-2); }
   .sidebar-backdrop {
     display: block;
     position: fixed;
-    inset: 0;
+    inset: var(--titlebar-h) 0 0 0;
     background: rgba(0,0,0,0.4);
     z-index: 14;
   }
