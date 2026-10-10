@@ -23,14 +23,14 @@ const run = (date: string, minutes: number, day?: string) => ({
 
 describe("calendario del periodo", () => {
   it("risolve giorno, disponibilita', durata massima e attivita' abituale di ogni data", () => {
-    const cal = planningCalendar(constraints, "2026-10-11", 1);
+    const cal = planningCalendar(constraints, "2026-10-11", "2026-10-17");
     expect(cal).toHaveLength(7);
     expect(cal[0]).toEqual({ data: "2026-10-11", giorno: "domenica", disponibile: false, durata_massima_min: null, attivita_abituale: "" });
     expect(cal[1]).toMatchObject({ data: "2026-10-12", giorno: "lunedì", disponibile: true, durata_massima_min: 70, attivita_abituale: "Corsa Qualità" });
   });
 
   it("senza vincoli ogni giorno e' disponibile", () => {
-    expect(planningCalendar(null, "2026-10-12", 1).every((d) => d.disponibile)).toBe(true);
+    expect(planningCalendar(null, "2026-10-12", "2026-10-18").every((d) => d.disponibile)).toBe(true);
   });
 
   it("riallinea una data al giorno indicato, entro tre giorni", () => {

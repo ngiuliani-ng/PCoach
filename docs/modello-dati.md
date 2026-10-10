@@ -32,7 +32,7 @@ Le sedute vivono in tabelle Postgres proprie, separate dalla scheda (definizione
 
 | Tabella | Contenuto |
 |---|---|
-| `training_plans` | Un periodo di programmazione: `name`, `status` (`active` / `ended` / `archived`), `start_date`, `end_date`, `weeks_meta` (per settimana: `week_start` del lunedì, `label`, `is_deload`), `end_reason`. Un solo piano `active` per atleta (indice unico parziale). |
+| `training_plans` | Un periodo di programmazione: `name`, `status` (`active` / `ended` / `archived`), `start_date`, `end_date`, `weeks_meta` (per settimana: `week_start` del lunedì, `label`, `is_deload` e, se lo schema di carico e scarico è noto, `cycle_week` da 1, che fa da ancora del ciclo per la generazione successiva; vedi [integrazioni.md](integrazioni.md#claude-generazione-delle-sedute)), `end_reason`. Un solo piano `active` per atleta (indice unico parziale). |
 | `plan_generations` | Una proposta di sedute: `kind` (`initial` / `regenerate`), `from_date`, `weeks`, `reason`, `kept_workout_ids`, `raw_response` (testo di Claude), `proposal` (JSON letto), `status` (`proposed` / `applied` / `discarded` / `failed`). |
 | `workouts` | Una seduta (vedi sotto). |
 | `workout_sync` | Stato di sincronizzazione per seduta e provider (oggi solo `intervals_icu`): `remote_event_id`, `external_id` (`pcoach:<id>`), `synced_revision`, `synced_date`, `remote_updated`, `state` (`synced` / `error` / `removed` / `unlinked`), `pending_delete`, `create_uncertain`, `last_error`, `last_warning`. |

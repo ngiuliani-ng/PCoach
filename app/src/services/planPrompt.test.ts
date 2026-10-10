@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { blankProfile, DEFAULT_PLAN_PROMPT, TRAINING_PLAN_JSON_SHAPE } from "../constants";
+import { parseLoadPattern, planWeeks } from "../domain/planWeeks";
 import { buildPlanPrompt, type PromptWorkout } from "./planPrompt";
 
 const fixed: PromptWorkout = {
@@ -31,13 +32,10 @@ describe("buildPlanPrompt", () => {
     expect(text).toContain('"workouts"');
   });
 
-  it("colloca un blocco nel piano complessivo", () => {
-    const text = buildPlanPrompt(profile, {
-      weeks: 3, fromDate: "2026-11-02", reason: "", fixed: [], recent: [],
-      block: { index: 1, count: 4, firstWeek: 4, totalWeeks: 10, planFrom: "2026-10-12" }
-    }, TRAINING_PLAN_JSON_SHAPE, DEFAULT_PLAN_PROMPT);
-    expect(text).toContain("parte 2 di 4 di un piano di 10 settimane, dal 2026-10-12 al 2026-12-20");
-    expect(text).toContain("dalla 4 alla 6 del piano (dal 2026-11-02 al 2026-11-22)");
-    expect(text).toContain("parti precedenti");
+  it("riporta nel calendario numero e fase di ogni settimana", () => {
+    const weeks = planWeeks("2026-10-12", 4, parseLoadPattern("3:1"));
+    const text = buildPlanPrompt(profile, { weeks: 4, fromDate: "2026-10-12", reason: "", fixed: [], recent: [], planWeeks: weeks }, TRAINING_PLAN_JSON_SHAPE, DEFAULT_PLAN_PROMPT);
+    expect(text).toContain('{"data":"2026-11-02","giorno":"lunedì","disponibile":true,"durata_massima_min":null,"attivita_abituale":"","settimana":4,"fase":"scarico"}');
+    expect(text).toContain("Rispetta la fase di ogni settimana");
   });
 });

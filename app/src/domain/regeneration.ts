@@ -11,14 +11,11 @@ import type { Discipline, WorkoutContent } from "@shared/workouts/structure.ts";
 import { defaultTargetMetric, isDiscipline } from "@shared/workouts/structure.ts";
 import type { AthleteTrainingProfile } from "../schema/types.generated";
 import { alignToDay, availabilityIssues, isDayKey } from "./availability";
+import { withPhases, type PlanWeek, type StoredWeekMeta } from "./planWeeks";
 import type { NewWorkout } from "./workoutDraft";
 import { disciplineFallbackTitle, readStructure } from "./workoutDraft";
 
-export interface WeekMeta {
-  week_start: string;
-  label: string;
-  is_deload: boolean;
-}
+export type WeekMeta = StoredWeekMeta;
 
 export interface ExistingForRegen {
   id: string;
@@ -50,6 +47,8 @@ export interface ParseOptions {
   constraints?: AthleteTrainingProfile["constraints"] | null;
   /** Sedute mantenute nel periodo: contano per la durata massima del giorno. */
   fixed?: Pick<WorkoutContent, "planned_date" | "discipline" | "structure" | "duration_min">[];
+  /** Settimane del periodo con le fasi del ciclo: scarico e settimana del ciclo vengono da qui. */
+  planWeeks?: PlanWeek[];
 }
 
 export function parseProposal(raw: unknown, opts: ParseOptions): Proposal | { error: string } {
@@ -111,11 +110,16 @@ export function parseProposal(raw: unknown, opts: ParseOptions): Proposal | { er
     if (flagged) warnings.push(`${flagged === 1 ? "Una seduta non rispetta" : `${flagged} sedute non rispettano`} la disponibilità dell'atleta: ${flagged === 1 ? "è segnata" : "sono segnate"} da verificare.`);
   }
 
-  const weeksMeta: WeekMeta[] = Array.isArray(r.weeks)
-    ? (r.weeks as Raw[])
-        .filter((w) => w && isISODate(w.week_start))
-        .map((w) => ({ week_start: weekStartISO(w.week_start as string), label: str(w.label).trim(), is_deload: !!w.is_deload }))
-    : [];
+  // Una voce per settimana, anche se Claude ne ripete una.
+  let weeksMeta: WeekMeta[] = [];
+  for (const w of Array.isArray(r.weeks) ? (r.weeks as Raw[]) : []) {
+    if (!w || !isISODate(w.week_start)) continue;
+    const start = weekStartISO(w.week_start);
+    if (weeksMeta.some((m) => m.week_start === start)) continue;
+    weeksMeta.push({ week_start: start, label: str(w.label).trim(), is_deload: !!w.is_deload });
+  }
+  weeksMeta.sort((a, b) => a.week_start.localeCompare(b.week_start));
+  if (opts.planWeeks) weeksMeta = withPhases(weeksMeta, opts.planWeeks);
   return { planName: str(r.plan_name).trim() || "Nuovo piano", weeksMeta, workouts, warnings };
 }
 

@@ -144,6 +144,7 @@ Regole del formato:
 - date e day vengono dal calendario fornito: non calcolare tu il giorno della settimana di una data.
 - Ogni step ha duration_sec (secondi) oppure distance_m (metri), mai entrambi.
 - zone e zone_to sono zone da Z1 a Z7 (zone_to solo per un intervallo, ad esempio Z2-Z3). Niente percentuali, watt o passi assoluti: la metrica la sceglie PCoach (bici in potenza o frequenza cardiaca, corsa e nuoto in zone di passo).
+- weeks: una voce per ogni settimana del calendario (campo "settimana"), con week_start il lunedì di quella settimana e is_deload true se la fase è "scarico".
 - Una ripetuta (kind "repeat") contiene solo step, mai altre ripetute.
 - Anche le sedute a ritmo costante hanno steps (un solo step "steady").
 - Palestra (strength): steps vuoto, duration_min valorizzato, esercizi e serie in notes.`;
@@ -156,7 +157,7 @@ Dati dell'atleta (profilo, soglie, carico recente, sedute delle ultime due setti
 Motivo della pianificazione indicato dal coach:
 {{motivo}}
 
-Calendario del periodo, già calcolato: per ogni data il giorno della settimana, se l'atleta è disponibile, la durata massima in minuti di quel giorno e l'attività che fa di solito:
+Calendario del periodo, già calcolato: per ogni data il giorno della settimana, se l'atleta è disponibile, la durata massima in minuti di quel giorno, l'attività che fa di solito e, se noti, il numero della settimana e la sua fase nel ciclo di carico e scarico:
 {{calendario_json}}
 
 Sedute già fissate nel periodo, da NON ripetere né spostare (pianifica intorno a queste, tenendone conto nel carico):
@@ -170,7 +171,11 @@ Regole:
 - La somma delle durate delle sedute di un giorno non deve superare "durata_massima_min" di quel giorno.
 - L'attività abituale indica cosa l'atleta fa di solito quel giorno: rispettala come disciplina e tipo di seduta, salvo motivo diverso indicato dal coach.
 - Rispetta il numero di sedute a settimana dell'atleta.
-- Rispetta la distribuzione dell'intensità e lo schema di carico e scarico indicati.
+- Rispetta la distribuzione dell'intensità indicata.
+- Rispetta la fase di ogni settimana indicata nel calendario. Nelle settimane di carico di un ciclo il carico cresce di settimana in settimana (circa +5-10% di volume o di lavoro in Z3 e oltre), in ogni disciplina.
+- Nella settimana di scarico il volume cala di circa un terzo rispetto all'ultima di carico, con pochissimo lavoro intenso.
+- Un nuovo ciclo riparte da un carico simile alla seconda settimana di carico del ciclo precedente: guarda le sedute recenti.
+- La settimana di raccordo (fase "raccordo"), se presente, è leggera.
 - Tieni conto del carico recente (CTL, ATL, TSB) e delle sedute non svolte.`;
 
 export const DEFAULT_FEEDBACK_PROMPT = `Sei un coach esperto. Confronta la settimana pianificata con quella effettivamente svolta dall'atleta {{nome_atleta}} e scrivi un feedback breve (massimo 200 parole) in italiano: aderenza al piano, scostamenti di carico, suggerimenti per la settimana successiva.

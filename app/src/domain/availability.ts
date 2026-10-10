@@ -2,10 +2,11 @@
 // Claude sbaglia a ricavare il giorno della settimana da una data (verificato il 2026-10-10:
 // piani interi sfalsati di un giorno). Per questo il prompt riceve il calendario gia' calcolato
 // e ogni proposta viene ricontrollata qui, in modo deterministico, contro i vincoli dell'atleta.
-import { addDaysISO, dayIndex, DAY_KEYS, type DayKeyName } from "@shared/workouts/calendar.ts";
+import { addDaysISO, dayIndex, daysBetween, DAY_KEYS, type DayKeyName } from "@shared/workouts/calendar.ts";
 import type { WorkoutContent } from "@shared/workouts/structure.ts";
 import { workoutTotals } from "@shared/workouts/structure.ts";
 import type { AthleteTrainingProfile } from "../schema/types.generated";
+import { weekOf, type PlanWeek } from "./planWeeks";
 
 type Constraints = AthleteTrainingProfile["constraints"] | null | undefined;
 
@@ -50,20 +51,26 @@ export interface CalendarDay {
   disponibile: boolean;
   durata_massima_min: number | null;
   attivita_abituale: string;
+  /** Settimana del piano e fase del ciclo di carico e scarico, se note. */
+  settimana?: number;
+  fase?: string;
 }
 
-/** Calendario del periodo da passare a Claude: ogni data con giorno e vincoli gia' risolti. */
-export function planningCalendar(constraints: Constraints, fromDate: string, weeks: number): CalendarDay[] {
+/** Calendario del periodo da passare a Claude: ogni data con giorno, vincoli e, se note,
+ * settimana del piano e fase del ciclo, gia' risolti. */
+export function planningCalendar(constraints: Constraints, fromDate: string, toDate: string, weeks: PlanWeek[] = []): CalendarDay[] {
   const rules = rulesByDay(constraints);
-  return Array.from({ length: weeks * 7 }, (_, i) => {
+  return Array.from({ length: daysBetween(fromDate, toDate) + 1 }, (_, i) => {
     const date = addDaysISO(fromDate, i);
     const rule = rules[DAY_KEYS[dayIndex(date)]];
+    const week = weekOf(weeks, date);
     return {
       data: date,
       giorno: dayName(date),
       disponibile: rule ? rule.available : true,
       durata_massima_min: rule?.maxMinutes ?? null,
-      attivita_abituale: rule?.usual ?? ""
+      attivita_abituale: rule?.usual ?? "",
+      ...(week ? { settimana: week.number, fase: week.phase } : {})
     };
   });
 }

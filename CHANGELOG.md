@@ -6,6 +6,16 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
+**2026-10-11 — Generazione di al massimo 4 settimane, con il ciclo di carico calcolato da PCoach**
+- Eliminata la generazione a parti: una generazione copre al massimo 4 settimane, in una sola chiamata (`MAX_PLAN_WEEKS`); le successive si pianificano con «Ripianifica».
+- Nuovo `domain/planWeeks.ts`: PCoach calcola numero e fase del ciclo di ogni settimana (da lunedì) dallo schema dell'atleta e li passa a Claude nel calendario. Li salva in `weeks_meta` (`is_deload`, `cycle_week`), che fa da ancora per la generazione successiva o per una ripianificazione a metà ciclo.
+- Le regole sulle fasi sono nel template predefinito, modificabile in Impostazioni; la proposta tiene una sola voce per settimana.
+- In produzione: cancellate su richiesta del coach tutte le sedute, il piano e le generazioni di un atleta. Rimossi da Intervals.icu gli 8 eventi creati da PCoach.
+- Test: 71 unitari.
+
+*Motivazione*: il piano di 12 settimane generato a parti rispettava il ciclo 3:1 solo in parte (settimane 1-3 in calo, settimana 11 già scaricata, nuoto dimezzato dalla 3), perché ogni parte deduceva da sola la posizione nel ciclo. Una finestra breve con il ciclo calcolato e ancorato al piano è più semplice e verificabile.
+*Docs aggiornati*: [integrazioni.md](docs/integrazioni.md), [modello-dati.md](docs/modello-dati.md), [architettura.md](docs/architettura.md), [sviluppo-deploy.md](docs/sviluppo-deploy.md), [decisioni/0018](docs/decisioni/0018-generazione-a-finestre-ciclo-ancorato.md).
+
 **2026-10-10 — Blocchi di 2 settimane e risposta di Claude compatta**
 - Blocchi di generazione da 3 a 2 settimane, con `max_tokens` di 4000 per settimana più 2000 (`blockMaxTokens`).
 - Il formato richiesto a Claude chiede JSON compatto, una seduta per riga, senza campi null o vuoti.

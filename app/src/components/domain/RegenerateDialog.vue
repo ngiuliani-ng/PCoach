@@ -15,8 +15,7 @@ import { addDaysISO, formatDate, todayISO, TRAINING_PLAN_JSON_SHAPE } from "../.
 import { buildPlanPrompt } from "../../services/planPrompt";
 import { callClaudeProxy, copyToClipboardFallback, extractJsonBlock } from "../../services/claude";
 import { hasFtp } from "../../domain/athlete";
-import { blockMaxTokens, mergeBlockResponses, planBlocks } from "../../domain/planBlocks";
-import type { NewWorkout } from "../../domain/workoutDraft";
+import { cycleAnchor, MAX_PLAN_WEEKS, parseLoadPattern, planMaxTokens, planWeeks } from "../../domain/planWeeks";
 import type { DiffDay, Proposal } from "../../domain/regeneration";
 import { buildApplyPayload, defaultKeep, diffCounts, isForcedKeep, parseProposal, regenerationCandidates, regenerationDiff } from "../../domain/regeneration";
 import { workoutTotals } from "@shared/workouts/structure.ts";
@@ -39,7 +38,7 @@ const isInitial = computed(() => !store.activePlan && !store.workouts.some((w) =
 type Step = "params" | "generating" | "paste" | "preview";
 const step = ref<Step>("params");
 const fromDate = ref(addDaysISO(todayISO(), 1));
-const weeks = ref(isInitial.value ? 8 : 2);
+const weeks = ref(isInitial.value ? MAX_PLAN_WEEKS : 2);
 const reason = ref("");
 const keep = ref<Record<string, boolean>>({});
 const generationId = ref<string | null>(null);
@@ -48,8 +47,6 @@ const pastedText = ref("");
 const promptText = ref("");
 const applying = ref(false);
 const resumed = ref<GenerationRecord | null>(null);
-// Generazione a blocchi: blocco in corso e numero di blocchi (vedi domain/planBlocks).
-const progress = ref({ current: 0, count: 1 });
 
 const candidates = computed(() => regenerationCandidates(store.workouts, fromDate.value));
 function resetKeep() {
@@ -90,7 +87,14 @@ const recentWorkouts = computed(() =>
 
 // Vincoli dell'atleta e sedute mantenute: la proposta viene ricontrollata contro entrambi.
 function parseOptions(from: string, w: number) {
-  return { fromDate: from, weeks: w, hasFtp: hasFtp(profile.value), constraints: profile.value.constraints, fixed: keptWorkouts.value };
+  return { fromDate: from, weeks: w, hasFtp: hasFtp(profile.value), constraints: profile.value.constraints, fixed: keptWorkouts.value, planWeeks: weeksOfPlan(from, w) };
+}
+
+// Numero e fase del ciclo di carico e scarico di ogni settimana, calcolati qui e non da Claude:
+// il ciclo prosegue da quello del piano attivo (ripianificazione o finestra successiva).
+function weeksOfPlan(from: string, w: number) {
+  const pattern = parseLoadPattern(profile.value.methodology_preferences?.load_deload_pattern);
+  return planWeeks(from, w, pattern, cycleAnchor(store.activePlan?.weeks_meta, from));
 }
 
 function candidateReason(w: (typeof candidates.value)[number]): string {
@@ -102,13 +106,13 @@ function candidateReason(w: (typeof candidates.value)[number]): string {
 }
 
 async function generate() {
-  const w = Math.max(1, Math.min(12, Math.round(weeks.value || 1)));
+  const w = Math.max(1, Math.min(MAX_PLAN_WEEKS, Math.round(weeks.value || 1)));
   weeks.value = w;
   // Carico aggiornato prima di chiedere il piano (trigger di sincronizzazione "generazione").
   await useIntervalsSync().syncNow(athleteId.value, profile.value.integrations?.intervals_icu_api_key);
   const prompt = buildPlanPrompt(
     profile.value,
-    { weeks: w, fromDate: fromDate.value, reason: reason.value, fixed: keptWorkouts.value, recent: recentWorkouts.value },
+    { weeks: w, fromDate: fromDate.value, reason: reason.value, fixed: keptWorkouts.value, recent: recentWorkouts.value, planWeeks: weeksOfPlan(fromDate.value, w) },
     TRAINING_PLAN_JSON_SHAPE,
     settings.settings.plan_generation_prompt_template
   );
@@ -127,56 +131,19 @@ async function generate() {
     return;
   }
   step.value = "generating";
-  // Un piano lungo supera il limite di durata della Edge Function: lo si chiede in blocchi
-  // consecutivi, passando a ogni blocco le sedute proposte nei precedenti.
-  const blocks = planBlocks(fromDate.value, w);
-  const raws: unknown[] = [];
-  const texts: string[] = [];
-  const proposed: NewWorkout[] = [];
-  let truncated = false;
-  for (const b of blocks) {
-    progress.value = { current: b.index + 1, count: b.count };
-    const blockTo = addDaysISO(b.fromDate, b.weeks * 7 - 1);
-    const blockPrompt = b.count === 1 ? prompt : buildPlanPrompt(
-      profile.value,
-      {
-        weeks: b.weeks, fromDate: b.fromDate, reason: reason.value,
-        fixed: keptWorkouts.value.filter((k) => k.planned_date >= b.fromDate && k.planned_date <= blockTo),
-        recent: [...recentWorkouts.value, ...proposed.map((p) => ({ ...p, completed_at: null }))],
-        block: { index: b.index, count: b.count, firstWeek: b.firstWeek, totalWeeks: w, planFrom: fromDate.value }
-      },
-      TRAINING_PLAN_JSON_SHAPE,
-      settings.settings.plan_generation_prompt_template
-    );
-    const result = await callClaudeProxy(blockPrompt, blockMaxTokens(b.weeks), settings.settings.claude_model);
-    const where = b.count > 1 ? ` (parte ${b.index + 1} di ${b.count})` : "";
-    if (!result.ok) {
-      await store.saveGenerationResult(created.value, { raw_response: texts.join("\n\n") || undefined, status: "failed", error: result.error + where });
-      showToast(result.error + where, "error");
-      step.value = "params";
-      return;
-    }
-    texts.push(result.text);
-    truncated ||= result.truncated;
-    const raw = extractJsonBlock(result.text);
-    if (b.count > 1 && raw) {
-      const parsed = parseProposal(raw, parseOptions(b.fromDate, b.weeks));
-      if (!("error" in parsed)) proposed.push(...parsed.workouts);
-    }
-    raws.push(raw);
-    if (!raw) break;
-  }
-  if (raws.some((r) => !r)) {
-    handleResponse(texts.join("\n\n"), truncated, null);
+  const result = await callClaudeProxy(prompt, planMaxTokens(w), settings.settings.claude_model);
+  if (!result.ok) {
+    await store.saveGenerationResult(created.value, { status: "failed", error: result.error });
+    showToast(result.error, "error");
+    step.value = "params";
     return;
   }
-  handleResponse(texts.join("\n\n"), truncated, blocks.length > 1 ? mergeBlockResponses(raws) : raws[0]);
+  handleResponse(result.text, result.truncated);
 }
 
-// `raw` gia' estratto (generazione a blocchi); se assente lo si estrae dal testo incollato.
-async function handleResponse(text: string, truncated = false, extracted?: unknown) {
+async function handleResponse(text: string, truncated = false) {
   const id = generationId.value!;
-  const raw = extracted === undefined ? extractJsonBlock(text) : extracted;
+  const raw = extractJsonBlock(text);
   if (!raw) {
     await store.saveGenerationResult(id, { raw_response: text, status: "failed", error: "JSON non valido" });
     showToast(truncated
@@ -260,8 +227,9 @@ function dayLabel(date: string) {
           <div class="field-row">
             <label class="field"><span class="field-label">{{ isInitial ? "Primo giorno" : "Ripianifica da" }}</span>
               <input type="date" :min="todayISO()" :value="fromDate" @change="onFromDateChange(($event.target as HTMLInputElement).value)" /></label>
-            <label class="field"><span class="field-label">Settimane da generare</span><input type="number" min="1" max="12" v-model.number="weeks" /></label>
+            <label class="field"><span class="field-label">Settimane da generare</span><input type="number" min="1" :max="MAX_PLAN_WEEKS" v-model.number="weeks" /></label>
           </div>
+          <p class="helper-text">Al massimo {{ MAX_PLAN_WEEKS }} settimane per volta: le successive si pianificano poi con «Ripianifica», partendo da ciò che l'atleta ha svolto. Il ciclo di carico e scarico prosegue da dove era rimasto.</p>
           <label class="field"><span class="field-label">{{ isInitial ? "Indicazioni per Claude (facoltative)" : "Cosa è cambiato" }}</span>
             <textarea v-model="reason" rows="2" :placeholder="isInitial ? '' : 'Ad esempio: affaticamento dopo la gara, ridurre l\'intensità per due settimane'"></textarea></label>
           <div v-if="candidates.length" class="op-group">
@@ -278,8 +246,8 @@ function dayLabel(date: string) {
         </template>
 
         <template v-else-if="step === 'generating'">
-          <p class="progress-line"><LoaderCircle :size="18" class="spin" aria-hidden="true" />Claude sta preparando {{ weeks }} settimane dal {{ formatDate(fromDate, false) }}<template v-if="progress.count > 1">: parte {{ progress.current }} di {{ progress.count }}</template>…</p>
-          <p class="helper-text">Ogni parte richiede circa un minuto. La proposta viene salvata quando sono pronte tutte: da quel momento, se chiudi la pagina, la ritrovi riaprendo questo dialogo. Nulla cambia finché non la applichi.</p>
+          <p class="progress-line"><LoaderCircle :size="18" class="spin" aria-hidden="true" />Claude sta preparando {{ weeks }} settimane dal {{ formatDate(fromDate, false) }}…</p>
+          <p class="helper-text">Può richiedere fino a due minuti. La proposta viene salvata appena arriva: se chiudi la pagina la ritrovi riaprendo questo dialogo. Nulla cambia finché non la applichi.</p>
         </template>
 
         <template v-else-if="step === 'paste'">
