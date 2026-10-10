@@ -6,6 +6,14 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
+**2026-10-11 — Ciclo di carico aggiunto ai due piani attivi generati prima dell'ancoraggio**
+- In produzione, nei piani attivi di due atleti (schema 3:1), aggiunto `cycle_week` a ogni settimana di `weeks_meta`, contato dalla prima settimana del piano: 1-4 e 1-4-1-4. Gli scarichi già salvati coincidono.
+- Nel piano che inizia domenica 11 ottobre, con una seduta approvata in quel giorno, aggiunta la settimana del 5 ottobre come «Raccordo», senza `cycle_week`, come la salverebbe oggi il codice.
+- Nessuna seduta modificata.
+
+*Motivazione*: senza `cycle_week` una ripianificazione a metà piano sarebbe ripartita da «carico 1» invece che dalla settimana in corso. Verificato con `planWeeks` e `cycleAnchor` su prosecuzione e ripianificazione di entrambi i piani.
+*Docs aggiornati*: nessuno oltre al changelog.
+
 **2026-10-11 — «Prosegui il piano» distinto da «Ripianifica»**
 - Nel piano, con sedute attive, due azioni: «Prosegui il piano» aggiunge settimane dopo la fine del piano attivo senza sostituire nulla (`continueFromDate`); «Ripianifica da…» sostituisce le sedute da una data. Il dialogo cambia titolo, testi e campi secondo l'azione e riapre una proposta in sospeso nel modo in cui era stata chiesta.
 - Nuovo tipo di generazione `continue` (migrazione `0006_generation_kind_continue.sql`, applicata in produzione).
