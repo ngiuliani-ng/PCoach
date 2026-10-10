@@ -6,6 +6,15 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
+**2026-10-10 — Pulizia: atleti senza piani generati, rimozione del codice legacy e dei backup**
+- **Dati in produzione**: cancellati piani, generazioni, sedute, cronologia e i 2 feedback settimanali dei 4 atleti, e `training_plan` dalle schede. Profilo, soglie, carico CTL/ATL, vincoli e chiavi sono rimasti. Le schede passano a `schema_version` 1.5.0.
+- **Intervals.icu**: rimossi dal calendario di un atleta gli eventi creati da PCoach (7 eliminati, 7 già assenti), lasciando quelli creati fuori da PCoach. Cancellati i backup nello schema `private`.
+- **Codice e database**: tolti `legacyPlanToImport`, l'import all'avvio, la funzione SQL `import_legacy_plan`, la colonna `workouts.legacy`, il tipo `legacy_import` (migrazione `0005_remove_legacy_import.sql`), il ripiego di `weekly-feedback` sul vecchio piano (ripubblicata) e la definizione di `training_plan` nello schema della scheda. La lettura degli step accetta solo il formato v2.
+- **Test**: 69 unitari.
+
+*Motivazione*: richiesta del coach, a funzionamento verificato, di ripartire da una condizione pulita e semplificare il progetto.
+*Docs aggiornati*: [architettura.md](docs/architettura.md), [backend.md](docs/backend.md), [modello-dati.md](docs/modello-dati.md), [limiti-roadmap.md](docs/limiti-roadmap.md), [sicurezza.md](docs/sicurezza.md), [sviluppo-deploy.md](docs/sviluppo-deploy.md), [decisioni/0017](docs/decisioni/0017-sedute-entita-proprie-sincronizzazione-intervals.md).
+
 **2026-10-10 — Giorni delle sedute: calendario esplicito per Claude e controllo dei vincoli**
 - Nel prompt di generazione, nuovo segnaposto `{{calendario_json}}`: ogni data del periodo con giorno della settimana, disponibilità, durata massima e attività abituale. Claude restituisce `date` e `day`.
 - `parseProposal` porta la data al giorno indicato se non coincidono. Segna inoltre «da verificare» le sedute in giorni non disponibili o oltre la durata massima del giorno (`domain/availability.ts`), con il motivo mostrato nell'anteprima.

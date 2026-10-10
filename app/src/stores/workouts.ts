@@ -6,11 +6,7 @@ import { defineStore } from "pinia";
 import { supabase } from "../services/supabase";
 import type { SyncRow, SyncableWorkout } from "@shared/workouts/sync.ts";
 import type { WorkoutContent } from "@shared/workouts/structure.ts";
-import type { WeekMeta } from "../domain/legacyImport";
-import { legacyPlanToImport } from "../domain/legacyImport";
-import type { ApplyPayload } from "../domain/regeneration";
-import type { AthleteTrainingProfile } from "../schema/types.generated";
-import { hasFtp } from "../domain/athlete";
+import type { ApplyPayload, WeekMeta } from "../domain/regeneration";
 
 export interface WorkoutRecord extends SyncableWorkout {
   athlete_id: string;
@@ -52,7 +48,7 @@ export interface WorkoutEventRecord {
 export interface GenerationRecord {
   id: string;
   athlete_id: string;
-  kind: "initial" | "regenerate" | "legacy_import";
+  kind: "initial" | "regenerate";
   from_date: string;
   weeks: number;
   reason: string;
@@ -80,8 +76,7 @@ export const useWorkoutsStore = defineStore("workouts", {
     plans: [] as PlanRecord[],
     syncRows: {} as Record<string, SyncRow>,
     loading: false,
-    loadError: "",
-    legacyImportDone: false
+    loadError: ""
   }),
   getters: {
     activePlan(state): PlanRecord | null {
@@ -260,37 +255,6 @@ export const useWorkoutsStore = defineStore("workouts", {
 
     async discardGeneration(id: string) {
       await this.saveGenerationResult(id, { status: "discarded" });
-    },
-
-    // ---------- Import dei piani salvati nella scheda (schema 1.4.0) ----------
-    /** Importa una volta per atleta il piano salvato nel profilo. Idempotente lato database. */
-    async importLegacyPlans(athletes: Record<string, AthleteTrainingProfile>): Promise<number> {
-      if (this.legacyImportDone || !supabase) return 0;
-      const withPlan = Object.entries(athletes).filter(([, p]) => p.training_plan && typeof p.training_plan === "object");
-      if (!withPlan.length) {
-        this.legacyImportDone = true;
-        return 0;
-      }
-      const { data, error } = await supabase.from("plan_generations").select("athlete_id").eq("kind", "legacy_import");
-      if (error) return 0; // tabelle non ancora disponibili: si riprova al prossimo caricamento
-      const imported = new Set((data ?? []).map((r) => (r as { athlete_id: string }).athlete_id));
-      let count = 0;
-      for (const [athleteId, profile] of withPlan) {
-        if (imported.has(athleteId)) continue;
-        const result = legacyPlanToImport(profile.training_plan, hasFtp(profile));
-        if (!result) continue;
-        const { data: planId, error: rpcError } = await supabase.rpc("import_legacy_plan", {
-          p: {
-            athlete_id: athleteId,
-            legacy_plan: profile.training_plan,
-            plan: { name: result.planName, start_date: result.startDate, end_date: result.endDate, weeks_meta: result.weeksMeta },
-            workouts: result.workouts
-          }
-        });
-        if (!rpcError && planId) count++;
-      }
-      this.legacyImportDone = true;
-      return count;
     }
   }
 });

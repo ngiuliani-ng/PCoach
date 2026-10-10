@@ -23,7 +23,7 @@ Setup in dashboard Supabase, da eseguire una sola volta:
 
 - `intervals_icu_api_key` (per-atleta) e `claude_api_key` (globale, in `app_settings`) sono salvate **in chiaro** nel database, non cifrate a livello applicativo.
 - **Motivo**: Postgres/Supabase cifra già a riposo a livello di infrastruttura; l'accesso a queste righe è comunque ristretto dalla RLS al solo utente coach autenticato. Aggiungere cifratura applicativa (con gestione di una chiave di cifratura separata) è stato giudicato un costo non giustificato per un'app mono-utente con un solo coach ad avervi accesso.
-- **Rischio residuo**: chiunque ottenga accesso diretto al database (non tramite l'app) vede le chiavi in chiaro. Con la chiave di un atleta si può anche modificare il suo calendario Intervals.icu, non solo leggerlo. I backup di tabelle fatti prima di una migrazione stanno nello schema `private`, non esposto da PostgREST, così non diventano leggibili via API. Mitigazione: accesso al progetto Supabase limitato al solo coach; vedi [limiti-roadmap.md](limiti-roadmap.md) per l'elenco completo dei limiti noti.
+- **Rischio residuo**: chiunque ottenga accesso diretto al database (non tramite l'app) vede le chiavi in chiaro. Con la chiave di un atleta si può anche modificare il suo calendario Intervals.icu, non solo leggerlo. Eventuali backup di tabelle prima di una migrazione vanno creati nello schema `private`, non esposto da PostgREST, così non diventano leggibili via API, e cancellati a migrazione verificata. Mitigazione: accesso al progetto Supabase limitato al solo coach; vedi [limiti-roadmap.md](limiti-roadmap.md) per l'elenco completo dei limiti noti.
 
 ## Segreti lato server
 

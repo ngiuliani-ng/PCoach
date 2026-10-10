@@ -61,6 +61,19 @@ Dopo il rilascio, il coach ha notato sedute spostate di un giorno in avanti, e u
 
 Il punto 9 della decisione va letto di conseguenza.
 
+## Chiusura della migrazione (2026-10-10)
+
+Verificato il funzionamento, su richiesta del coach i 4 atleti sono stati riportati a una condizione pulita, come se non avessero mai generato nulla:
+- cancellati piani, generazioni, sedute, cronologia e feedback settimanali;
+- rimossi dal calendario Intervals.icu gli eventi creati da PCoach;
+- cancellati i backup.
+
+È stato tolto anche il terzo tempo del punto 9:
+- `training_plan` è rimosso dallo schema della scheda, che passa alla versione 1.5.0;
+- sono rimossi l'import (`legacyPlanToImport`, `import_legacy_plan`, la colonna `workouts.legacy`, il tipo di generazione `legacy_import`) e il ripiego di `weekly-feedback` sul vecchio piano (migrazione `0005_remove_legacy_import.sql`).
+
+Le sedute nascono ormai solo dalla generazione.
+
 ## Motivo
 
 Le tabelle dedicate danno identità, vincoli e concorrenza per seduta. Senza di esse, approvare, sincronizzare e rigenerare una parte del programma senza toccare il resto non è possibile in modo affidabile. Restano poche (cinque) perché revisioni e audit condividono la stessa cronologia invece di avere due tabelle.

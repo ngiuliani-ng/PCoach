@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://example.com/schemas/athlete_profile.schema.json",
   "title": "AthleteTrainingProfile",
-  "description": "Profilo completo di un atleta ai fini della programmazione dell'allenamento. Compilato manualmente dal coach; il campo training_plan può anche essere generato automaticamente dall'app stessa con l'assistenza di Claude (vedi specifica-tecnica.md §5.3).",
+  "description": "Profilo completo di un atleta ai fini della programmazione dell'allenamento. Compilato manualmente dal coach. Le sedute di allenamento non fanno parte della scheda: vivono in tabelle proprie (vedi docs/modello-dati.md).",
   "type": "object",
   "required": ["schema_version", "meta", "identity", "disciplines", "goals", "constraints", "methodology_preferences", "training_status"],
   "properties": {
@@ -10,7 +10,7 @@
     "schema_version": {
       "type": "string",
       "description": "Versione dello schema, per gestire migrazioni future.",
-      "examples": ["1.4.0"]
+      "examples": ["1.5.0"]
     },
 
     "meta": {
@@ -257,33 +257,9 @@
       "description": "Qualsiasi informazione utile non modellata sopra."
     },
 
-    "training_plan": {
-      "type": ["object", "null"],
-      "description": "Piano di allenamento assegnato, generato con l'assistenza di Claude (vedi specifica-tecnica.md §5.3). null se non ancora generato.",
-      "properties": {
-        "plan_name": { "type": "string" },
-        "start_date": { "type": "string", "format": "date" },
-        "weeks": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "week_number": { "type": "integer" },
-              "week_label": { "type": "string" },
-              "is_deload": { "type": "boolean" },
-              "sessions": {
-                "type": "array",
-                "items": { "$ref": "#/$defs/trainingSession" }
-              }
-            }
-          }
-        }
-      }
-    },
-
     "weekly_feedback_log": {
       "type": "array",
-      "description": "Storico dei feedback generati confrontando il piano assegnato con gli allenamenti realmente svolti (specifica-tecnica.md §5.4).",
+      "description": "Storico dei feedback generati confrontando le sedute pianificate con gli allenamenti realmente svolti (specifica-tecnica.md §5.4).",
       "items": {
         "type": "object",
         "required": ["date", "note"],
@@ -321,41 +297,6 @@
           "description": "'manual' per voci inserite dal coach, 'intervals_icu_sync' per voci scritte dalla sincronizzazione automatica con Intervals.icu. Enum pensato per accogliere in futuro altre fonti (es. garmin_sync) senza cambiare struttura."
         },
         "note": { "type": "string" }
-      }
-    },
-
-    "trainingSession": {
-      "type": "object",
-      "description": "Una sessione datata del piano assegnato (specifica-tecnica.md §5.3).",
-      "properties": {
-        "date": { "type": "string", "format": "date" },
-        "day": { "type": "string", "enum": ["lunedi", "martedi", "mercoledi", "giovedi", "venerdi", "sabato", "domenica"] },
-        "session_type": { "type": "string" },
-        "discipline": { "type": "string", "enum": ["running", "cycling", "swimming", "strength"] },
-        "is_structured": { "type": "boolean", "description": "true = usa steps[]; false = usa i campi target_* piatti." },
-        "target_zone": { "type": "string" },
-        "target_duration_min": { "type": ["number", "null"] },
-        "target_distance_km": { "type": ["number", "null"] },
-        "notes": { "type": "string" },
-        "steps": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/trainingStep" }
-        }
-      }
-    },
-
-    "trainingStep": {
-      "type": "object",
-      "description": "Uno step di una sessione strutturata. 'repeat' usa repetitions/work/recovery, gli altri kind usano duration_sec/distance_m/zone/description.",
-      "properties": {
-        "kind": { "type": "string", "enum": ["warmup", "cooldown", "block", "repeat"] },
-        "duration_sec": { "type": ["number", "null"] },
-        "distance_m": { "type": ["number", "null"] },
-        "zone": { "type": "string" },
-        "description": { "type": "string" },
-        "repetitions": { "type": "integer" },
-        "work": { "type": "object", "description": "Stessa forma di un trainingStep semplice (duration_sec/distance_m/zone/description)." },
-        "recovery": { "type": "object", "description": "Stessa forma di un trainingStep semplice (duration_sec/distance_m/zone/description)." }
       }
     }
   }

@@ -38,7 +38,7 @@ function workout(over: Row): Row {
 
 export function createState(): MockState {
   const profile = {
-    schema_version: "1.4.0",
+    schema_version: "1.5.0",
     meta: { athlete_id: ATHLETE_ID, coach_id: "", created_at: "2026-09-01", updated_at: "2026-09-01", data_source: "manual" },
     identity: { nome: "Giulia", cognome: "Ferri", email: "", birth_year: 1990, biological_sex: "unspecified", height_cm: 168, weight_kg: 58 },
     disciplines: ["running", "cycling"].map((sport) => ({
@@ -56,7 +56,6 @@ export function createState(): MockState {
     methodology_preferences: { intensity_distribution_model: "polarizzato_80_20", load_deload_pattern: "3:1" },
     notes_free_text: "",
     integrations: { intervals_icu_api_key: "chiave-di-prova" },
-    training_plan: null,
     weekly_feedback_log: []
   };
   const bikeDraft = workout({

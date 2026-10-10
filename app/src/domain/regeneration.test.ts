@@ -1,86 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { legacyPlanToImport } from "./legacyImport";
 import type { ExistingForRegen } from "./regeneration";
 import { buildApplyPayload, diffCounts, parseProposal, regenerationCandidates, regenerationDiff } from "./regeneration";
-
-// Sedute nella forma reale dei piani salvati (schema 1.4.0), con i casi che il database
-// contiene davvero: zone in testo libero, giorno incoerente con la data, palestra.
-const legacyPlan = {
-  plan_name: "Preparazione mezza maratona",
-  start_date: "2026-10-05",
-  weeks: [
-    {
-      week_number: 1, week_label: "Base", is_deload: false,
-      sessions: [
-        { date: "2026-10-05", day: "lunedi", session_type: "Corsa facile", discipline: "running", is_structured: false, target_zone: "Z2 (5:30-6:00/km)", target_duration_min: 45, target_distance_km: null, notes: "Sciolto", steps: [] },
-        { date: "2026-10-06", day: "mercoledi", session_type: "Soglia", discipline: "cycling", is_structured: true, target_zone: "", steps: [
-          { kind: "warmup", duration_sec: 900, zone: "Z1-Z2 (< 70% FTP)", description: "" },
-          { kind: "repeat", repetitions: 3, work: { duration_sec: 600, zone: "Z4", description: "" }, recovery: { duration_sec: 300, zone: "Z1", description: "" } },
-          { kind: "cooldown", duration_sec: 600, zone: "Recovery", description: "" }
-        ] },
-        { date: "2026-10-07", day: "mercoledi", session_type: "Fartlek", discipline: "running", is_structured: false, target_zone: "Alta", target_duration_min: 40 },
-        { date: "2026-10-09", day: "venerdi", session_type: "Forza", discipline: "strength", is_structured: false, target_zone: "Forza massima", target_duration_min: 45, notes: "Squat 5x5" },
-        { date: "2026-10-09", day: "venerdi", session_type: "Nuoto", discipline: "swimming", is_structured: false, target_zone: "Z2", target_distance_km: 2 },
-        { date: "", discipline: "running" }
-      ]
-    },
-    { week_number: 2, is_deload: true, sessions: [
-      { date: "2026-10-12", day: "lunedi", session_type: "", discipline: "running", is_structured: false, target_zone: "Z1", target_duration_min: null, target_distance_km: null }
-    ] }
-  ]
-};
-
-describe("import dei piani esistenti", () => {
-  const result = legacyPlanToImport(legacyPlan, true)!;
-
-  it("importa le sedute con data e disciplina valide, approvate", () => {
-    expect(result.workouts).toHaveLength(6);
-    expect(result.skipped).toBe(1);
-    expect(result.workouts.every((w) => w.status === "approved")).toBe(true);
-    expect(result.planName).toBe("Preparazione mezza maratona");
-    expect(result.startDate).toBe("2026-10-05");
-    expect(result.endDate).toBe("2026-10-18");
-    expect(result.weeksMeta).toEqual([
-      { week_start: "2026-10-05", label: "Base", is_deload: false },
-      { week_start: "2026-10-12", label: "Settimana 2", is_deload: true }
-    ]);
-  });
-
-  it("converte le sedute a blocco unico e quelle strutturate", () => {
-    const [run, bike] = result.workouts;
-    expect(run.structure?.steps).toEqual([{ kind: "step", role: "steady", duration: { type: "time", seconds: 2700 }, target: { zone: 2 } }]);
-    expect(run.primary_target).toBe("pace");
-    expect(run.needs_review).toBeNull();
-    expect(bike.structure?.steps[1]).toMatchObject({ kind: "repeat", count: 3, steps: [{ role: "work", target: { zone: 4 } }, { role: "recovery", target: { zone: 1 } }] });
-    expect(bike.structure?.steps[2]).toMatchObject({ role: "cooldown", target: { zone: 1 } });
-    expect(bike.primary_target).toBe("power");
-  });
-
-  it("giorno incoerente con la data: vale il giorno, con una nota (caso reale: date di Claude sfalsate di +1)", () => {
-    // 2026-10-06 e' un martedi', il piano diceva mercoledi.
-    expect(result.workouts[1].planned_date).toBe("2026-10-07");
-    expect(result.workouts[1].change_note).toMatch(/indicava mercoledì ma la data era del martedì/);
-    expect(result.workouts[0].change_note).toBeNull();
-    // Il fartlek dello stesso giorno diventa la seconda seduta.
-    expect(result.workouts[2]).toMatchObject({ planned_date: "2026-10-07", slot: 1 });
-  });
-
-  it("marca da verificare i target non riconoscibili e le durate mancanti", () => {
-    expect(result.workouts[2].needs_review).toMatch(/«Alta» non riconosciuto/);
-    expect(result.workouts[5].needs_review).toMatch(/step/);
-  });
-
-  it("palestra: obiettivo dal testo della zona, nessuna struttura; due sedute nello stesso giorno in slot diversi", () => {
-    const [strength, swim] = [result.workouts[3], result.workouts[4]];
-    expect(strength).toMatchObject({ structure: null, duration_min: 45, objective: "Forza massima", primary_target: "none", slot: 0 });
-    expect(swim).toMatchObject({ slot: 1 });
-    expect(swim.structure?.steps[0]).toMatchObject({ duration: { type: "distance", meters: 2000 } });
-  });
-
-  it("bici senza FTP in frequenza cardiaca", () => {
-    expect(legacyPlanToImport(legacyPlan, false)!.workouts[1].primary_target).toBe("hr");
-  });
-});
 
 describe("proposta di Claude", () => {
   const raw = {
@@ -164,6 +84,5 @@ describe("rigenerazione da una data", () => {
     expect(day12.slot).toBe(1); // lo slot 0 e' della seduta svolta mantenuta
     expect(payload.insert.find((i) => i.planned_date === "2026-10-14")).toMatchObject({ slot: 0, replaces: "da-sostituire" });
     expect(payload.plan).toMatchObject({ start_date: "2026-10-12", end_date: "2026-10-18" });
-    expect(payload.insert[0]).not.toHaveProperty("legacy");
   });
 });

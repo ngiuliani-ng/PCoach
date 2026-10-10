@@ -1,7 +1,7 @@
 // File generato automaticamente da athlete_profile.schema.json. Non modificare a mano.\n// Rigenerare con: npm run gen:types
 
 /**
- * Profilo completo di un atleta ai fini della programmazione dell'allenamento. Compilato manualmente dal coach; il campo training_plan può anche essere generato automaticamente dall'app stessa con l'assistenza di Claude (vedi specifica-tecnica.md §5.3).
+ * Profilo completo di un atleta ai fini della programmazione dell'allenamento. Compilato manualmente dal coach. Le sedute di allenamento non fanno parte della scheda: vivono in tabelle proprie (vedi docs/modello-dati.md).
  */
 export interface AthleteTrainingProfile {
   /**
@@ -247,22 +247,7 @@ export interface AthleteTrainingProfile {
    */
   notes_free_text?: string;
   /**
-   * Piano di allenamento assegnato, generato con l'assistenza di Claude (vedi specifica-tecnica.md §5.3). null se non ancora generato.
-   */
-  training_plan?: {
-    plan_name?: string;
-    start_date?: string;
-    weeks?: {
-      week_number?: number;
-      week_label?: string;
-      is_deload?: boolean;
-      sessions?: TrainingSession[];
-      [k: string]: unknown;
-    }[];
-    [k: string]: unknown;
-  } | null;
-  /**
-   * Storico dei feedback generati confrontando il piano assegnato con gli allenamenti realmente svolti (specifica-tecnica.md §5.4).
+   * Storico dei feedback generati confrontando le sedute pianificate con gli allenamenti realmente svolti (specifica-tecnica.md §5.4).
    */
   weekly_feedback_log?: {
     /**
@@ -301,48 +286,5 @@ export interface LoggedEntryMeta {
    */
   source: "manual" | "intervals_icu_sync";
   note?: string;
-  [k: string]: unknown;
-}
-/**
- * Una sessione datata del piano assegnato (specifica-tecnica.md §5.3).
- */
-export interface TrainingSession {
-  date?: string;
-  day?: "lunedi" | "martedi" | "mercoledi" | "giovedi" | "venerdi" | "sabato" | "domenica";
-  session_type?: string;
-  discipline?: "running" | "cycling" | "swimming" | "strength";
-  /**
-   * true = usa steps[]; false = usa i campi target_* piatti.
-   */
-  is_structured?: boolean;
-  target_zone?: string;
-  target_duration_min?: number | null;
-  target_distance_km?: number | null;
-  notes?: string;
-  steps?: TrainingStep[];
-  [k: string]: unknown;
-}
-/**
- * Uno step di una sessione strutturata. 'repeat' usa repetitions/work/recovery, gli altri kind usano duration_sec/distance_m/zone/description.
- */
-export interface TrainingStep {
-  kind?: "warmup" | "cooldown" | "block" | "repeat";
-  duration_sec?: number | null;
-  distance_m?: number | null;
-  zone?: string;
-  description?: string;
-  repetitions?: number;
-  /**
-   * Stessa forma di un trainingStep semplice (duration_sec/distance_m/zone/description).
-   */
-  work?: {
-    [k: string]: unknown;
-  };
-  /**
-   * Stessa forma di un trainingStep semplice (duration_sec/distance_m/zone/description).
-   */
-  recovery?: {
-    [k: string]: unknown;
-  };
   [k: string]: unknown;
 }

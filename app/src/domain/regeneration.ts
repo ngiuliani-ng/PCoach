@@ -11,9 +11,14 @@ import type { Discipline, WorkoutContent } from "@shared/workouts/structure.ts";
 import { defaultTargetMetric, isDiscipline } from "@shared/workouts/structure.ts";
 import type { AthleteTrainingProfile } from "../schema/types.generated";
 import { alignToDay, availabilityIssues, isDayKey } from "./availability";
-import type { WeekMeta } from "./legacyImport";
 import type { NewWorkout } from "./workoutDraft";
 import { disciplineFallbackTitle, readStructure } from "./workoutDraft";
+
+export interface WeekMeta {
+  week_start: string;
+  label: string;
+  is_deload: boolean;
+}
 
 export interface ExistingForRegen {
   id: string;
@@ -79,12 +84,11 @@ export function parseProposal(raw: unknown, opts: ParseOptions): Proposal | { er
       objective: str(item.objective).trim(),
       notes_for_athlete: str(item.notes).trim(),
       duration_min: strength && typeof item.duration_min === "number" && item.duration_min > 0 ? Math.round(item.duration_min) : null,
-      structure: strength ? null : readStructure(item.steps, null),
+      structure: strength ? null : readStructure(item.steps),
       primary_target: defaultTargetMetric(discipline, opts.hasFtp),
       slot: 0,
       status: "draft",
       needs_review: null,
-      legacy: null,
       change_note: null
     });
   }
@@ -183,7 +187,7 @@ export interface ApplyPayload {
   plan: { name: string; start_date: string; end_date: string; weeks_meta: WeekMeta[] };
   keep: { id: string; revision: number }[];
   supersede: { id: string; revision: number }[];
-  insert: (Omit<NewWorkout, "legacy" | "status"> & { replaces: string | null })[];
+  insert: (Omit<NewWorkout, "status"> & { replaces: string | null })[];
 }
 
 export function buildApplyPayload(args: {
@@ -220,7 +224,7 @@ export function buildApplyPayload(args: {
       let slot = 0;
       while (slots.has(slot)) slot++;
       slots.add(slot);
-      const { legacy: _legacy, status: _status, ...rest } = item.neu;
+      const { status: _status, ...rest } = item.neu;
       insert.push({ ...rest, slot, replaces: item.kind === "replace" ? item.old.id : null });
     }
   }

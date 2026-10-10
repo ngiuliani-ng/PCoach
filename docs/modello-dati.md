@@ -10,7 +10,7 @@ Procedura per aggiungere un campo: [architettura.md](architettura.md#come-aggiun
 
 ## `AthleteTrainingProfile`: sezioni principali
 
-- **`schema_version`**: versione dello schema (attuale: `1.4.0`), usata per capire se una scheda salvata richiede una migrazione all'apertura.
+- **`schema_version`**: versione dello schema (attuale: `1.5.0`, senza il piano: le sedute sono in tabelle proprie), usata per capire se una scheda salvata richiede una migrazione all'apertura.
 - **`meta`**: metadati della scheda stessa (non dell'atleta) — `athlete_id` (generato alla creazione, non derivato dal nome), `coach_id`, `created_at`/`updated_at`, `data_source` (`manual` / `garmin_export` / `intervals_icu_api` / `mixed`).
 - **`identity`**: `nome`, `cognome` (campi separati dallo schema 1.4.0, vedi [decisioni/0006-modello-dati-identita-e-sync-automatica.md](decisioni/0006-modello-dati-identita-e-sync-automatica.md)), `email` (usata per l'invio del feedback settimanale automatico), `birth_year`, `biological_sex` (per formule fisiologiche standard, opzionale), `height_cm`, `weight_kg`.
 - **`disciplines`**: una voce per sport praticato (`running`/`cycling`/`swimming`/`strength`; il triathlon non è una disciplina a sé, ma tre righe separate), con livello, anni di pratica, volume settimanale attuale e picco volume ultimi 12 mesi.
@@ -23,7 +23,6 @@ Procedura per aggiungere un campo: [architettura.md](architettura.md#come-aggiun
 - **`constraints`**: `days_available` per giorno della settimana — `active`/`max_duration_minutes` sono il vincolo reale per la programmazione; `fixed_activity` è solo informativo (cosa l'atleta fa oggi), non vincola il piano futuro. Più `sessions_per_week_target`.
 - **`methodology_preferences`**: `intensity_distribution_model` (polarizzato 80/20, piramidale, soglia prevalente, misto) e `load_deload_pattern` (formato `N:1`).
 - **`notes_free_text`**: testo libero per informazioni non modellate altrove.
-- **`training_plan`**: piano nel formato precedente alle tabelle delle sedute (`weeks[]` → `sessions[]` → `steps[]`). L'app non lo scrive né lo mostra più. Al primo avvio lo importa una volta per atleta nelle tabelle delle sedute (vedi [Sedute e piani](#sedute-e-piani)). Resta nella scheda come copia d'origine, letta solo da `weekly-feedback` finché l'import di quell'atleta non è avvenuto.
 - **`weekly_feedback_log`**: storico dei feedback generati confrontando piano e reale, con `generated_by` (`claude`/`manual`). Scritto dalla Edge Function `weekly-feedback` — vedi [backend.md](backend.md).
 - **`integrations`**: `intervals_icu_api_key`, salvata **in chiaro** (compromesso di sicurezza accettato — vedi [sicurezza.md](sicurezza.md)), per-atleta.
 
@@ -34,7 +33,7 @@ Le sedute vivono in tabelle Postgres proprie, separate dalla scheda (definizione
 | Tabella | Contenuto |
 |---|---|
 | `training_plans` | Un periodo di programmazione: `name`, `status` (`active` / `ended` / `archived`), `start_date`, `end_date`, `weeks_meta` (per settimana: `week_start` del lunedì, `label`, `is_deload`), `end_reason`. Un solo piano `active` per atleta (indice unico parziale). |
-| `plan_generations` | Una proposta di sedute: `kind` (`initial` / `regenerate` / `legacy_import`), `from_date`, `weeks`, `reason`, `kept_workout_ids`, `raw_response` (testo di Claude), `proposal` (JSON letto), `status` (`proposed` / `applied` / `discarded` / `failed`). Un solo `legacy_import` per atleta. |
+| `plan_generations` | Una proposta di sedute: `kind` (`initial` / `regenerate`), `from_date`, `weeks`, `reason`, `kept_workout_ids`, `raw_response` (testo di Claude), `proposal` (JSON letto), `status` (`proposed` / `applied` / `discarded` / `failed`). |
 | `workouts` | Una seduta (vedi sotto). |
 | `workout_sync` | Stato di sincronizzazione per seduta e provider (oggi solo `intervals_icu`): `remote_event_id`, `external_id` (`pcoach:<id>`), `synced_revision`, `synced_date`, `remote_updated`, `state` (`synced` / `error` / `removed` / `unlinked`), `pending_delete`, `create_uncertain`, `last_error`, `last_warning`. |
 | `workout_events` | Cronologia della seduta, scritta solo in aggiunta: `type`, `revision`, istantanee del contenuto `before`/`after`, `note`. Serve sia da audit sia da storico delle versioni. |
@@ -44,7 +43,7 @@ Le sedute vivono in tabelle Postgres proprie, separate dalla scheda (definizione
 - **Contenuto** (ciò che, se cambia, rende obsoleta la copia su Intervals.icu): `planned_date` (data nel calendario locale dell'atleta; il giorno della settimana si ricava dalla data), `discipline` (`running`/`cycling`/`swimming`/`strength`), `title`, `objective`, `notes_for_athlete`, `duration_min` (solo per la palestra), `structure`, `primary_target`.
 - **`slot`**: posizione nel giorno (0, 1, …). Un indice unico parziale su `(athlete_id, planned_date, slot)`, limitato alle sedute attive, impedisce i doppioni. Annullate e sostituite non occupano il giorno.
 - **`revision`**: la gestisce solo il database. Un trigger la incrementa a ogni cambio di contenuto, e ogni modifica dell'app è condizionata alla revisione nota.
-- **`locked`**: il coach chiede di mantenerla nelle rigenerazioni. **`needs_review`**: motivo per cui la struttura va verificata; blocca l'invio a Intervals.icu. **`legacy`**: sessione originale, per le sedute importate.
+- **`locked`**: il coach chiede di mantenerla nelle rigenerazioni. **`needs_review`**: motivo per cui la seduta va verificata (struttura non valida, giorno non disponibile, durata oltre il massimo del giorno); ne blocca l'approvazione e l'invio a Intervals.icu finché il coach non la rivede.
 
 **Struttura (`structure`, versione 2)**, indipendente da qualunque provider (tipi in `supabase/functions/_shared/workouts/structure.ts`):
 - `steps[]` contiene step o ripetute.

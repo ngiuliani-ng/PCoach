@@ -43,7 +43,7 @@ app/
       domain/    Componenti specifici del dominio PCoach (scheda atleta, sidebar, grafico carico, ...)
     composables/ Logica riutilizzabile con stato reattivo (toast, dialog di conferma, stato mobile sidebar, ...)
     constants.ts Opzioni condivise tra componenti (discipline, obiettivi, ...), prompt predefiniti e helper di presentazione (formatDate, formatSigned, icone ed etichette delle discipline)
-    domain/      Funzioni pure delle sedute: import dei piani salvati nella scheda, lettura della proposta di Claude e differenze di una rigenerazione, stati derivati
+    domain/      Funzioni pure delle sedute: calendario e vincoli di disponibilità, lettura della proposta di Claude e differenze di una rigenerazione, stati derivati
     stores/      Pinia: athletes.ts (schede atleti, CRUD, polling), workouts.ts (sedute, piani e stato di sincronizzazione dell'atleta aperto), settings.ts (impostazioni globali del coach), auth.ts (sessione del coach)
     services/    Accesso a sistemi esterni: supabase.ts, intervals.ts (lettura del carico), intervalsSync.ts (Edge Function intervals-sync), claude.ts, planPrompt.ts
     schema/      athlete_profile.schema.json (sorgente di verità, vedi modello-dati.md), types.generated.ts (generato, non modificare a mano), migrations/
@@ -62,7 +62,8 @@ supabase/
   migrations/0001_enable_rls.sql  is_coach() + policy RLS su athletes/app_settings
   migrations/0002_move_is_coach_private.sql  sposta is_coach() nello schema private (non esposto)
   migrations/0003_baseline_tables.sql  definizione versionata di athletes e app_settings
-  migrations/0004_workouts.sql  tabelle delle sedute, trigger di revisione e cronologia, RLS, apply_plan_generation, import_legacy_plan
+  migrations/0004_workouts.sql  tabelle delle sedute, trigger di revisione e cronologia, RLS, apply_plan_generation
+  migrations/0005_remove_legacy_import.sql  rimozione dell'import dei piani salvati nella scheda (concluso)
 .github/workflows/deploy.yml  Build + pubblicazione su GitHub Pages
 ```
 

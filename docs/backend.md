@@ -7,7 +7,8 @@
 Lo schema è versionato in `supabase/migrations/`, da eseguire in ordine numerico:
 - `0001`/`0002`: RLS e `is_coach()`;
 - `0003`: definizione di `athletes` e `app_settings`, create in origine dalla dashboard;
-- `0004`: tabelle delle sedute, trigger e funzioni SQL.
+- `0004`: tabelle delle sedute, trigger e funzioni SQL;
+- `0005`: rimozione dell'import una tantum dei piani salvati nella scheda, concluso.
 
 - **`athletes`**: `id` (text, chiave primaria: l'identificativo di 8 caratteri generato dall'app), `data` (jsonb, l'intero `AthleteTrainingProfile` — vedi [modello-dati.md](modello-dati.md)), `updated_at` (timestamptz, usato per il controllo di concorrenza ottimistico).
 - **`app_settings`**: riga singola (`id = 1`), contiene configurazione globale del coach: `claude_api_key`, `claude_model`, template dei prompt, `weekly_feedback_*` (timezone, giorno, ora, `email_enabled`).
@@ -28,7 +29,7 @@ Lo schema è versionato in `supabase/migrations/`, da eseguire in ordine numeric
 
 ## Funzioni SQL delle sedute
 
-Entrambe `security invoker` (vale la RLS del chiamante), `search_path` vuoto, `EXECUTE` solo ad `authenticated`.
+`security invoker` (vale la RLS del chiamante), `search_path` vuoto, `EXECUTE` solo ad `authenticated`.
 
 - **`apply_plan_generation(p jsonb)`**: applica una proposta in un'unica transazione. Contenuto di `p`:
   - `generation_id`, `athlete_id`, `from_date`;
@@ -49,7 +50,6 @@ Entrambe `security invoker` (vale la RLS del chiamante), `search_path` vuoto, `E
   5. segna la generazione `applied`.
 
   Ripeterla è innocuo.
-- **`import_legacy_plan(p jsonb)`**: importa il `training_plan` di una scheda (sedute già convertite dall'app con `legacyPlanToImport`) come piano e sedute approvate, conservando l'originale in `workouts.legacy`. È idempotente grazie all'indice unico su `plan_generations` (`kind = 'legacy_import'`): restituisce `null` se l'atleta è già stato importato. L'app la invoca all'avvio per ogni atleta con un piano nella scheda.
 
 ## Autenticazione e RLS
 
@@ -107,7 +107,7 @@ Pensata per essere invocata **ogni ora** da `pg_cron` (non a un orario esatto): 
 - **Autenticazione del chiamante**: accetta solo richieste il cui bearer è **esattamente** la service-role key (confronto diretto, non a tempo costante — nota informativa, non uno scenario di attacco pratico dato che la key non è mai esposta al client). Il gateway JWT di Supabase da solo accetterebbe anche la anon key pubblica, che qui non deve poter invocare la function.
 - Per ogni atleta con una `intervals_icu_api_key` configurata:
   1. Sincronizza CTL/ATL da Intervals.icu (stessa logica di merge di `services/intervals.ts`: mai sovrascrive voci `source: "manual"`), scrivendo con lo stesso pattern PATCH-condizionato-su-`updated_at` di `syncLoadMetrics`. Un fallimento qui non blocca la generazione del feedback.
-  2. Legge le sedute attive degli ultimi 7 giorni dalla tabella `workouts`. Se il piano salvato nella scheda di quell'atleta non è ancora stato importato (nessuna generazione `legacy_import`), legge invece le sessioni di `training_plan`. Salta l'atleta se la settimana non ha sedute, o se esiste già una voce in `weekly_feedback_log` per la data odierna (idempotenza: un solo feedback a settimana per atleta).
+  2. Legge le sedute attive degli ultimi 7 giorni dalla tabella `workouts`. Salta l'atleta se la settimana non ha sedute, o se esiste già una voce in `weekly_feedback_log` per la data odierna (idempotenza: un solo feedback a settimana per atleta).
   3. Recupera le attività Intervals.icu degli ultimi 7 giorni, confronta con le sessioni pianificate nello stesso intervallo, costruisce il prompt dal template in `app_settings` e chiama Claude con **`max_tokens` fisso a 1024** (non scalato, a differenza della generazione piano).
   4. Salva l'esito in `weekly_feedback_log` (`generated_by: "claude"`) con lo stesso PATCH condizionato.
   5. Se `weekly_feedback_email_enabled` e sono presenti sia `RESEND_API_KEY`/`RESEND_FROM_ADDRESS` (env) sia un'email dell'atleta, invia l'email via Resend. **Un fallimento dell'invio email non porta lo status dell'atleta a `error`**: l'esito per l'atleta resta `"ok"` con il dettaglio dell'errore email riportato a parte (`email: error: ...`); solo errori di sincronizzazione/Claude/salvataggio producono status `"error"`.

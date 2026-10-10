@@ -8,7 +8,6 @@ import { blankProfile, fullName, todayISO } from "../constants";
 import { hasNewerRemoteVersion, snapshotForCompare } from "../composables/useDirtyState";
 import { migrateProfile } from "../schema/migrations";
 import { showToast } from "../composables/useToast";
-import { useWorkoutsStore } from "./workouts";
 import type { AthleteTrainingProfile } from "../schema/types.generated";
 
 type LoadMetricsLog = AthleteTrainingProfile["training_status"]["load_metrics_log"];
@@ -83,14 +82,6 @@ export const useAthletesStore = defineStore("athletes", {
         await this.loadAthletesFromSupabase();
         this.dbAvailable = true;
         this.startPolling();
-        // Una tantum per atleta: i piani salvati nella scheda passano nelle tabelle delle
-        // sedute (ADR 0017). Idempotente: un atleta gia' importato viene saltato.
-        const workouts = useWorkoutsStore();
-        void workouts.importLegacyPlans(this.athletes).then((count) => {
-          if (!count) return;
-          showToast(count === 1 ? "Il piano esistente è stato importato nella tab Piano." : `${count} piani esistenti sono stati importati nella tab Piano.`);
-          void workouts.reload();
-        });
       } catch {
         this.dbAvailable = false;
       }

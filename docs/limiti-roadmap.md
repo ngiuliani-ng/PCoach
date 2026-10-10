@@ -42,10 +42,6 @@ Le zone sono quelle impostate sull'account Intervals.icu dell'atleta, che PCoach
 
 La lettura del carico (wellness e attività) non ha retry/backoff: l'errore compare come stato accanto alla chiave nel Profilo e la sincronizzazione si ripete alla prossima apertura della scheda. La scrittura delle sedute invece riprova da sola su 429 e 5xx (vedi [backend.md](backend.md#intervals-sync-edge-function)). Vedi [integrazioni.md](integrazioni.md) per i trigger di sincronizzazione.
 
-## Piano salvato nella scheda (`training_plan`)
-
-Dopo l'import nelle tabelle delle sedute, `training_plan` resta nella scheda come copia d'origine e non viene più scritto né mostrato. Va rimosso dallo schema (con una migrazione del profilo) quando l'import di tutti gli atleti è verificato. Fino ad allora `weekly-feedback` lo legge solo per gli atleti non ancora importati.
-
 ## Rischio di sovrascrittura su blob `jsonb`
 
 Ogni scheda atleta è un unico blob `jsonb` (`athletes.data`). Il salvataggio scrive l'intero blob, non singoli campi. **Mitigazione**: controllo di concorrenza ottimistico su `updated_at` (vedi [backend.md](backend.md) e [decisioni/0005-concorrenza-ottimistica-sync-mirata.md](decisioni/0005-concorrenza-ottimistica-sync-mirata.md)) — un salvataggio concorrente che trova `updated_at` cambiato viene rifiutato con avviso, invece di sovrascrivere silenziosamente. Resta un rischio se due modifiche avvengono a schermi diversi senza ricaricare: l'ultima a salvare "vince" solo se nessun'altra scrittura è intervenuta nel frattempo. Le sedute non sono in questo blob: hanno tabelle e revisioni proprie (vedi [modello-dati.md](modello-dati.md#sedute-e-piani)).

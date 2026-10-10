@@ -223,7 +223,7 @@ export function fullName(identity: { nome?: string; cognome?: string } | undefin
 
 export function blankProfile(): AthleteTrainingProfile {
   return {
-    schema_version: "1.4.0",
+    schema_version: "1.5.0",
     meta: { athlete_id: "", coach_id: "", created_at: todayISO(), updated_at: todayISO(), data_source: "manual" },
     identity: { nome: "", cognome: "", email: "", birth_year: undefined, biological_sex: "unspecified", height_cm: undefined, weight_kg: undefined },
     disciplines: [],
@@ -250,7 +250,6 @@ export function blankProfile(): AthleteTrainingProfile {
     methodology_preferences: { intensity_distribution_model: "polarizzato_80_20", load_deload_pattern: "3:1" },
     notes_free_text: "",
     integrations: { intervals_icu_api_key: "" },
-    training_plan: null,
     weekly_feedback_log: []
   };
 }

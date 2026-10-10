@@ -31,7 +31,7 @@ Rigenera `app/src/schema/types.generated.ts` da `app/src/schema/athlete_profile.
 npm run test
 ```
 
-Esegue Vitest (`vitest run`) sui file `src/**/*.test.ts`. Stato attuale: **75 test** in 9 file:
+Esegue Vitest (`vitest run`) sui file `src/**/*.test.ts`. Stato attuale: **69 test** in 9 file:
 
 | File | Test |
 |---|---|
@@ -39,7 +39,7 @@ Esegue Vitest (`vitest run`) sui file `src/**/*.test.ts`. Stato attuale: **75 te
 | `composables/useConnectionStatus.test.ts` | 4 |
 | `composables/useDirtyState.test.ts` | 9 |
 | `domain/availability.test.ts` | 6 (calendario del periodo, riallineamento al giorno, vincoli di disponibilità e durata) |
-| `domain/regeneration.test.ts` | 12 (import dei piani salvati, lettura della proposta, differenze e payload della rigenerazione) |
+| `domain/regeneration.test.ts` | 6 (lettura della proposta, differenze e payload della rigenerazione) |
 | `domain/shared.test.ts` | 26 (moduli condivisi con le Edge Function: calendario, zone e struttura, conversione per Intervals.icu, classificazione della sincronizzazione) |
 | `schema/migrations/identitySplit.test.ts` | 7 |
 | `services/planPrompt.test.ts` | 2 |
@@ -56,7 +56,7 @@ npm run test:e2e
 
 Playwright (`playwright.config.ts`, cartella `app/e2e/`) avvia Vite sulla porta 5181 con un URL Supabase fittizio. `e2e/mockBackend.ts` intercetta tutte le richieste:
 - una PostgREST minima in memoria;
-- le funzioni SQL `apply_plan_generation` e `import_legacy_plan`;
+- la funzione SQL `apply_plan_generation`;
 - le Edge Function `claude-proxy` e `intervals-sync`;
 - le letture dirette di Intervals.icu.
 
