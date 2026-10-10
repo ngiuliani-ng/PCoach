@@ -34,6 +34,7 @@ Setup in dashboard Supabase, da eseguire una sola volta:
 ## Verifica del chiamante nelle Edge Function
 
 Sia `claude-proxy` che `weekly-feedback` verificano l'identità del chiamante prima di eseguire un'azione che costa (quota Claude) o che espone dati:
+
 - `claude-proxy` richiede un JWT di sessione valido del coach (verificato con `auth.getUser()`), non la sola anon key pubblica.
 - `weekly-feedback` richiede che il bearer sia **esattamente** la service-role key (così solo `pg_cron`, che la legge da Vault, può invocarla) — dettagli in [backend.md](backend.md).
 
