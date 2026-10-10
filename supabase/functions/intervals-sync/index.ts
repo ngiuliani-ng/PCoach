@@ -284,7 +284,9 @@ Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return jsonResponse({ error: "Metodo non supportato." }, 405);
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  // La chiave pubblica e' quella inviata dal client (publishable): la anon key legacy del
+  // progetto puo' essere disattivata, e PostgREST rifiuterebbe le richieste fatte con quella.
+  const anonKey = req.headers.get("apikey") || Deno.env.get("SUPABASE_ANON_KEY");
   if (!supabaseUrl || !anonKey) return jsonResponse({ error: "Configurazione Supabase mancante nella Edge Function." }, 500);
 
   const jwt = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");

@@ -86,7 +86,7 @@ Proxy verso `api.anthropic.com`, necessario perché Anthropic rifiuta le chiamat
 
 Scrive le sedute sul calendario Intervals.icu dell'atleta. Regole di sincronizzazione e formato in [integrazioni.md](integrazioni.md#intervalsicu-sincronizzazione-delle-sedute).
 
-- **Autenticazione del chiamante**: JWT di sessione del coach, verificato con `auth.getUser()`; la sola anon key non basta. Il database è letto e scritto con lo stesso JWT (`SUPABASE_ANON_KEY` più l'header del coach), quindi vale la RLS.
+- **Autenticazione del chiamante**: JWT di sessione del coach, verificato con `auth.getUser()`; la sola anon key non basta. Il database è letto e scritto con lo stesso JWT (la chiave pubblica inviata dal client nell'header `apikey`, perché la anon key legacy del progetto è disattivata, più il JWT del coach), quindi vale la RLS.
 - **Richiesta `{ action: "preview", athlete_id, week_start }`**:
   - legge gli eventi `WORKOUT` della settimana e, uno per uno, quelli memorizzati che non compaiono (404 = spariti);
   - registra come svolte le sedute abbinate a un'attività (`paired_event_id`).
