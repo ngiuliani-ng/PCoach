@@ -6,6 +6,14 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
+**2026-10-10 — Blocchi di 2 settimane e risposta di Claude compatta**
+- Blocchi di generazione da 3 a 2 settimane, con `max_tokens` di 4000 per settimana più 2000 (`blockMaxTokens`).
+- Il formato richiesto a Claude chiede JSON compatto, una seduta per riga, senza campi null o vuoti.
+- In un piano a blocchi, `plan_name` descrive il piano intero.
+
+*Motivazione*: un piano di 10 settimane si fermava con «Risposta di Claude troncata per limite di token». Il primo blocco, 3 settimane e 16 sedute di un triatleta, ha superato i 7400 token concessi, con JSON indentato e pieno di campi null.
+*Docs aggiornati*: [integrazioni.md](docs/integrazioni.md).
+
 **2026-10-10 — Generazione dei piani lunghi a blocchi**
 - La generazione chiede a Claude blocchi consecutivi di al massimo 3 settimane, in sequenza, e ne riunisce le risposte in un'unica proposta (`domain/planBlocks.ts`). Ogni blocco conosce la sua posizione nel piano e le sedute proposte nei blocchi precedenti. Il dialogo mostra la parte in corso.
 - L'errore 546 di `claude-proxy` è spiegato al coach come superamento del tempo massimo.

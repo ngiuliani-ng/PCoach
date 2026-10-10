@@ -98,7 +98,7 @@ export function buildPlanPrompt(profile: AthleteTrainingProfile, input: PlanProm
   if (b && b.count > 1) {
     const lastWeek = b.firstWeek + input.weeks - 1;
     const planTo = addDaysISO(b.planFrom, b.totalWeeks * 7 - 1);
-    text += `\n\nQuesta richiesta è la parte ${b.index + 1} di ${b.count} di un piano di ${b.totalWeeks} settimane, dal ${b.planFrom} al ${planTo}. Genera solo le settimane dalla ${b.firstWeek} alla ${lastWeek} del piano (dal {{data_inizio}} al {{data_fine}}), con la progressione e lo schema di carico e scarico adatti alla loro posizione nel piano complessivo.`
+    text += `\n\nQuesta richiesta è la parte ${b.index + 1} di ${b.count} di un piano di ${b.totalWeeks} settimane, dal ${b.planFrom} al ${planTo}. Genera solo le settimane dalla ${b.firstWeek} alla ${lastWeek} del piano (dal {{data_inizio}} al {{data_fine}}), con la progressione e lo schema di carico e scarico adatti alla loro posizione nel piano complessivo. In plan_name metti il nome dell'intero piano, senza indicare le settimane.`
       + (b.index > 0 ? " Le sedute delle parti precedenti sono tra le sedute recenti dei dati dell'atleta: proseguile in modo coerente, senza ripeterle." : "");
   }
   return interpolate(text, values);

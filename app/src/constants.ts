@@ -140,6 +140,7 @@ export const TRAINING_PLAN_JSON_SHAPE = `{
   ]
 }
 Regole del formato:
+- Scrivi il JSON compatto, senza indentazione, una seduta per riga, e ometti i campi null o vuoti (distance_m, zone_to, cue, duration_min): la risposta ha un limite di lunghezza.
 - date e day vengono dal calendario fornito: non calcolare tu il giorno della settimana di una data.
 - Ogni step ha duration_sec (secondi) oppure distance_m (metri), mai entrambi.
 - zone e zone_to sono zone da Z1 a Z7 (zone_to solo per un intervallo, ad esempio Z2-Z3). Niente percentuali, watt o passi assoluti: la metrica la sceglie PCoach (bici in potenza o frequenza cardiaca, corsa e nuoto in zone di passo).

@@ -15,7 +15,7 @@ import { addDaysISO, formatDate, todayISO, TRAINING_PLAN_JSON_SHAPE } from "../.
 import { buildPlanPrompt } from "../../services/planPrompt";
 import { callClaudeProxy, copyToClipboardFallback, extractJsonBlock } from "../../services/claude";
 import { hasFtp } from "../../domain/athlete";
-import { mergeBlockResponses, planBlocks } from "../../domain/planBlocks";
+import { blockMaxTokens, mergeBlockResponses, planBlocks } from "../../domain/planBlocks";
 import type { NewWorkout } from "../../domain/workoutDraft";
 import type { DiffDay, Proposal } from "../../domain/regeneration";
 import { buildApplyPayload, defaultKeep, diffCounts, isForcedKeep, parseProposal, regenerationCandidates, regenerationDiff } from "../../domain/regeneration";
@@ -148,8 +148,7 @@ async function generate() {
       TRAINING_PLAN_JSON_SHAPE,
       settings.settings.plan_generation_prompt_template
     );
-    // Circa 1800 token di output a settimana, con margine per l'apertura e la chiusura del JSON.
-    const result = await callClaudeProxy(blockPrompt, Math.min(64000, b.weeks * 1800 + 2000), settings.settings.claude_model);
+    const result = await callClaudeProxy(blockPrompt, blockMaxTokens(b.weeks), settings.settings.claude_model);
     const where = b.count > 1 ? ` (parte ${b.index + 1} di ${b.count})` : "";
     if (!result.ok) {
       await store.saveGenerationResult(created.value, { raw_response: texts.join("\n\n") || undefined, status: "failed", error: result.error + where });

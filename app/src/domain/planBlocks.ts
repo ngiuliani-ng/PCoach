@@ -1,11 +1,18 @@
 // Generazione a blocchi (funzioni pure). Una chiamata a claude-proxy non puo' superare il limite
-// di durata delle Edge Function (150 s), e Claude impiega circa 25 s per settimana di sedute:
+// di durata delle Edge Function (150 s), e Claude scrive circa 85 token al secondo, fino a
+// circa 3000 token per settimana per un atleta con 5-6 sedute:
 // un piano lungo viene quindi chiesto in blocchi consecutivi di poche settimane, poi riunito
 // in un'unica proposta, letta e mostrata come se fosse arrivata da una sola risposta.
 import { addDaysISO } from "@shared/workouts/calendar.ts";
 
-/** Settimane per chiamata: circa 75 s di generazione, con margine sul limite di 150 s. */
-export const WEEKS_PER_BLOCK = 3;
+/** Settimane per chiamata: con TOKENS_PER_WEEK restano margini sia di tempo sia di token. */
+export const WEEKS_PER_BLOCK = 2;
+/** Token di risposta concessi per settimana (piu' 2000 per apertura e chiusura del JSON). */
+export const TOKENS_PER_WEEK = 4000;
+
+export function blockMaxTokens(weeks: number): number {
+  return Math.min(64000, weeks * TOKENS_PER_WEEK + 2000);
+}
 
 export interface PlanBlock {
   index: number;
