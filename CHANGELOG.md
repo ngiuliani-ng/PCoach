@@ -6,6 +6,11 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
+**2026-10-10 — Cleanup README e formattazione markdown in sicurezza.md**
+Eliminato `app/README.md` in quanto ridondante rispetto a `docs/sviluppo-deploy.md` e `CLAUDE.md`; rimossa la riga "Quando leggerlo" da `README.md` per mantenere la descrizione del progetto pulita e diretta. Aggiunta riga vuota prima dell'elenco puntato nella sezione chiamanti Edge Function in `docs/sicurezza.md`.
+*Motivazione*: rimozione di ridondanze nel rispetto della regola 2 di CLAUDE.md ("una sola casa per ogni informazione") e corretto parsing della sintassi Markdown.
+*Docs aggiornati*: [README.md](README.md), [sicurezza.md](docs/sicurezza.md), rimosso `app/README.md`.
+
 **2026-10-10 — Allineamento dei docs al codice e alle regole di CLAUDE.md**
 `design-ui.md`: tabella dei token riallineata a `tokens.css` (rimossi `--bg-elevated`, `--success`, `--chart-tsb`, `--radius`, `--shadow`, `--font-size-*`, `--space-*`, che non esistono; aggiunti `--surface`, `--surface-2`, `--accent-contrast`, `--focus`, `--danger-bg`, `--warning-bg`, `--zone-*`, `--font-ui`, `--font-mono`); tipografia e spaziatura descritte come valori in px diretti; rimosso il componente "Card", che non esiste (il pannello è la classe `section.block`); corretti il layout della sidebar e l'intervallo delle zone (Z1-Z7). `sicurezza.md`: eliminato il riferimento allo stato precedente. ADR 0009: corretto il link al changelog. Rimossa `docs/athlete_profile.schema.json`, copia identica e non referenziata di `app/src/schema/athlete_profile.schema.json`, che resta l'unica fonte di verità. `README.md` e `app/README.md`: aggiunta la riga "Quando leggerlo"; il secondo non contiene più il testo del template Vite ma rimanda ai docs.
 *Motivazione*: regole 1, 2, 5 e 7 di CLAUDE.md (solo stato attuale nei file di stato, una sola casa per ogni informazione, riga "Quando leggerlo", correzione sul posto dei docs disallineati dal codice).
