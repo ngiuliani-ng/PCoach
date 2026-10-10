@@ -6,6 +6,11 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
+**2026-10-10 — Allineamento dei docs al codice e alle regole di CLAUDE.md**
+`design-ui.md`: tabella dei token riallineata a `tokens.css` (rimossi `--bg-elevated`, `--success`, `--chart-tsb`, `--radius`, `--shadow`, `--font-size-*`, `--space-*`, che non esistono; aggiunti `--surface`, `--surface-2`, `--accent-contrast`, `--focus`, `--danger-bg`, `--warning-bg`, `--zone-*`, `--font-ui`, `--font-mono`); tipografia e spaziatura descritte come valori in px diretti; rimosso il componente "Card", che non esiste (il pannello è la classe `section.block`); corretti il layout della sidebar e l'intervallo delle zone (Z1-Z7). `sicurezza.md`: eliminato il riferimento allo stato precedente. ADR 0009: corretto il link al changelog. Rimossa `docs/athlete_profile.schema.json`, copia identica e non referenziata di `app/src/schema/athlete_profile.schema.json`, che resta l'unica fonte di verità. `README.md` e `app/README.md`: aggiunta la riga "Quando leggerlo"; il secondo non contiene più il testo del template Vite ma rimanda ai docs.
+*Motivazione*: regole 1, 2, 5 e 7 di CLAUDE.md (solo stato attuale nei file di stato, una sola casa per ogni informazione, riga "Quando leggerlo", correzione sul posto dei docs disallineati dal codice).
+*Docs aggiornati*: [design-ui.md](docs/design-ui.md), [sicurezza.md](docs/sicurezza.md), [decisioni/0009](docs/decisioni/0009-rifinitura-mobile-fase-8.md), [README.md](README.md), [app/README.md](app/README.md).
+
 **2026-10-10 — Barra del titolo PWA desktop senza nome, con linea di separazione (Window Controls Overlay)**
 Aggiunto `display_override: ['window-controls-overlay']` al manifest (`vite.config.ts`). Nuovo token `--titlebar-h` (`tokens.css`) e fascia di trascinamento `body::before` con sfondo `--surface` e linea inferiore di 1px in `--border` (`base.css`), attiva solo in quella modalità. Altezze `100vh`, sidebar sticky, drawer/toggle/backdrop mobile e schermate di caricamento/login (`App.vue`, `LoginView.vue`) adeguate a `--titlebar-h`.
 *Motivazione*: togliere il nome dell'app dalla barra di trascinamento di Windows e distinguere la barra dal resto dell'interfaccia con una linea dello stesso colore dei bordi della sidebar.

@@ -8,15 +8,17 @@ Variabili CSS definite in `app/src/styles/tokens.css`, con supporto a tema chiar
 
 | Token | Uso |
 |---|---|
-| `--bg`, `--bg-elevated` | Sfondo pagina / sfondo di card e pannelli sollevati |
+| `--bg` | Sfondo pagina e dei campi di input |
+| `--surface`, `--surface-2` | Sfondo di sidebar, pannelli e dialoghi / sfondo di hover e dei tag |
 | `--text`, `--text-muted` | Testo primario / testo secondario |
 | `--border` | Bordi di card, input, separatori |
-| `--accent` | Colore di accento (azioni primarie, stato attivo) |
-| `--success`, `--warning`, `--danger` | Stati semantici (conferma, attenzione, errore) |
-| `--chart-ctl`, `--chart-atl`, `--chart-tsb` | Colori delle tre serie nel grafico del carico |
+| `--accent`, `--accent-contrast` | Colore di accento (azioni primarie, stato attivo) / testo sopra uno sfondo accento |
+| `--focus` | Colore del bordo e dell'alone di focus dei campi |
+| `--danger`, `--danger-bg`, `--warning`, `--warning-bg` | Stati semantici di errore e attenzione: colore del testo e relativo sfondo |
+| `--chart-ctl`, `--chart-atl` | Colori delle due serie tracciate nel grafico del carico (il TSB compare solo nel tooltip) |
 | `--chart-bar` | Colore delle barre nel grafico del carico (TSS giornaliero) |
-| `--radius` | Raggio di bordo standard per card/input/bottoni |
-| `--shadow` | Ombra standard delle card sollevate |
+| `--zone-1`…`--zone-7`, `--zone-unknown` | Colori delle zone di allenamento, da Z1 (recupero) a Z7 (massimale), e delle zone non riconosciute |
+| `--font-ui`, `--font-mono` | Stack tipografico dell'interfaccia / dei valori numerici e degli identificatori |
 | `--titlebar-h` | Altezza della barra di trascinamento della PWA desktop (linea di 1px inclusa); `0px` fuori da Window Controls Overlay |
 
 La barra del titolo della finestra PWA e la barra di stato mobile seguono `--surface` (lo sfondo della sidebar): `#1C2025` su tema scuro e `#FFFFFF` su tema chiaro, dichiarati via `prefers-color-scheme` in `index.html` (vedi [sviluppo-deploy.md § PWA](sviluppo-deploy.md#pwa-progressive-web-app) e [decisioni/0014](decisioni/0014-colore-finestra-pwa-continuita-sidebar.md)).
@@ -31,9 +33,8 @@ Regole per chi modifica il layout:
 
 ## Tipografia e spaziatura
 
-- Font di sistema (stack `-apple-system, ...`), nessun web font caricato da remoto.
-- Scala tipografica a step fissi (`--font-size-sm/md/lg/xl`), nessun valore `px` libero nei componenti.
-- Spaziatura su scala a multipli di 4px (`--space-1`...`--space-6`), usata per padding/gap/margin.
+- Font di sistema (`--font-ui`, stack `-apple-system, ...`); `--font-mono` elenca `JetBrains Mono` con ripiego sui monospace di sistema. Nessun web font viene caricato da remoto.
+- Dimensioni dei caratteri, spaziature (padding, gap, margin), raggi di bordo e ombre non hanno token: sono valori in `px` dichiarati direttamente in `base.css` e negli stili dei componenti (14px di base sul `body`).
 
 ## Iconografia
 
@@ -46,13 +47,13 @@ Regole per chi modifica il layout:
 - **Toast** (`ToastHost.vue` + `useToast`): notifiche non bloccanti, auto-dismiss salvo errori (restano finché l'utente non li chiude, per garantire che errori importanti non scompaiano prima di essere letti).
 - **ConfirmDialog** (`ConfirmDialog.vue` + `useConfirmDialog`): unico punto per conferme distruttive (eliminazione atleta, scarto di dati non salvati); mai `window.confirm`.
 - **PasswordField**: campo per segreti digitati dall'utente (es. chiave Intervals.icu) con toggle mostra/nascondi basato su icone Lucide (`Eye`/`EyeOff`, pulsante con `aria-label`, senza tooltip nativo), mai loggato né esposto in chiaro nel DOM a riposo.
-- **Card**: contenitore standard con `--bg-elevated`, `--radius`, `--shadow`; base per sidebar, pannelli impostazioni, card sessione.
 - **IconButton**: bottone compatto solo icona con stato hover/focus accessibile (`aria-label` obbligatorio, nessun tooltip nativo via `title`), ospita icone Lucide (es. `Settings`, `LogOut`) tramite slot, usato nel footer della sidebar per "Impostazioni" ed "Esci".
 
 ## Layout
 
 - Layout a due colonne su desktop: sidebar atleti a sinistra, contenuto (editor atleta o stato vuoto) a destra.
-- Il contenitore della sidebar e il contenuto principale sono flex; la larghezza relativa è impostata inline sul segmento figlio direttamente coinvolto (es. la lista atleti), non sul contenitore padre.
+- La sidebar ha larghezza fissa di 260px (`flex-shrink: 0`, sticky in alto) e `.main` occupa lo spazio restante (`flex: 1`).
+- I blocchi dell'editor atleta e del pannello impostazioni sono `<section class="block">` (stile in `base.css`, non un componente Vue): sfondo `--surface`, bordo `--border`, raggio 10px, titolo `h3` con separatore inferiore.
 
 ## Stati dei componenti
 
@@ -67,7 +68,7 @@ Ogni componente interattivo gestisce esplicitamente: default, hover, focus (visi
 
 ## Zone e discipline
 
-- Colori di zona (Z1-Z5 o equivalenti) derivati da una scala semantica condivisa, non hardcoded per componente.
+- Colori di zona (Z1-Z7, `--zone-1`…`--zone-7`; le zone non riconosciute usano `--zone-unknown`) derivati da una scala semantica condivisa, non hardcoded per componente.
 - Icone disciplina da un set condiviso in `constants.ts`, associate per chiave disciplina.
 - Il testo delle etichette (zone, discipline) non è forzato in maiuscolo: il CSS imposta `text-transform: none` esplicitamente.
 

@@ -37,4 +37,4 @@ Sia `claude-proxy` che `weekly-feedback` verificano l'identità del chiamante pr
 - `claude-proxy` richiede un JWT di sessione valido del coach (verificato con `auth.getUser()`), non la sola anon key pubblica.
 - `weekly-feedback` richiede che il bearer sia **esattamente** la service-role key (così solo `pg_cron`, che la legge da Vault, può invocarla) — dettagli in [backend.md](backend.md).
 
-Dettagli completi del perché RLS/autenticazione reale sono arrivate solo in Fase 9 (e cosa c'era prima) in [decisioni/0010-autenticazione-coach-rls-reale.md](decisioni/0010-autenticazione-coach-rls-reale.md) e [decisioni/0001-niente-auth-rls-iniziale.md](decisioni/0001-niente-auth-rls-iniziale.md) (superata da 0010).
+Motivazioni dell'autenticazione reale e delle policy RLS in [decisioni/0010-autenticazione-coach-rls-reale.md](decisioni/0010-autenticazione-coach-rls-reale.md).

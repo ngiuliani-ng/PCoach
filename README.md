@@ -1,5 +1,7 @@
 # PCoach
 
+**Quando leggerlo**: per una panoramica del progetto; per tutto il resto parti da [CLAUDE.md](CLAUDE.md).
+
 App per un coach che segue più atleti (corsa, bici, nuoto, palestra): raccoglie in una scheda
 strutturata tutto ciò che serve per programmare l'allenamento, genera il piano con l'assistenza
 di Claude e confronta automaticamente quanto assegnato con quanto l'atleta ha effettivamente

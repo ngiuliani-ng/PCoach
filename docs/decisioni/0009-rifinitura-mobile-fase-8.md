@@ -13,7 +13,7 @@ Fase 8 (2026-10-04, con un fix successivo per la pipeline CI) ha portato l'app a
 - Sidebar atleti su schermi stretti (< 720px): **drawer** sovrapposto con backdrop, non un accordion che si apre/chiude inline nel flusso della pagina.
 - `LoadMetricsChart.vue`: eventi touch e mouse gestiti dallo stesso codice di interazione (tooltip, selezione punto), invece di due percorsi separati; `aspect-ratio` fisso per evitare salti di layout durante il caricamento dei dati.
 - `training_status` è stato reso **obbligatorio** (`required`) nello schema, non più opzionale: una scheda senza stato di allenamento non ha senso ai fini della generazione del piano.
-- Un fix successivo alla Fase 8 ha corretto la pipeline CI (vedi [CHANGELOG.md](../CHANGELOG.md)) relativo a `training_status`.
+- Un fix successivo alla Fase 8 ha corretto la pipeline CI (vedi [CHANGELOG.md](../../CHANGELOG.md)) relativo a `training_status`.
 
 ## Motivo
 
