@@ -11,7 +11,7 @@ import SettingsPanel from "./components/domain/SettingsPanel.vue";
 import LoginView from "./components/domain/LoginView.vue";
 import ToastHost from "./components/ui/ToastHost.vue";
 import ConfirmDialog from "./components/ui/ConfirmDialog.vue";
-import { Menu, User } from "lucide-vue-next";
+import { Menu } from "lucide-vue-next";
 
 const athletes = useAthletesStore();
 const settings = useSettingsStore();
@@ -76,8 +76,14 @@ watch(
       <SettingsPanel v-if="showSettings" />
       <AthleteEditor v-else-if="athletes.currentProfile" />
       <div v-else class="placeholder">
-        <User :size="44" stroke-width="1.5" class="placeholder-icon" aria-hidden="true" style="margin-bottom: 12px; opacity: 0.6;" />
-        <p>Seleziona un atleta dalla barra laterale oppure creane uno nuovo.</p>
+        <template v-if="athletes.sortedList.length">
+          <h2>Scegli un atleta</h2>
+          <p>Apri una scheda dall'elenco per vedere carico, piano e feedback.</p>
+        </template>
+        <template v-else>
+          <h2>Nessun atleta</h2>
+          <p>Crea la prima scheda con «Nuovo atleta» nell'elenco: nome, discipline e obiettivi bastano per generare un piano.</p>
+        </template>
       </div>
     </main>
     <ToastHost />

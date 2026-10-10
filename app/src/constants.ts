@@ -1,5 +1,7 @@
 // Costanti condivise: opzioni dei menu a tendina, prompt di default per Claude
 // e il profilo "vuoto" di un nuovo atleta. Porting a parità funzionale da index.html.
+import type { Component } from "vue";
+import { Activity, Bike, Dumbbell, Footprints, Waves } from "lucide-vue-next";
 import type { AthleteTrainingProfile } from "./schema/types.generated";
 
 export type DayKey = AthleteTrainingProfile["constraints"]["days_available"][number]["day"];
@@ -17,16 +19,22 @@ export const TRAINING_SPORT_OPTIONS: [string, string][] = [
   ["strength", "Palestra"]
 ];
 
-// Icona per disciplina nella vista grafica del piano (§8); fallback "•" per
+// Icona Lucide per disciplina nella vista grafica del piano (§8); fallback Activity per
 // discipline non riconosciute (dato libero nel JSON generato da Claude).
-export const DISCIPLINE_ICONS: Record<string, string> = {
-  running: "🏃",
-  cycling: "🚴",
-  swimming: "🏊",
-  strength: "🏋️",
+export const DISCIPLINE_ICONS: Record<string, Component> = {
+  running: Footprints,
+  cycling: Bike,
+  swimming: Waves,
+  strength: Dumbbell,
 };
-export function disciplineIcon(discipline: string | null | undefined): string {
-  return (discipline && DISCIPLINE_ICONS[discipline]) || "•";
+export function disciplineIcon(discipline: string | null | undefined): Component {
+  return (discipline && DISCIPLINE_ICONS[discipline]) || Activity;
+}
+// Etichetta leggibile della disciplina; le chiavi non riconosciute restano come sono.
+export function disciplineLabel(discipline: string | null | undefined): string {
+  if (!discipline) return "";
+  const match = [...TRAINING_SPORT_OPTIONS, ...EVENT_DISCIPLINE_OPTIONS].find(([v]) => v === discipline);
+  return match ? match[1] : discipline;
 }
 
 // Discipline di GARA/RISULTATO: qui "Triathlon" è corretto, è una categoria di evento
@@ -83,11 +91,10 @@ export type MetricFieldDef = {
   label: string;
   type: "text" | "number" | "select";
   options?: [string, string][];
-  mono?: boolean;
 };
 
 export const RUN_THRESHOLD_FIELDS: MetricFieldDef[] = [
-  { key: "threshold_pace_per_km", label: "Passo soglia (min/km)", type: "text", mono: true },
+  { key: "threshold_pace_per_km", label: "Passo soglia (min/km)", type: "text" },
   { key: "lthr_bpm", label: "LTHR (bpm)", type: "number" },
   { key: "vo2max_estimated", label: "VO2max stimato", type: "number" },
   {
@@ -103,7 +110,7 @@ export const BIKE_THRESHOLD_FIELDS: MetricFieldDef[] = [
 ];
 
 export const SWIM_THRESHOLD_FIELDS: MetricFieldDef[] = [
-  { key: "css_pace_per_100m", label: "CSS (min/100m)", type: "text", mono: true }
+  { key: "css_pace_per_100m", label: "CSS (min/100m)", type: "text" }
 ];
 
 // Struttura JSON iniettata nel prompt di generazione, così Claude sa esattamente cosa restituire
@@ -169,6 +176,34 @@ export function addDaysISO(dateStr: string, days: number): string {
 export function numOrNull(v: unknown): number | null {
   return v === "" || v === null || v === undefined ? null : Number(v as string);
 }
+
+// Data leggibile in italiano ("10 ott 2026", o "10 ott" con withYear=false). Una data
+// "YYYY-MM-DD" e' interpretata come giorno locale, non come mezzanotte UTC; un valore
+// non interpretabile viene restituito cosi' com'e'.
+export function formatDate(value: string | null | undefined, withYear = true): string {
+  if (!value) return "";
+  const ymd = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  const d = ymd ? new Date(+ymd[1], +ymd[2] - 1, +ymd[3]) : new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return new Intl.DateTimeFormat("it-IT", withYear
+    ? { day: "numeric", month: "short", year: "numeric" }
+    : { day: "numeric", month: "short" }
+  ).format(d);
+}
+
+// Numero con segno esplicito e vero segno meno ("+4", "−12", "0"), per valori come il TSB
+// dove il segno e' l'informazione principale.
+export function formatSigned(n: number): string {
+  const rounded = Math.round(n);
+  if (rounded > 0) return `+${rounded}`;
+  if (rounded < 0) return `−${Math.abs(rounded)}`;
+  return "0";
+}
+
+export const PERIODIZATION_LABELS: Record<string, string> = {
+  continuous_improvement: "Miglioramento continuo",
+  race_peak_taper: "Picco e scarico verso la gara",
+};
 
 export function fullName(identity: { nome?: string; cognome?: string } | undefined): string {
   return [identity?.nome, identity?.cognome].filter((part) => part && part.trim()).join(" ");

@@ -1,9 +1,11 @@
 <script setup lang="ts">
 // Componente generico per gli storici datati (soglie corsa/bici/nuoto, carico).
 // Riusato per le tre discipline invece di tre componenti quasi identici.
-import { todayISO } from "../../constants";
+import { formatDate, todayISO } from "../../constants";
 import type { MetricFieldDef } from "../../constants";
 import { SOURCE_OPTIONS } from "../../constants";
+import IconButton from "../ui/IconButton.vue";
+import { Plus, Trash2 } from "lucide-vue-next";
 
 type LogEntry = Record<string, unknown> & { date: string; source: string; note?: string };
 
@@ -40,46 +42,44 @@ function setField(index: number, key: string, value: unknown) {
 
 <template>
   <div>
-    <div v-for="(row, index) in modelValue" :key="index" class="discipline-card">
-      <div class="discipline-card-head">
-        <span>Rilevazione {{ index + 1 }}</span>
-        <button type="button" class="icon-btn" @click="removeRow(index)">Rimuovi</button>
+    <p v-if="!modelValue.length" class="helper-text">Nessuna rilevazione.</p>
+    <div v-for="(row, index) in modelValue" :key="index" class="unit">
+      <div class="unit-head">
+        <span class="unit-title">{{ row.date ? `Rilevazione del ${formatDate(row.date)}` : "Rilevazione senza data" }}</span>
+        <IconButton :label="`Rimuovi rilevazione del ${formatDate(row.date) || 'giorno non indicato'}`" @click="removeRow(index)">
+          <Trash2 :size="16" aria-hidden="true" />
+        </IconButton>
       </div>
       <div class="field-row">
-        <div>
-          <label>Data</label>
+        <label class="field">
+          <span class="field-label">Data</span>
           <input type="date" :value="row.date" @change="setField(index, 'date', ($event.target as HTMLInputElement).value)" />
-        </div>
-        <div>
-          <label>Fonte</label>
+        </label>
+        <label class="field">
+          <span class="field-label">Fonte</span>
           <select :value="row.source" @change="setField(index, 'source', ($event.target as HTMLSelectElement).value)">
             <option v-for="[v, l] in SOURCE_OPTIONS" :key="v" :value="v">{{ l }}</option>
           </select>
-        </div>
-        <template v-for="f in fieldDefs" :key="f.key">
-          <div>
-            <label>{{ f.label }}</label>
-            <input
-              v-if="f.type !== 'select'"
-              :type="f.type"
-              :class="{ 'mono-input': f.mono }"
-              :value="row[f.key] ?? ''"
-              @change="setField(index, f.key, f.type === 'number' ? ($event.target as HTMLInputElement).valueAsNumber || null : ($event.target as HTMLInputElement).value)"
-            />
-            <select v-else :value="row[f.key] ?? ''" @change="setField(index, f.key, ($event.target as HTMLSelectElement).value)">
-              <option value=""></option>
-              <option v-for="[v, l] in f.options" :key="v" :value="v">{{ l }}</option>
-            </select>
-          </div>
-        </template>
+        </label>
+        <label v-for="f in fieldDefs" :key="f.key" class="field">
+          <span class="field-label">{{ f.label }}</span>
+          <input
+            v-if="f.type !== 'select'"
+            :type="f.type"
+            :value="row[f.key] ?? ''"
+            @change="setField(index, f.key, f.type === 'number' ? ($event.target as HTMLInputElement).valueAsNumber || null : ($event.target as HTMLInputElement).value)"
+          />
+          <select v-else :value="row[f.key] ?? ''" @change="setField(index, f.key, ($event.target as HTMLSelectElement).value)">
+            <option value=""></option>
+            <option v-for="[v, l] in f.options" :key="v" :value="v">{{ l }}</option>
+          </select>
+        </label>
       </div>
-      <div class="field-row">
-        <div style="grid-column: 1 / -1">
-          <label>Nota</label>
-          <input type="text" :value="row.note ?? ''" @change="setField(index, 'note', ($event.target as HTMLInputElement).value)" />
-        </div>
-      </div>
+      <label class="field">
+        <span class="field-label">Nota</span>
+        <input type="text" :value="row.note ?? ''" @change="setField(index, 'note', ($event.target as HTMLInputElement).value)" />
+      </label>
     </div>
-    <button type="button" class="add-row" @click="addRow">+ Aggiungi rilevazione</button>
+    <button type="button" class="add-row" @click="addRow"><Plus :size="16" aria-hidden="true" />Aggiungi rilevazione</button>
   </div>
 </template>

@@ -5,7 +5,7 @@
 // della conferma (stateKey distingue le due in usePlanWeeksUi).
 import { computed } from "vue";
 import { buildPlanViewModel } from "../../services/planViewModel";
-import { todayISO } from "../../constants";
+import { formatDate, todayISO } from "../../constants";
 import { usePlanWeeksUi } from "../../composables/usePlanWeeksUi";
 import PlanWeekBlock from "./PlanWeekBlock.vue";
 
@@ -38,11 +38,11 @@ function scrollToCurrent(): void {
 
 <template>
   <div class="plan-view">
-    <p v-if="!vm" class="helper-text">Nessun piano generato.</p>
+    <p v-if="!vm" class="helper-text"><slot name="empty">Nessun piano.</slot></p>
     <template v-else>
       <div class="plan-view-header">
         <strong>{{ vm.planName }}</strong>
-        <span class="helper-text" style="margin: 0">{{ vm.weeks.length }} settimane<template v-if="vm.startDate"> · da {{ vm.startDate }}</template></span>
+        <span class="plan-view-meta">{{ vm.weeks.length }} settimane<template v-if="vm.startDate">, dal {{ formatDate(vm.startDate) }}</template></span>
       </div>
       <div class="plan-view-controls">
         <button type="button" class="link-btn" @click="openAll">Apri tutte</button>
@@ -66,13 +66,18 @@ function scrollToCurrent(): void {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 10px;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-3);
+  margin-bottom: var(--sp-2);
 }
+.plan-view-header strong { font-size: var(--fs-md); font-weight: 600; }
+.plan-view-meta { color: var(--text-muted); font-size: var(--fs-sm); }
 .plan-view-controls {
   display: flex;
-  gap: 14px;
-  margin-bottom: 12px;
-  font-size: 12px;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-4);
+  margin-bottom: var(--sp-3);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
 }
 </style>

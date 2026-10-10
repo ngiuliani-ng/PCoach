@@ -1,41 +1,51 @@
 <script setup lang="ts">
-// Card compatta per una sessione del piano (§8): icona disciplina, chip zona,
-// durata/distanza, note pieghevoli. Sessioni strutturate aggiungono una barra
-// segmentata proporzionale alla durata + lista testuale degli step (accessibile,
-// non solo visiva).
+// Riga di una sessione del piano (§8), dentro il blocco settimana: icona disciplina, giorno
+// e data, tipo, durata, distanza e chip zona; note pieghevoli. Sessioni strutturate
+// aggiungono una barra segmentata proporzionale alla durata (colori di zona) + lista
+// testuale degli step (accessibile, non solo visiva).
 import { computed, ref } from "vue";
-import type { SegmentViewModel, SessionViewModel } from "../../services/planViewModel";
+import type { SessionViewModel } from "../../services/planViewModel";
 import { zoneColorVar } from "../../services/planViewModel";
-import { disciplineIcon } from "../../constants";
+import { DAY_LABELS, disciplineIcon, disciplineLabel, formatDate } from "../../constants";
 
 const props = defineProps<{ session: SessionViewModel }>();
 
 const notesOpen = ref(false);
 
-function segmentTitle(seg: SegmentViewModel): string {
-  if (seg.durationSec == null) return seg.label;
-  return `${seg.label} · ${Math.round(seg.durationSec / 60)} min`;
-}
-
-const durationOrDistanceText = computed(() => {
-  const s = props.session;
-  if (s.totalDurationSec != null) return `${Math.round(s.totalDurationSec / 60)}'`;
-  if (s.targetDurationMin != null) return `${s.targetDurationMin}'`;
-  if (s.targetDistanceKm != null) return `${s.targetDistanceKm} km`;
-  return "—";
+const dayText = computed(() => {
+  const d = props.session.day;
+  return DAY_LABELS.find(([k]) => k === d)?.[1] ?? d ?? "";
 });
+
+const durationText = computed(() => {
+  const s = props.session;
+  if (s.totalDurationSec != null) return `${Math.round(s.totalDurationSec / 60)} min`;
+  if (s.targetDurationMin != null) return `${s.targetDurationMin} min`;
+  return "";
+});
+const distanceText = computed(() =>
+  props.session.targetDistanceKm != null ? `${props.session.targetDistanceKm.toLocaleString("it-IT")} km` : ""
+);
 </script>
 
 <template>
   <div class="plan-session">
     <div class="plan-session-head">
+      <component
+        :is="disciplineIcon(session.discipline)"
+        :size="16"
+        class="discipline-icon"
+        role="img"
+        :aria-label="disciplineLabel(session.discipline) || 'Disciplina non indicata'"
+      />
       <span class="plan-session-day">
-        <span class="discipline-icon" role="img" :aria-label="session.discipline">{{ disciplineIcon(session.discipline) }}</span>
-        {{ session.day || "—" }}<span v-if="session.date" class="plan-session-date"> · {{ session.date }}</span>
+        {{ dayText || "Giorno non indicato" }}
+        <span v-if="session.date" class="plan-session-date">{{ formatDate(session.date, false) }}</span>
       </span>
       <span class="plan-session-type">{{ session.sessionType || "Allenamento" }}</span>
       <span class="plan-session-stats">
-        {{ durationOrDistanceText }}
+        <span v-if="durationText">{{ durationText }}</span>
+        <span v-if="distanceText">{{ distanceText }}</span>
         <span
           v-if="session.targetZone"
           class="zone-chip"
@@ -51,23 +61,18 @@ const durationOrDistanceText = computed(() => {
           :key="i"
           class="segment"
           :style="{ flexGrow: seg.widthPercent, background: zoneColorVar(seg.zone) }"
-          :title="segmentTitle(seg)"
         ></span>
       </div>
       <ul class="step-list">
         <li v-for="(t, i) in session.stepsText" :key="i">{{ t }}</li>
       </ul>
     </template>
-    <p v-else-if="!session.isStructured" class="helper-text plan-session-meta">
-      Zona: {{ session.targetZone || "—" }}
-      <template v-if="session.targetDurationMin != null"> · Durata: {{ session.targetDurationMin }}'</template>
-      <template v-if="session.targetDistanceKm != null"> · Distanza: {{ session.targetDistanceKm }} km</template>
-    </p>
 
     <button
       v-if="session.notes"
       type="button"
       class="link-btn plan-session-notes-toggle"
+      :aria-expanded="notesOpen"
       @click="notesOpen = !notesOpen"
     >{{ notesOpen ? "Nascondi note" : "Mostra note" }}</button>
     <p v-if="session.notes && notesOpen" class="plan-session-notes">{{ session.notes }}</p>
@@ -76,48 +81,43 @@ const durationOrDistanceText = computed(() => {
 
 <style scoped>
 .plan-session {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 10px 12px;
-  margin-bottom: 8px;
-  background: var(--surface);
+  padding: var(--sp-3) var(--sp-4);
+  font-size: var(--fs-sm);
 }
+.plan-session + .plan-session { border-top: 1px solid var(--border); }
 .plan-session-head {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  font-size: 12.5px;
+  gap: var(--sp-1) var(--sp-3);
 }
-.plan-session-day { font-weight: 500; display: flex; align-items: center; gap: 6px; }
-.discipline-icon { font-size: 14px; }
-.plan-session-date { color: var(--text-muted); font-weight: 400; }
-.plan-session-type { color: var(--text-muted); flex: 1; min-width: 80px; }
-.plan-session-stats { display: flex; align-items: center; gap: 6px; font-family: var(--font-mono); }
+.discipline-icon { color: var(--text-muted); flex-shrink: 0; }
+.plan-session-day { font-weight: 600; width: 128px; flex-shrink: 0; }
+.plan-session-date { color: var(--text-muted); font-weight: 400; margin-left: var(--sp-1); }
+.plan-session-type { flex: 1; min-width: 120px; }
+.plan-session-stats { display: flex; align-items: center; gap: var(--sp-3); color: var(--text-muted); }
 .zone-chip {
-  border: 1.5px solid var(--zone-unknown);
+  border: 2px solid var(--zone-unknown);
   border-radius: 999px;
-  padding: 1px 7px;
-  font-size: 11px;
-  font-family: var(--font-ui);
+  padding: 0 var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--text);
 }
 .segment-bar {
   display: flex;
-  height: 14px;
-  border-radius: 4px;
+  height: 12px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
-  margin-top: 8px;
+  margin-top: var(--sp-2);
   background: var(--surface-2);
 }
 .segment { min-width: 6px; }
 .segment + .segment { border-left: 1px solid var(--surface); }
 .step-list {
-  margin: 6px 0 0;
-  padding-left: 18px;
-  font-size: 11.5px;
+  margin: var(--sp-2) 0 0;
+  padding-left: var(--sp-5);
   color: var(--text-muted);
 }
-.plan-session-meta { margin: 8px 0 0; }
-.plan-session-notes-toggle { font-size: 11.5px; margin-top: 6px; }
-.plan-session-notes { font-size: 12.5px; margin: 6px 0 0; white-space: pre-wrap; }
+.plan-session-notes-toggle { font-size: var(--fs-xs); margin-top: var(--sp-2); color: var(--text-muted); }
+.plan-session-notes { margin: var(--sp-2) 0 0; white-space: pre-wrap; max-width: 70ch; }
 </style>

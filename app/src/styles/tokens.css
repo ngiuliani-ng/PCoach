@@ -12,21 +12,43 @@
   --warning: #9A6B07;
   --warning-bg: #FBF1DA;
   --focus: #0F6E64;
-  --chart-ctl: #2F6FED;
+  /* Grafico del carico: CTL e' la linea principale (inchiostro), ATL una linea sottile
+     di una tinta che non compare nelle zone, TSB una banda neutra attorno allo zero. */
+  --chart-ctl: var(--text);
   --chart-atl: #7C3AED;
-  --chart-bar: color-mix(in srgb, var(--text-muted) 25%, transparent);
+  --chart-tsb: color-mix(in srgb, var(--text) 13%, transparent);
+  --chart-bar: color-mix(in srgb, var(--text-muted) 55%, transparent);
   /* Zone di allenamento 1 (recupero) -> 7 (massimale); usate come swatch/bordo,
-     non come sfondo testo, cosi' non serve una tonalita' per-tema (§8). */
+     non come sfondo testo, cosi' non serve una tonalita' per-tema. Tinte distinte
+     dall'accento e dai colori semantici: una zona non deve sembrare uno stato. */
   --zone-1: #2F6FED;
   --zone-2: #2FA7ED;
-  --zone-3: #2FBE8F;
+  --zone-3: #6DB33F;
   --zone-4: #D9A441;
   --zone-5: #E07B39;
   --zone-6: #D1453D;
-  --zone-7: #B3261E;
+  --zone-7: #8E1F5C;
   --zone-unknown: var(--text-muted);
   --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* Scala tipografica: sei passi, nessuna dimensione fuori scala nei componenti. */
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-md: 14px;
+  --fs-lg: 16px;
+  --fs-xl: 20px;
+  --fs-2xl: 28px;
+  /* Spaziature su base 4px. */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+  --sp-7: 48px;
+  /* Due soli raggi: controlli (sm) e unita' di contenuto (md). Le sezioni non hanno bordo. */
+  --radius-sm: 6px;
+  --radius-md: 8px;
   --titlebar-h: 0px;
 }
 @media (prefers-color-scheme: dark) {
@@ -44,8 +66,8 @@
     --warning: #D9A441;
     --warning-bg: #3D300F;
     --focus: #37C2AE;
-    --chart-ctl: #6FA8FF;
     --chart-atl: #B79CFF;
+    --chart-tsb: color-mix(in srgb, var(--text) 16%, transparent);
   }
 }
 :root[data-theme="dark"] {
@@ -62,8 +84,8 @@
   --warning: #D9A441;
   --warning-bg: #3D300F;
   --focus: #37C2AE;
-  --chart-ctl: #6FA8FF;
   --chart-atl: #B79CFF;
+  --chart-tsb: color-mix(in srgb, var(--text) 16%, transparent);
 }
 
 /* Altezza della barra di trascinamento quando la PWA desktop usa Window Controls Overlay
