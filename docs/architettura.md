@@ -40,7 +40,7 @@ app/
       ui/        Componenti generici riutilizzabili (toast, dialog di conferma, IconButton, ...)
       domain/    Componenti specifici del dominio PCoach (scheda atleta, sidebar, grafico carico, ...)
     composables/ Logica riutilizzabile con stato reattivo (toast, dialog di conferma, stato mobile sidebar, ...)
-    constants.ts Opzioni condivise tra componenti (discipline, obiettivi, ...)
+    constants.ts Opzioni condivise tra componenti (discipline, obiettivi, ...) e helper di presentazione (formatDate, formatSigned, icone ed etichette delle discipline)
     stores/      Pinia: athletes.ts (schede atleti, CRUD, polling), settings.ts (impostazioni globali del coach), auth.ts (sessione del coach)
     services/    Accesso a sistemi esterni: supabase.ts, intervals.ts, claude.ts, planPrompt.ts
     schema/      athlete_profile.schema.json (sorgente di verità, vedi modello-dati.md), types.generated.ts (generato, non modificare a mano), migrations/
@@ -67,16 +67,21 @@ App.vue
   ├─ LoginView.vue              (form email+password, mostrato se non autenticato)
   └─ (autenticato)
      ├─ domain/AthleteSidebar.vue
-     │    ├─ lista atleti + card "Nuovo atleta" (stato locale)
+     │    ├─ "Nuovo atleta" + lista atleti (nome, discipline e ultimo TSB per atleta)
      │    ├─ pallino di stato connessione (useConnectionStatus)
      │    └─ footer compatto: IconButton "Impostazioni" + IconButton "Esci" (auth.signOut)
-     ├─ domain/AthleteEditor.vue  (scheda atleta, mostrata quando un atleta è aperto)
-     │    ├─ domain/LoadMetricsChart.vue   (grafico CTL/ATL/TSB, tooltip, legenda)
-     │    ├─ domain/MetricLogList.vue      (rilevazioni manuali load_metrics_log)
-     │    ├─ domain/PlanView.vue           (vista grafica del piano generato)
-     │    │    └─ domain/PlanWeekBlock.vue (settimana comprimibile)
-     │    │         └─ domain/PlanSessionCard.vue (card sessione singola)
-     │    └─ ui/PasswordField.vue          (campo API key Intervals.icu, mostra/nascondi)
+     ├─ domain/AthleteEditor.vue  (scheda atleta: header sticky con "Salva", viste Panoramica / Profilo)
+     │    ├─ Panoramica
+     │    │    ├─ domain/LoadMetricsChart.vue   (grafico CTL/ATL/TSB, tooltip, legenda con valori attuali)
+     │    │    ├─ domain/PlanView.vue           (vista grafica del piano generato + generazione)
+     │    │    │    └─ domain/PlanWeekBlock.vue (settimana comprimibile)
+     │    │    │         └─ domain/PlanSessionCard.vue (riga di una sessione)
+     │    │    └─ feedback settimanale
+     │    └─ Profilo
+     │         ├─ ui/PasswordField.vue          (chiave Intervals.icu, mostra/nascondi)
+     │         ├─ domain/MetricLogList.vue      (rilevazioni delle soglie per corsa/bici/nuoto)
+     │         └─ identità, discipline, stato, obiettivi, vincoli, metodologia, note, esporta/elimina
+     ├─ stato vuoto (nessun atleta aperto: indica di scegliere o creare un atleta dall'elenco)
      └─ domain/SettingsPanel.vue  (Impostazioni: Claude, prompt, orario feedback settimanale)
   ui/ConfirmDialog.vue + ui/ToastHost.vue  (montati una volta in App.vue, pilotati da composables condivisi)
 ```
@@ -132,7 +137,7 @@ Dettagli completi in [backend.md](backend.md) (contratto della function) e [inte
 - **Store (Pinia)**: un solo store per area di responsabilità (`athletes`, `settings`, `auth`). Le azioni dello store sono l'unico punto che tocca `services/`; i componenti chiamano azioni dello store, mai `services/` direttamente.
 - **Services**: wrapper sottili attorno a un sistema esterno (Supabase, Intervals.icu, Claude). Restituiscono dati già nella forma attesa dall'app o un esito esplicito di errore (es. `{ ok: false, error }`), non lanciano eccezioni non gestite verso i componenti.
 - **Composables**: logica con stato reattivo riutilizzabile tra più componenti (es. toast, dialog di conferma, stato mobile sidebar). Quando la stessa logica è esprimibile come funzione pura (senza stato Vue), si preferisce una funzione pura testabile con Vitest a un composable, riservando i composable ai casi che hanno davvero bisogno di stato reattivo o lifecycle.
-- **Gestione errori**: gli errori verso l'utente passano dal sistema di toast (`useToast`); le azioni distruttive (eliminazione atleta, scarto di una bozza con dati) richiedono conferma esplicita tramite `useConfirmDialog`, mai `window.confirm`/`alert` nativi.
+- **Gestione errori**: gli errori verso l'utente passano dal sistema di toast (`showToast(msg, "error")`, o `showResultToast` per gli esiti `{ ok, message }` degli store); le azioni distruttive (eliminazione atleta, scarto di una bozza con dati) richiedono conferma esplicita tramite `useConfirmDialog`, mai `window.confirm`/`alert` nativi.
 - **Naming**: identificatori di codice in inglese (variabili, funzioni, nomi di file); testo visibile all'utente, commenti e messaggi in italiano.
 
 ## Come aggiungere un campo al modello dati

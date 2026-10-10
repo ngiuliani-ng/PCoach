@@ -31,10 +31,11 @@ Rigenera `app/src/schema/types.generated.ts` da `app/src/schema/athlete_profile.
 npm run test
 ```
 
-Esegue Vitest (`vitest run`) su tutti i file `*.test.ts`. Stato attuale: **38 test** in 5 file:
+Esegue Vitest (`vitest run`) su tutti i file `*.test.ts`. Stato attuale: **42 test** in 6 file:
 
 | File | Test |
 |---|---|
+| `constants.test.ts` | 4 |
 | `composables/useConnectionStatus.test.ts` | 4 |
 | `composables/useDirtyState.test.ts` | 9 |
 | `schema/migrations/identitySplit.test.ts` | 7 |
