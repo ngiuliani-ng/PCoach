@@ -8,6 +8,7 @@
     "build": "vue-tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:e2e": "playwright test",
     "gen:types": "json2ts -i src/schema/athlete_profile.schema.json -o src/schema/types.generated.ts --bannerComment \"// File generato automaticamente da athlete_profile.schema.json. Non modificare a mano.\\n// Rigenerare con: npm run gen:types\""
   },
   "dependencies": {
@@ -17,6 +18,7 @@
     "vue": "^3.5.42"
   },
   "devDependencies": {
+    "@playwright/test": "^1.56.1",
     "@types/node": "^24.19.1",
     "@vitejs/plugin-vue": "^6.0.8",
     "@vue/test-utils": "^2.5.1",

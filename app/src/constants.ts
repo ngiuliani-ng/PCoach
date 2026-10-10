@@ -113,47 +113,57 @@ export const SWIM_THRESHOLD_FIELDS: MetricFieldDef[] = [
   { key: "css_pace_per_100m", label: "CSS (min/100m)", type: "text" }
 ];
 
-// Struttura JSON iniettata nel prompt di generazione, così Claude sa esattamente cosa restituire
-// (specifica-tecnica.md §5.3).
+// Formato della risposta richiesto a Claude per generare le sedute (ADR 0017). PCoach ricava
+// da solo giorno della settimana e metrica dei target: Claude indica solo date e zone.
 export const TRAINING_PLAN_JSON_SHAPE = `{
   "plan_name": "string",
-  "start_date": "YYYY-MM-DD",
   "weeks": [
+    { "week_start": "YYYY-MM-DD (lunedì)", "label": "string", "is_deload": false }
+  ],
+  "workouts": [
     {
-      "week_number": 1,
-      "week_label": "string",
-      "is_deload": false,
-      "sessions": [
-        {
-          "date": "YYYY-MM-DD",
-          "day": "lunedi|martedi|mercoledi|giovedi|venerdi|sabato|domenica",
-          "session_type": "string",
-          "discipline": "running|cycling|swimming|strength",
-          "is_structured": false,
-          "target_zone": "string",
-          "target_duration_min": null,
-          "target_distance_km": null,
-          "notes": "string",
-          "steps": []
-        }
+      "date": "YYYY-MM-DD",
+      "discipline": "running|cycling|swimming|strength",
+      "title": "nome tecnico breve della seduta",
+      "objective": "obiettivo della seduta in una frase",
+      "notes": "istruzioni per l'atleta",
+      "duration_min": null,
+      "steps": [
+        { "kind": "step", "role": "warmup|work|recovery|steady|cooldown", "duration_sec": 600, "distance_m": null, "zone": "Z2", "zone_to": null, "cue": "" },
+        { "kind": "repeat", "count": 4, "label": "Serie principale", "steps": [
+          { "kind": "step", "role": "work", "duration_sec": 240, "distance_m": null, "zone": "Z5", "zone_to": null, "cue": "" },
+          { "kind": "step", "role": "recovery", "duration_sec": 180, "distance_m": null, "zone": "Z1", "zone_to": null, "cue": "" }
+        ] }
       ]
     }
   ]
 }
-Se is_structured e' true, usa steps[] invece dei campi target_*. Ogni step: { "kind": "warmup|cooldown|block", "duration_sec": null, "distance_m": null, "zone": "string", "description": "string" } oppure, per le ripetute uniformi: { "kind": "repeat", "repetitions": 1, "work": { "duration_sec": null, "distance_m": null, "zone": "string", "description": "string" }, "recovery": { "duration_sec": null, "distance_m": null, "zone": "string", "description": "string" } }.`;
+Regole del formato:
+- Ogni step ha duration_sec (secondi) oppure distance_m (metri), mai entrambi.
+- zone e zone_to sono zone da Z1 a Z7 (zone_to solo per un intervallo, ad esempio Z2-Z3). Niente percentuali, watt o passi assoluti: la metrica la sceglie PCoach (bici in potenza o frequenza cardiaca, corsa e nuoto in zone di passo).
+- Una ripetuta (kind "repeat") contiene solo step, mai altre ripetute.
+- Anche le sedute a ritmo costante hanno steps (un solo step "steady").
+- Palestra (strength): steps vuoto, duration_min valorizzato, esercizi e serie in notes.`;
 
-export const DEFAULT_PLAN_PROMPT = `Sei un coach esperto di allenamento endurance (corsa, bici, nuoto, palestra). Genera un piano di allenamento di {{settimane}} settimane per l'atleta {{nome_atleta}}, seguendo esattamente il formato JSON indicato sotto.
+export const DEFAULT_PLAN_PROMPT = `Sei un coach esperto di allenamento endurance (corsa, bici, nuoto, palestra). Prepara le sedute di {{settimane}} settimane per l'atleta {{nome_atleta}}, dal {{data_inizio}} al {{data_fine}} compresi.
 
-Dati atleta:
+Dati dell'atleta (profilo, soglie, carico recente, sedute delle ultime due settimane con l'esito):
 {{contesto_atleta_json}}
+
+Motivo della pianificazione indicato dal coach:
+{{motivo}}
+
+Sedute già fissate nel periodo, da NON ripetere né spostare (pianifica intorno a queste, tenendone conto nel carico):
+{{sedute_fisse_json}}
 
 Restituisci SOLO un oggetto JSON valido (puoi racchiuderlo in un blocco di codice \`\`\`json, oppure scriverlo senza altro testo prima o dopo), con questa struttura esatta:
 {{formato_training_plan_json}}
 
 Regole:
-- Le date delle sessioni devono essere reali (YYYY-MM-DD), a partire dalla data di oggi.
-- Rispetta i vincoli di disponibilità settimanale e lo schema di carico/scarico dell'atleta.
-- Usa is_structured: true e steps[] solo per le sessioni con intervalli; per le sessioni a blocco unico (easy, lunga, palestra generica) usa is_structured: false con i campi target_*.`;
+- Tutte le date devono cadere tra {{data_inizio}} e {{data_fine}}.
+- Rispetta i giorni disponibili, la durata massima per giorno e il numero di sedute a settimana dell'atleta.
+- Rispetta la distribuzione dell'intensità e lo schema di carico e scarico indicati.
+- Tieni conto del carico recente (CTL, ATL, TSB) e delle sedute non svolte.`;
 
 export const DEFAULT_FEEDBACK_PROMPT = `Sei un coach esperto. Confronta la settimana pianificata con quella effettivamente svolta dall'atleta {{nome_atleta}} e scrivi un feedback breve (massimo 200 parole) in italiano: aderenza al piano, scostamenti di carico, suggerimenti per la settimana successiva.
 
@@ -163,15 +173,10 @@ Piano pianificato per questa settimana:
 Allenamenti realmente svolti questa settimana:
 {{settimana_reale_json}}`;
 
-export function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-export function addDaysISO(dateStr: string, days: number): string {
-  const d = new Date(dateStr + "T00:00:00");
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
-}
+// Date come "YYYY-MM-DD" nel calendario locale: implementazione nel modulo condiviso con le
+// Edge Function (aritmetica a mezzogiorno UTC, immune ai fusi orari).
+import { addDaysISO, todayISO } from "@shared/workouts/calendar.ts";
+export { addDaysISO, todayISO };
 
 export function numOrNull(v: unknown): number | null {
   return v === "" || v === null || v === undefined ? null : Number(v as string);

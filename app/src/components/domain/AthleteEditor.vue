@@ -1,40 +1,40 @@
 <script setup lang="ts">
-// Editor scheda atleta, diviso in due viste (ADR 0016):
-// - Panoramica: cio' che il coach consulta ogni giorno (carico e forma, piano, feedback);
+// Editor scheda atleta, diviso in tre viste (ADR 0016, ADR 0017):
+// - Panoramica: cio' che il coach consulta ogni giorno (carico e forma, settimana in corso, feedback);
+// - Piano: le sedute, settimana per settimana, con generazione, revisione e sincronizzazione;
 // - Profilo: i dati dell'atleta che si compilano di rado (identita', discipline, soglie,
 //   stato, obiettivi, vincoli, metodologia, note) e la gestione della scheda.
 // L'header con nome, stato di salvataggio e "Salva" resta sticky in entrambe le viste.
 import { computed, nextTick, ref, watch } from "vue";
 import { useAthletesStore } from "../../stores/athletes";
-import { useSettingsStore } from "../../stores/settings";
+import { useWorkoutsStore } from "../../stores/workouts";
 import {
   TRAINING_SPORT_OPTIONS, LEVEL_OPTIONS, VOLUME_UNITS,
   OBJECTIVE_OPTIONS, SHARED_OBJECTIVE_OPTIONS, EVENT_DISCIPLINE_OPTIONS, EVENT_PRIORITIES,
   LIFESTYLE_FACTOR_OPTIONS, DAY_LABELS, RUN_THRESHOLD_FIELDS, BIKE_THRESHOLD_FIELDS, SWIM_THRESHOLD_FIELDS,
-  TRAINING_PLAN_JSON_SHAPE, PERIODIZATION_LABELS,
+  PERIODIZATION_LABELS,
   fullName, formatDate, disciplineIcon, disciplineLabel, todayISO
 } from "../../constants";
-import { callClaudeProxy, extractJsonBlock, copyToClipboardFallback } from "../../services/claude";
-import { buildPlanPrompt } from "../../services/planPrompt";
+import { addDaysISO, weekStartISO } from "@shared/workouts/calendar.ts";
 import { showToast, showResultToast } from "../../composables/useToast";
 import { confirmDialog } from "../../composables/useConfirmDialog";
 import { useIntervalsSync } from "../../composables/useIntervalsSync";
-import { usePlanWeeksUi } from "../../composables/usePlanWeeksUi";
 import MetricLogList from "./MetricLogList.vue";
 import LoadMetricsChart from "./LoadMetricsChart.vue";
-import PlanView from "./PlanView.vue";
+import PlanTab from "./PlanTab.vue";
+import WorkoutRow from "./WorkoutRow.vue";
 import PasswordField from "../ui/PasswordField.vue";
 import IconButton from "../ui/IconButton.vue";
 import { Download, Plus, Trash2 } from "lucide-vue-next";
 
 const athletes = useAthletesStore();
-const settings = useSettingsStore();
+const workouts = useWorkoutsStore();
 
 const profile = computed(() => athletes.currentProfile!);
 
-// ---------- Viste (Panoramica / Profilo) ----------
-type Tab = "overview" | "profile";
-const TABS: [Tab, string][] = [["overview", "Panoramica"], ["profile", "Profilo"]];
+// ---------- Viste (Panoramica / Piano / Profilo) ----------
+type Tab = "overview" | "plan" | "profile";
+const TABS: [Tab, string][] = [["overview", "Panoramica"], ["plan", "Piano"], ["profile", "Profilo"]];
 const tab = ref<Tab>("overview");
 // Il primo salvataggio di una bozza assegna un id: non deve far cambiare vista.
 let keepTabOnNextIdChange = false;
@@ -53,7 +53,8 @@ watch(
 function onTabKeydown(event: KeyboardEvent) {
   if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
   event.preventDefault();
-  tab.value = tab.value === "overview" ? "profile" : "overview";
+  const i = TABS.findIndex(([key]) => key === tab.value);
+  tab.value = TABS[(i + (event.key === "ArrowRight" ? 1 : TABS.length - 1)) % TABS.length][0];
   nextTick(() => document.getElementById(`tab-${tab.value}`)?.focus());
 }
 async function goToSection(sectionId: string) {
@@ -127,7 +128,6 @@ const thresholdSport = ref<ThresholdSport>("running");
 // Sincronizzazione automatica (§7.2/§7.4): la chiave attiva/aggiorna da sola in base ai
 // trigger previsti (digitazione con debounce, apertura scheda, pressione "Genera piano").
 const intervalsSync = useIntervalsSync();
-const weeksUi = usePlanWeeksUi();
 const intervalsSyncing = computed(() => intervalsSync.isSyncing(athletes.currentId));
 const intervalsKeyStatus = computed(() => intervalsSync.statusFor(athletes.currentId));
 const hasIntervalsKey = computed(() => !!profile.value.integrations?.intervals_icu_api_key);
@@ -163,69 +163,14 @@ async function onReloadRemote() {
   showToast("Scheda ricaricata con i dati più recenti.");
 }
 
-// ---------- Piano ----------
-const planWeeks = ref(8);
-const generatingPlan = ref(false);
-const planPreviewText = ref("");
-const showPlanPreview = ref(false);
-const showAdvancedPlanEdit = ref(false);
-
-const planStateKey = computed(() => (athletes.currentId || "draft") + ":plan");
-const previewStateKey = computed(() => (athletes.currentId || "draft") + ":preview");
-const parsedPlanPreview = computed(() => {
-  try {
-    return JSON.parse(planPreviewText.value);
-  } catch {
-    return null;
-  }
+// ---------- Sedute ----------
+// Le sedute vivono in tabelle proprie (ADR 0017): si caricano all'apertura della scheda.
+watch(() => athletes.currentId, (id) => void workouts.load(id), { immediate: true });
+const thisWeek = computed(() => {
+  const start = weekStartISO(todayISO());
+  const end = addDaysISO(start, 6);
+  return workouts.workouts.filter((w) => w.planned_date >= start && w.planned_date <= end && (w.status === "draft" || w.status === "approved"));
 });
-
-async function generatePlan() {
-  await intervalsSync.syncNow(athletes.currentId, profile.value.integrations?.intervals_icu_api_key);
-  const weeks = planWeeks.value || 8;
-  const prompt = buildPlanPrompt(profile.value, weeks, TRAINING_PLAN_JSON_SHAPE, settings.settings.plan_generation_prompt_template);
-  if (!settings.settings.claude_api_key) {
-    const copied = await copyToClipboardFallback(prompt);
-    if (copied) showToast("Claude non è configurato: prompt copiato negli appunti, incollalo in Claude.");
-    else showToast("Claude non è configurato e la copia negli appunti non è riuscita. Aggiungi la chiave in Impostazioni.", "error");
-    return;
-  }
-  generatingPlan.value = true;
-  // Un piano richiede all'incirca 1800 token di output a settimana (verificato: 8 settimane
-  // troncavano a 8000 token appena oltre metà piano); margine per preambolo/chiusura JSON.
-  const maxTokens = Math.min(64000, weeks * 1800 + 2000);
-  const result = await callClaudeProxy(prompt, maxTokens, settings.settings.claude_model);
-  generatingPlan.value = false;
-  if (!result.ok) {
-    showToast(result.error, "error");
-    return;
-  }
-  const parsed = extractJsonBlock(result.text);
-  if (!parsed) {
-    showToast(
-      result.truncated
-        ? "Risposta di Claude troncata per limite di token: riduci le settimane da generare o riprova."
-        : "La risposta di Claude non è un JSON valido: riprova a generare il piano.",
-      "error"
-    );
-    return;
-  }
-  planPreviewText.value = JSON.stringify(parsed, null, 2);
-  showPlanPreview.value = true;
-}
-function confirmPlanPreview() {
-  try {
-    profile.value.training_plan = JSON.parse(planPreviewText.value);
-    showPlanPreview.value = false;
-    showAdvancedPlanEdit.value = false;
-    weeksUi.reset(planStateKey.value);
-  } catch {
-    showToast("Il JSON del piano non è valido: correggilo prima di confermare.", "error");
-  }
-}
-function discardPlanPreview() {
-  showPlanPreview.value = false;
-}
 
 // ---------- Feedback ----------
 const feedbackShowAll = ref(false);
@@ -311,33 +256,18 @@ function onExport() {
       </section>
 
       <section class="block">
-        <h3>Piano</h3>
-        <PlanView :training-plan="profile.training_plan" :state-key="planStateKey">
-          <template #empty>Nessun piano assegnato. Scegli quante settimane generare e premi «Genera piano».</template>
-        </PlanView>
-        <div class="plan-generate">
-          <label class="field plan-weeks-field">
-            <span class="field-label">Settimane da generare</span>
-            <input type="number" min="1" max="30" v-model.number="planWeeks" />
-          </label>
-          <button type="button" class="primary" :disabled="generatingPlan" @click="generatePlan">
-            {{ generatingPlan ? "Generazione in corso…" : "Genera piano" }}
-          </button>
-        </div>
-        <div v-if="showPlanPreview" class="plan-preview">
-          <h4 class="subsection-title">Anteprima del piano generato</h4>
-          <p class="helper-text">Controlla il piano: diventa il piano assegnato solo quando premi «Conferma piano» e poi salvi la scheda.</p>
-          <PlanView :training-plan="parsedPlanPreview" :state-key="previewStateKey" />
-          <p v-if="!parsedPlanPreview" class="helper-text error-text">Il JSON del piano non è valido.</p>
-          <button type="button" class="link-btn" @click="showAdvancedPlanEdit = !showAdvancedPlanEdit">
-            {{ showAdvancedPlanEdit ? "Nascondi il JSON" : "Modifica il JSON" }}
-          </button>
-          <textarea v-if="showAdvancedPlanEdit" v-model="planPreviewText" rows="10" class="mono-input json-editor" aria-label="JSON del piano"></textarea>
-          <div class="action-bar">
-            <button type="button" class="primary" :disabled="!parsedPlanPreview" @click="confirmPlanPreview">Conferma piano</button>
-            <button type="button" class="ghost" @click="discardPlanPreview">Scarta anteprima</button>
+        <h3>Questa settimana</h3>
+        <p v-if="!athletes.currentId" class="helper-text">Salva la scheda per pianificare le sedute.</p>
+        <p v-else-if="!thisWeek.length" class="helper-text">
+          Nessuna seduta in programma questa settimana.
+          <button type="button" class="link-btn" @click="tab = 'plan'">Apri il piano</button>
+        </p>
+        <template v-else>
+          <div class="week-unit">
+            <WorkoutRow v-for="w in thisWeek" :key="w.id" :workout="w" :sync="workouts.syncRows[w.id]" show-date readonly @open="tab = 'plan'" />
           </div>
-        </div>
+          <button type="button" class="link-btn overview-plan-link" @click="tab = 'plan'">Apri il piano</button>
+        </template>
       </section>
 
       <section class="block">
@@ -358,6 +288,12 @@ function onExport() {
           {{ feedbackShowAll ? "Mostra solo i più recenti" : `Mostra tutti (${sortedFeedback.length})` }}
         </button>
       </section>
+    </div>
+
+    <!-- ===================== Piano ===================== -->
+    <div v-if="tab === 'plan'" id="panel-plan" role="tabpanel" aria-labelledby="tab-plan">
+      <PlanTab v-if="athletes.currentId" @go-profile="goToSection" />
+      <p v-else class="helper-text">Salva la scheda per pianificare le sedute.</p>
     </div>
 
     <!-- ===================== Profilo ===================== -->
@@ -393,7 +329,7 @@ function onExport() {
           <PasswordField v-model="profile.integrations!.intervals_icu_api_key as string" input-id="intervals-api-key" />
         </div>
         <p v-if="intervalsStatusText" class="helper-text status-text" :class="{ 'error-text': intervalsKeyStatus === 'invalid' }">{{ intervalsStatusText }}</p>
-        <p class="helper-text">Con la chiave, il carico di allenamento si aggiorna da solo quando la inserisci, quando apri la scheda e quando generi un piano.</p>
+        <p class="helper-text">Con la chiave, il carico di allenamento si aggiorna da solo quando la inserisci, quando apri la scheda e quando generi un piano, e le sedute approvate si possono inviare al calendario dell'atleta con «Sincronizza settimana».</p>
       </section>
 
       <section class="block">

@@ -141,9 +141,39 @@ function mergeWellnessIntoLog(
   return { log, updatedCount };
 }
 
+// Sedute pianificate nella settimana (tabella workouts, ADR 0017): solo quelle attive, nella
+// forma leggibile che il template del feedback passa a Claude. Finche' il piano salvato nella
+// scheda non e' stato importato (lo fa l'app al primo avvio), si legge ancora quello: cosi'
+// il feedback non dipende dall'ordine in cui vengono pubblicate app e funzione.
+async function fetchPlannedWeek(
+  supabaseUrl: string,
+  headers: Record<string, string>,
+  athleteId: string,
+  // deno-lint-ignore no-explicit-any
+  legacyPlan: any,
+  oldest: string,
+  newest: string
+): Promise<unknown[] | null> {
+  const id = encodeURIComponent(athleteId);
+  const query = `athlete_id=eq.${id}&planned_date=gte.${oldest}&planned_date=lte.${newest}` +
+    `&status=in.(draft,approved)&select=planned_date,discipline,title,objective,duration_min,structure,status,completed_at&order=planned_date`;
+  try {
+    const [res, importRes] = await Promise.all([
+      fetch(`${supabaseUrl}/rest/v1/workouts?${query}`, { headers }),
+      fetch(`${supabaseUrl}/rest/v1/plan_generations?athlete_id=eq.${id}&kind=eq.legacy_import&select=id`, { headers }),
+    ]);
+    if (!res.ok || !importRes.ok) return null;
+    const planned: unknown[] = await res.json();
+    const imported: unknown[] = await importRes.json();
+    if (!imported.length && legacyPlan?.weeks) return legacyPlannedWeek(legacyPlan, oldest, newest);
+    return planned;
+  } catch {
+    return null;
+  }
+}
+
 // deno-lint-ignore no-explicit-any
-function plannedWeekFromPlan(trainingPlan: any, oldest: string, newest: string): unknown[] {
-  if (!trainingPlan?.weeks) return [];
+function legacyPlannedWeek(trainingPlan: any, oldest: string, newest: string): unknown[] {
   const sessions: unknown[] = [];
   // deno-lint-ignore no-explicit-any
   trainingPlan.weeks.forEach((week: any) => {
@@ -291,8 +321,13 @@ Deno.serve(async (req: Request) => {
         }
       }
 
-      if (!profile?.training_plan) {
-        results.push({ athleteId, status: "skipped", detail: "Nessun piano assegnato." });
+      const plannedWeek = await fetchPlannedWeek(supabaseUrl, restHeaders, athleteId, profile?.training_plan, oldest, newest);
+      if (plannedWeek === null) {
+        results.push({ athleteId, status: "error", detail: "Lettura delle sedute pianificate non riuscita." });
+        continue;
+      }
+      if (!plannedWeek.length) {
+        results.push({ athleteId, status: "skipped", detail: "Nessuna seduta pianificata nella settimana." });
         continue;
       }
       const existingLog: Array<{ date: string }> = profile.weekly_feedback_log || [];
@@ -306,7 +341,6 @@ Deno.serve(async (req: Request) => {
         results.push({ athleteId, status: "error", detail: actRes.error });
         continue;
       }
-      const plannedWeek = plannedWeekFromPlan(profile.training_plan, oldest, newest);
       const prompt = buildFeedbackPrompt(profile.identity, plannedWeek, actRes.activities, settings.weekly_feedback_prompt_template);
       const claudeRes = await callClaude(prompt, 1024, settings.claude_model || "claude-sonnet-4-5", settings.claude_api_key);
       if (!claudeRes.ok) {

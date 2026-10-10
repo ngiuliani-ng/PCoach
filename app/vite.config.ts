@@ -1,10 +1,23 @@
+/// <reference types="vitest/config" />
+import { fileURLToPath } from 'node:url'
 import vue from '@vitejs/plugin-vue'
-import { defineConfig } from 'vite'
+import { defineConfig, searchForWorkspaceRoot } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
   base: '/PCoach/',
+  // Moduli puri condivisi con le Edge Function (supabase/functions/_shared): stesso codice
+  // per l'anteprima nell'app e per l'invio a Intervals.icu.
+  resolve: {
+    alias: { '@shared': fileURLToPath(new URL('../supabase/functions/_shared', import.meta.url)) },
+  },
+  server: {
+    fs: { allow: [searchForWorkspaceRoot(process.cwd()), '../supabase/functions/_shared'] },
+  },
+  test: {
+    include: ['src/**/*.test.ts'],
+  },
   plugins: [
     vue(),
     VitePWA({
