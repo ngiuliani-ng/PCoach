@@ -83,6 +83,7 @@ type Filter = { key: string; label: string; test: (w: WorkoutRecord) => boolean 
 const FILTERS: Filter[] = [
   { key: "all", label: "Tutte", test: () => true },
   { key: "review", label: "Da revisionare", test: (w) => w.status === "draft" },
+  { key: "needs_review", label: "Struttura da verificare", test: (w) => !!w.needs_review && isActiveStatus(w.status) },
   { key: "approved", label: "Approvate", test: (w) => w.status === "approved" },
   { key: "synced", label: "Su Intervals.icu", test: (w) => localSyncState(w, store.syncRows[w.id]) === "synced" },
   { key: "outdated", label: "Da aggiornare", test: (w) => localSyncState(w, store.syncRows[w.id]) === "outdated" },

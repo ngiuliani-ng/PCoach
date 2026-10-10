@@ -6,6 +6,11 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
+**2026-10-10 — Filtro «Struttura da verificare» nello Storico della tab Piano**
+Nuovo chip nello Storico per le sedute attive con `needs_review`, cioè quelle importate con un target non riconoscibile o senza durata, che non si possono inviare a Intervals.icu finché non vengono corrette.
+*Motivazione*: dopo l'import dei piani esistenti 4 sedute su 237 richiedevano una correzione e si potevano trovare solo scorrendo le settimane.
+*Docs aggiornati*: [design-ui.md](docs/design-ui.md).
+
 **2026-10-10 — Sedute come entità proprie: tab Piano, rigenerazione controllata, «Sincronizza settimana» con Intervals.icu**
 Le sedute escono dalla scheda e passano in tabelle proprie (`0004_workouts.sql`: `training_plans`, `plan_generations`, `workouts`, `workout_sync`, `workout_events`). Ogni seduta ha identità stabile, revisione gestita da trigger, cronologia e tre stati separati: approvazione, esecuzione, sincronizzazione.
 - **Tab Piano** con vista per settimana e storico filtrabile, pannello della seduta con editor della struttura (step e ripetute) e anteprima del testo per Intervals.icu, approvazione singola o della settimana, annullamento e ripristino.
