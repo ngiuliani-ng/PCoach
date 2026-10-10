@@ -4,6 +4,7 @@ import { addDaysISO, fullName, todayISO } from "../constants";
 import type { AthleteTrainingProfile } from "../schema/types.generated";
 import { workoutTotals, zoneLabel, flattenSteps } from "@shared/workouts/structure.ts";
 import type { WorkoutContent } from "@shared/workouts/structure.ts";
+import { dayName, planningCalendar } from "../domain/availability";
 
 /** Seduta esistente come la vede Claude: sintetica, senza identificativi interni. */
 export interface PromptWorkout extends WorkoutContent {
@@ -16,6 +17,7 @@ function summarize(w: PromptWorkout) {
   const zones = [...new Set(flattenSteps(w.structure).map((s) => zoneLabel(s.target)).filter(Boolean))];
   return {
     date: w.planned_date,
+    day: dayName(w.planned_date),
     discipline: w.discipline,
     title: w.title,
     minutes: Math.round(totals.seconds / 60),
@@ -70,7 +72,7 @@ export interface PlanPromptInput {
 
 // Segnaposto senza i quali Claude non conoscerebbe periodo e vincoli: se un template
 // personalizzato non li contiene, il blocco viene aggiunto in fondo.
-const REQUIRED = ["data_inizio", "data_fine", "sedute_fisse_json", "formato_training_plan_json"];
+const REQUIRED = ["data_inizio", "data_fine", "calendario_json", "sedute_fisse_json", "formato_training_plan_json"];
 
 export function buildPlanPrompt(profile: AthleteTrainingProfile, input: PlanPromptInput, planJsonShape: string, template: string): string {
   const toDate = addDaysISO(input.fromDate, input.weeks * 7 - 1);
@@ -81,12 +83,14 @@ export function buildPlanPrompt(profile: AthleteTrainingProfile, input: PlanProm
     formato_training_plan_json: planJsonShape,
     data_inizio: input.fromDate,
     data_fine: toDate,
+    // Il giorno della settimana di ogni data e' calcolato qui: Claude lo sbaglia.
+    calendario_json: JSON.stringify(planningCalendar(profile.constraints, input.fromDate, input.weeks)),
     sedute_fisse_json: JSON.stringify(input.fixed.map(summarize), null, 2),
     motivo: input.reason.trim() || "Nessun motivo indicato."
   };
   let text = template;
   if (REQUIRED.some((key) => !template.includes(`{{${key}}}`))) {
-    text += `\n\nPeriodo: dal {{data_inizio}} al {{data_fine}} compresi. Motivo: {{motivo}}\nSedute già fissate da non ripetere:\n{{sedute_fisse_json}}\nFormato della risposta:\n{{formato_training_plan_json}}`;
+    text += `\n\nPeriodo: dal {{data_inizio}} al {{data_fine}} compresi. Motivo: {{motivo}}\nCalendario (usa solo le date disponibili, entro la durata massima del giorno):\n{{calendario_json}}\nSedute già fissate da non ripetere:\n{{sedute_fisse_json}}\nFormato della risposta:\n{{formato_training_plan_json}}`;
   }
   return interpolate(text, values);
 }

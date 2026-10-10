@@ -122,7 +122,8 @@ export const TRAINING_PLAN_JSON_SHAPE = `{
   ],
   "workouts": [
     {
-      "date": "YYYY-MM-DD",
+      "date": "YYYY-MM-DD (copiata dal calendario)",
+      "day": "lunedi|martedi|mercoledi|giovedi|venerdi|sabato|domenica (il giorno di quella data nel calendario)",
       "discipline": "running|cycling|swimming|strength",
       "title": "nome tecnico breve della seduta",
       "objective": "obiettivo della seduta in una frase",
@@ -139,6 +140,7 @@ export const TRAINING_PLAN_JSON_SHAPE = `{
   ]
 }
 Regole del formato:
+- date e day vengono dal calendario fornito: non calcolare tu il giorno della settimana di una data.
 - Ogni step ha duration_sec (secondi) oppure distance_m (metri), mai entrambi.
 - zone e zone_to sono zone da Z1 a Z7 (zone_to solo per un intervallo, ad esempio Z2-Z3). Niente percentuali, watt o passi assoluti: la metrica la sceglie PCoach (bici in potenza o frequenza cardiaca, corsa e nuoto in zone di passo).
 - Una ripetuta (kind "repeat") contiene solo step, mai altre ripetute.
@@ -153,6 +155,9 @@ Dati dell'atleta (profilo, soglie, carico recente, sedute delle ultime due setti
 Motivo della pianificazione indicato dal coach:
 {{motivo}}
 
+Calendario del periodo, già calcolato: per ogni data il giorno della settimana, se l'atleta è disponibile, la durata massima in minuti di quel giorno e l'attività che fa di solito:
+{{calendario_json}}
+
 Sedute già fissate nel periodo, da NON ripetere né spostare (pianifica intorno a queste, tenendone conto nel carico):
 {{sedute_fisse_json}}
 
@@ -160,8 +165,10 @@ Restituisci SOLO un oggetto JSON valido (puoi racchiuderlo in un blocco di codic
 {{formato_training_plan_json}}
 
 Regole:
-- Tutte le date devono cadere tra {{data_inizio}} e {{data_fine}}.
-- Rispetta i giorni disponibili, la durata massima per giorno e il numero di sedute a settimana dell'atleta.
+- Usa solo date del calendario con "disponibile": true. Non pianificare nulla nelle altre.
+- La somma delle durate delle sedute di un giorno non deve superare "durata_massima_min" di quel giorno.
+- L'attività abituale indica cosa l'atleta fa di solito quel giorno: rispettala come disciplina e tipo di seduta, salvo motivo diverso indicato dal coach.
+- Rispetta il numero di sedute a settimana dell'atleta.
 - Rispetta la distribuzione dell'intensità e lo schema di carico e scarico indicati.
 - Tieni conto del carico recente (CTL, ATL, TSB) e delle sedute non svolte.`;
 

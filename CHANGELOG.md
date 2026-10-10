@@ -6,6 +6,16 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
+**2026-10-10 — Giorni delle sedute: calendario esplicito per Claude e controllo dei vincoli**
+- Nel prompt di generazione, nuovo segnaposto `{{calendario_json}}`: ogni data del periodo con giorno della settimana, disponibilità, durata massima e attività abituale. Claude restituisce `date` e `day`.
+- `parseProposal` porta la data al giorno indicato se non coincidono. Segna inoltre «da verificare» le sedute in giorni non disponibili o oltre la durata massima del giorno (`domain/availability.ts`), con il motivo mostrato nell'anteprima.
+- Nell'import dei piani salvati vale il giorno e non la data.
+- In produzione, 29 sedute importate di 2 atleti sono state riportate di un giorno indietro, al giorno del piano originale, con una nota nella cronologia di ciascuna.
+- Test: 75 unitari.
+
+*Motivazione*: molte sedute risultavano spostate di un giorno in avanti e una rigenerazione non rispettava la disponibilità. Claude sbaglia il calcolo del giorno della settimana a partire da una data, e l'import aveva dato ragione alla data.
+*Docs aggiornati*: [integrazioni.md](docs/integrazioni.md), [sviluppo-deploy.md](docs/sviluppo-deploy.md), [decisioni/0017](docs/decisioni/0017-sedute-entita-proprie-sincronizzazione-intervals.md).
+
 **2026-10-10 — Filtro «Struttura da verificare» nello Storico della tab Piano**
 Nuovo chip nello Storico per le sedute attive con `needs_review`, cioè quelle importate con un target non riconoscibile o senza durata, che non si possono inviare a Intervals.icu finché non vengono corrette.
 *Motivazione*: dopo l'import dei piani esistenti 4 sedute su 237 richiedevano una correzione e si potevano trovare solo scorrendo le settimane.

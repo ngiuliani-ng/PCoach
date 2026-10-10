@@ -75,11 +75,14 @@ Eliminare o annullare una seduta in PCoach non rimuove mai da solo l'evento remo
 ## Claude (generazione delle sedute)
 
 Flusso: `RegenerateDialog.vue` → `planPrompt.ts` costruisce il prompt → `services/claude.ts` (`callClaudeProxy`) → Edge Function `claude-proxy` (vedi [backend.md](backend.md)) → `api.anthropic.com`. La risposta viene salvata in `plan_generations` e letta da `parseProposal` (`domain/regeneration.ts`):
+- se `day` e `date` non coincidono, porta la data al giorno indicato (entro tre giorni) e lo segnala tra gli avvisi;
 - scarta le sedute fuori dal periodo richiesto;
-- ricava il giorno dalla data;
-- assegna la metrica dei target per disciplina.
+- assegna la metrica dei target per disciplina;
+- con `availabilityIssues` (`domain/availability.ts`) segna «da verificare» (`needs_review`) le sedute in un giorno non disponibile, o che fanno superare la durata massima del giorno contando anche le sedute mantenute. Il motivo compare sotto la seduta nell'anteprima, e la seduta non si approva finché il coach non la rivede.
 
 Il coach la vede come anteprima delle differenze prima di applicarla (vedi [architettura.md](architettura.md#flussi-principali)).
+
+**Calendario esplicito**: Claude sbaglia a ricavare il giorno della settimana da una data. Verificato il 2026-10-10: piani interi sfalsati di un giorno, anche verso giorni non disponibili. Per questo il prompt non chiede mai a Claude di fare questo calcolo. `planningCalendar` gli passa ogni data del periodo con il giorno, la disponibilità, la durata massima e l'attività abituale; Claude copia `date` e `day` dal calendario, e il controllo sopra rimedia agli errori residui.
 
 **Contesto atleta inviato a Claude** (`buildAthleteContextForPrompt`):
 - identità e discipline;
@@ -88,9 +91,9 @@ Il coach la vede come anteprima delle differenze prima di applicarla (vedi [arch
 - obiettivi, vincoli, preferenze metodologiche, note libere;
 - le sedute delle due settimane precedenti la data d'inizio, con l'esito (svolta, non svolta).
 
-**Placeholder del template prompt** (sostituiti da `buildPlanPrompt`): `{{settimane}}`, `{{nome_atleta}}`, `{{contesto_atleta_json}}`, `{{formato_training_plan_json}}`, `{{data_inizio}}`, `{{data_fine}}`, `{{sedute_fisse_json}}` (sedute mantenute o svolte nel periodo, da non ripetere), `{{motivo}}`. Se un template personalizzato non contiene periodo, sedute fisse e formato, questi vengono aggiunti in fondo.
+**Placeholder del template prompt** (sostituiti da `buildPlanPrompt`): `{{settimane}}`, `{{nome_atleta}}`, `{{contesto_atleta_json}}`, `{{formato_training_plan_json}}`, `{{data_inizio}}`, `{{data_fine}}`, `{{calendario_json}}` (ogni data del periodo con `giorno`, `disponibile`, `durata_massima_min`, `attivita_abituale`), `{{sedute_fisse_json}}` (sedute mantenute o svolte nel periodo, da non ripetere, con il giorno della settimana), `{{motivo}}`. Se un template personalizzato non contiene periodo, calendario, sedute fisse e formato, questi vengono aggiunti in fondo.
 
-**Formato richiesto** (`TRAINING_PLAN_JSON_SHAPE`): `plan_name`, `weeks[]` (`week_start`, `label`, `is_deload`) e `workouts[]`. Ogni seduta ha `date`, `discipline`, `title`, `objective`, `notes`, `duration_min` (solo palestra) e `steps[]` (step con `duration_sec` o `distance_m` e `zone`/`zone_to` da Z1 a Z7; ripetute con `count` e `steps`). Claude indica solo zone: la metrica la sceglie PCoach.
+**Formato richiesto** (`TRAINING_PLAN_JSON_SHAPE`): `plan_name`, `weeks[]` (`week_start`, `label`, `is_deload`) e `workouts[]`. Ogni seduta ha `date` e `day` (copiati dal calendario), `discipline`, `title`, `objective`, `notes`, `duration_min` (solo palestra) e `steps[]` (step con `duration_sec` o `distance_m` e `zone`/`zone_to` da Z1 a Z7; ripetute con `count` e `steps`). Claude indica solo zone: la metrica la sceglie PCoach.
 
 **`max_tokens`**: calcolato lato client come `min(64000, settimane × 1800 + 2000)` (`RegenerateDialog.vue`), per scalare lo spazio di risposta in proporzione alla lunghezza del piano richiesto invece di un valore fisso — vedi [decisioni/0004-fase-1-2-decisioni-minori.md](decisioni/0004-fase-1-2-decisioni-minori.md) per il contesto storico e il CHANGELOG per il fix che ha introdotto la formula.
 

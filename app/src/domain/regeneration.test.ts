@@ -56,9 +56,13 @@ describe("import dei piani esistenti", () => {
     expect(bike.primary_target).toBe("power");
   });
 
-  it("annota il giorno incoerente con la data: vale la data", () => {
-    expect(result.workouts[1].change_note).toMatch(/mercoledi/);
+  it("giorno incoerente con la data: vale il giorno, con una nota (caso reale: date di Claude sfalsate di +1)", () => {
+    // 2026-10-06 e' un martedi', il piano diceva mercoledi.
+    expect(result.workouts[1].planned_date).toBe("2026-10-07");
+    expect(result.workouts[1].change_note).toMatch(/indicava mercoledì ma la data era del martedì/);
     expect(result.workouts[0].change_note).toBeNull();
+    // Il fartlek dello stesso giorno diventa la seconda seduta.
+    expect(result.workouts[2]).toMatchObject({ planned_date: "2026-10-07", slot: 1 });
   });
 
   it("marca da verificare i target non riconoscibili e le durate mancanti", () => {

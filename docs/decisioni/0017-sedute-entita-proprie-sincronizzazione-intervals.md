@@ -45,6 +45,22 @@ C'era anche un bug di date: `addDaysISO` serializzava la mezzanotte locale in UT
    `weekly-feedback` legge le tabelle, e il vecchio piano solo per gli atleti non ancora importati.
 10. **Date** come stringhe `YYYY-MM-DD` con aritmetica a mezzogiorno UTC (`_shared/workouts/calendar.ts`); settimana da lunedì a domenica.
 
+## Correzione del 2026-10-10: il giorno della settimana vale più della data
+
+Dopo il rilascio, il coach ha notato sedute spostate di un giorno in avanti, e una rigenerazione che non rispettava i giorni disponibili.
+
+**Causa.** Claude sbaglia a ricavare il giorno della settimana da una data.
+- In 29 sedute di 2 atleti il giorno indicato era corretto (coerente con disponibilità e attività abituali) e la data era quella del giorno dopo. La vecchia vista mostrava il giorno, l'import aveva dato ragione alla data.
+- La prima rigenerazione era sfalsata di +1 su tutta la settimana: Claude aveva preso l'11 ottobre, una domenica, per un lunedì.
+
+**Decisione.**
+- Nell'import e nella lettura della proposta, se giorno e data non coincidono vale il giorno: la data viene portata al giorno indicato, entro tre giorni.
+- Il prompt riceve un calendario già calcolato (data, giorno, disponibilità, durata massima, attività abituale) e Claude restituisce sia la data sia il giorno.
+- Un controllo deterministico segna «da verificare» le sedute proposte in giorni non disponibili o oltre la durata massima del giorno.
+- Le 29 sedute importate sono state riportate al giorno indicato, con una nota nella cronologia.
+
+Il punto 9 della decisione va letto di conseguenza.
+
 ## Motivo
 
 Le tabelle dedicate danno identità, vincoli e concorrenza per seduta. Senza di esse, approvare, sincronizzare e rigenerare una parte del programma senza toccare il resto non è possibile in modo affidabile. Restano poche (cinque) perché revisioni e audit condividono la stessa cronologia invece di avere due tabelle.

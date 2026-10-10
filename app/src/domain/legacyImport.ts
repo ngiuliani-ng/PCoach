@@ -2,10 +2,11 @@
 // sedute. Funzione pura: nessun accesso al database, testata sui casi reali dei piani esistenti.
 // Le sedute importate sono "approvate" (il coach le aveva gia' confermate); quelle con
 // struttura non riconoscibile ricevono needs_review, che ne blocca l'invio a Intervals.icu
-// finche' il coach non le sistema. La data vale piu' del giorno indicato.
+// finche' il coach non le sistema. Se giorno e data non coincidono vale il giorno indicato.
 import { addDaysISO, dayKey, isISODate, weekStartISO } from "@shared/workouts/calendar.ts";
 import type { WorkoutStructure } from "@shared/workouts/structure.ts";
 import { defaultTargetMetric, isDiscipline, validateWorkout } from "@shared/workouts/structure.ts";
+import { alignToDay, dayName, isDayKey } from "./availability";
 import type { NewWorkout } from "./workoutDraft";
 import { disciplineFallbackTitle, readStructure, readZone, singleBlockStructure } from "./workoutDraft";
 
@@ -44,16 +45,23 @@ export function legacyPlanToImport(plan: unknown, hasFtp: boolean): LegacyImport
     const sessions = Array.isArray(week?.sessions) ? (week.sessions as Raw[]) : [];
     const dates: string[] = [];
     for (const s of sessions) {
-      const date = s?.date;
+      const rawDate = s?.date;
       const discipline = s?.discipline;
-      if (!isISODate(date) || !isDiscipline(discipline)) {
+      if (!isISODate(rawDate) || !isDiscipline(discipline)) {
         skipped++;
         continue;
       }
-      dates.push(date);
+      let date: string = rawDate;
       const notes: string[] = [];
-      const day = str(s.day);
-      if (day && day !== dayKey(date)) notes.push(`Il piano indicava «${day}», diverso dal giorno della data: vale la data.`);
+      // Se giorno e data non coincidono vale il giorno: era cio' che il coach vedeva e approvava,
+      // ed e' coerente con la disponibilita' dell'atleta; la data la calcolava Claude, sbagliando.
+      const day = s.day;
+      if (isDayKey(day) && day !== dayKey(date)) {
+        const aligned = alignToDay(date, day);
+        notes.push(`Il piano indicava ${dayName(aligned)} ma la data era del ${dayName(date)}: spostata al ${dayName(aligned)} ${aligned}.`);
+        date = aligned;
+      }
+      dates.push(date);
 
       let structure: WorkoutStructure | null = null;
       let durationMin: number | null = null;

@@ -17,6 +17,9 @@ describe("buildPlanPrompt", () => {
     expect(text).toContain("Affaticamento");
     expect(text).toContain('"title": "Lungo"');
     expect(text).toContain('"minutes": 90');
+    expect(text).toContain('"day": "domenica"');
+    // Il calendario arriva gia' calcolato: il 12 ottobre 2026 e' un lunedi'.
+    expect(text).toContain('{"data":"2026-10-12","giorno":"lunedì","disponibile":true');
     expect(text).toContain('"workouts"');
     expect(text).not.toMatch(/\{\{\w+\}\}/);
   });

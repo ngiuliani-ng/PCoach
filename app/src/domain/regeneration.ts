@@ -1,13 +1,16 @@
 // Generazione e rigenerazione controllata di un piano (funzioni pure).
-// 1. parseProposal: legge la risposta di Claude, scarta cio' che e' fuori dall'intervallo
-//    richiesto e ricava giorno e metrica in modo deterministico.
+// 1. parseProposal: legge la risposta di Claude, riallinea la data al giorno della settimana
+//    indicato, scarta cio' che e' fuori dall'intervallo richiesto, ricava la metrica e segna
+//    "da verificare" le sedute che non rispettano la disponibilita' dell'atleta.
 // 2. regenerationDiff: confronta le sedute esistenti dalla data di ripartenza con la proposta
 //    (mantenute, sostituite, aggiunte, tolte), cioe' cio' che il coach vede prima di applicare.
 // 3. buildApplyPayload: l'input della funzione SQL apply_plan_generation, che applica tutto
 //    in un'unica transazione.
-import { addDaysISO, isISODate, weekStartISO } from "@shared/workouts/calendar.ts";
-import type { Discipline } from "@shared/workouts/structure.ts";
+import { addDaysISO, dayKey, isISODate, weekStartISO } from "@shared/workouts/calendar.ts";
+import type { Discipline, WorkoutContent } from "@shared/workouts/structure.ts";
 import { defaultTargetMetric, isDiscipline } from "@shared/workouts/structure.ts";
+import type { AthleteTrainingProfile } from "../schema/types.generated";
+import { alignToDay, availabilityIssues, isDayKey } from "./availability";
 import type { WeekMeta } from "./legacyImport";
 import type { NewWorkout } from "./workoutDraft";
 import { disciplineFallbackTitle, readStructure } from "./workoutDraft";
@@ -34,10 +37,17 @@ export interface Proposal {
 type Raw = Record<string, unknown>;
 const str = (v: unknown) => (typeof v === "string" ? v : "");
 
-export function parseProposal(
-  raw: unknown,
-  opts: { fromDate: string; weeks: number; hasFtp: boolean }
-): Proposal | { error: string } {
+export interface ParseOptions {
+  fromDate: string;
+  weeks: number;
+  hasFtp: boolean;
+  /** Vincoli dell'atleta: le sedute che non li rispettano arrivano "da verificare". */
+  constraints?: AthleteTrainingProfile["constraints"] | null;
+  /** Sedute mantenute nel periodo: contano per la durata massima del giorno. */
+  fixed?: Pick<WorkoutContent, "planned_date" | "discipline" | "structure" | "duration_min">[];
+}
+
+export function parseProposal(raw: unknown, opts: ParseOptions): Proposal | { error: string } {
   if (!raw || typeof raw !== "object" || !Array.isArray((raw as Raw).workouts)) {
     return { error: "La risposta di Claude non contiene l'elenco «workouts»." };
   }
@@ -47,11 +57,19 @@ export function parseProposal(
   const workouts: NewWorkout[] = [];
   let outOfRange = 0;
   let invalid = 0;
+  let realigned = 0;
   for (const item of r.workouts as Raw[]) {
     if (!item || typeof item !== "object") { invalid++; continue; }
-    const date = item.date;
+    const rawDate = item.date;
     const discipline = item.discipline;
-    if (!isISODate(date) || !isDiscipline(discipline)) { invalid++; continue; }
+    if (!isISODate(rawDate) || !isDiscipline(discipline)) { invalid++; continue; }
+    let date: string = rawDate;
+    // Se giorno e data non coincidono vale il giorno: Claude sbaglia il calcolo del giorno
+    // della settimana, mentre il giorno e' cio' su cui ragiona rispetto ai vincoli.
+    if (isDayKey(item.day) && item.day !== dayKey(date)) {
+      date = alignToDay(date, item.day);
+      realigned++;
+    }
     if (date < opts.fromDate || date > toDate) { outOfRange++; continue; }
     const strength = discipline === "strength";
     workouts.push({
@@ -70,9 +88,24 @@ export function parseProposal(
       change_note: null
     });
   }
+  if (realigned) warnings.push(`${realigned === 1 ? "Una seduta aveva" : `${realigned} sedute avevano`} giorno e data incoerenti: è stato tenuto il giorno della settimana.`);
   if (outOfRange) warnings.push(`${outOfRange} sedute fuori dal periodo richiesto sono state scartate.`);
   if (invalid) warnings.push(`${invalid} sedute senza data o disciplina valide sono state scartate.`);
   workouts.sort((a, b) => a.planned_date.localeCompare(b.planned_date));
+
+  if (opts.constraints) {
+    const fixed = opts.fixed ?? [];
+    const issues = availabilityIssues([...fixed, ...workouts], opts.constraints);
+    let flagged = 0;
+    workouts.forEach((w, i) => {
+      const issue = issues.get(fixed.length + i);
+      if (issue) {
+        w.needs_review = issue;
+        flagged++;
+      }
+    });
+    if (flagged) warnings.push(`${flagged === 1 ? "Una seduta non rispetta" : `${flagged} sedute non rispettano`} la disponibilità dell'atleta: ${flagged === 1 ? "è segnata" : "sono segnate"} da verificare.`);
+  }
 
   const weeksMeta: WeekMeta[] = Array.isArray(r.weeks)
     ? (r.weeks as Raw[])

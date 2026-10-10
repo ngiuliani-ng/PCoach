@@ -31,13 +31,14 @@ Rigenera `app/src/schema/types.generated.ts` da `app/src/schema/athlete_profile.
 npm run test
 ```
 
-Esegue Vitest (`vitest run`) sui file `src/**/*.test.ts`. Stato attuale: **69 test** in 8 file:
+Esegue Vitest (`vitest run`) sui file `src/**/*.test.ts`. Stato attuale: **75 test** in 9 file:
 
 | File | Test |
 |---|---|
 | `constants.test.ts` | 4 |
 | `composables/useConnectionStatus.test.ts` | 4 |
 | `composables/useDirtyState.test.ts` | 9 |
+| `domain/availability.test.ts` | 6 (calendario del periodo, riallineamento al giorno, vincoli di disponibilità e durata) |
 | `domain/regeneration.test.ts` | 12 (import dei piani salvati, lettura della proposta, differenze e payload della rigenerazione) |
 | `domain/shared.test.ts` | 26 (moduli condivisi con le Edge Function: calendario, zone e struttura, conversione per Intervals.icu, classificazione della sincronizzazione) |
 | `schema/migrations/identitySplit.test.ts` | 7 |

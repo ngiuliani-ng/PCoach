@@ -66,7 +66,7 @@ onMounted(async () => {
     candidates.value.forEach((w) => { k[w.id] = kept.has(w.id) || isForcedKeep(w); });
     keep.value = k;
     generationId.value = pending.id;
-    const parsed = parseProposal(pending.proposal, { fromDate: pending.from_date, weeks: pending.weeks, hasFtp: hasFtp(profile.value) });
+    const parsed = parseProposal(pending.proposal, parseOptions(pending.from_date, pending.weeks));
     if (!("error" in parsed)) {
       proposal.value = parsed;
       step.value = "preview";
@@ -83,6 +83,11 @@ const keptWorkouts = computed(() => candidates.value.filter((w) => keptIds.value
 const recentWorkouts = computed(() =>
   store.workouts.filter((w) => (w.status === "draft" || w.status === "approved") && w.planned_date < fromDate.value && w.planned_date >= addDaysISO(fromDate.value, -14))
 );
+
+// Vincoli dell'atleta e sedute mantenute: la proposta viene ricontrollata contro entrambi.
+function parseOptions(from: string, w: number) {
+  return { fromDate: from, weeks: w, hasFtp: hasFtp(profile.value), constraints: profile.value.constraints, fixed: keptWorkouts.value };
+}
 
 function candidateReason(w: (typeof candidates.value)[number]): string {
   if (w.completed_at) return "Svolta: resta com'è";
@@ -140,7 +145,7 @@ async function handleResponse(text: string, truncated = false) {
     step.value = "params";
     return;
   }
-  const parsed = parseProposal(raw, { fromDate: fromDate.value, weeks: weeks.value, hasFtp: hasFtp(profile.value) });
+  const parsed = parseProposal(raw, parseOptions(fromDate.value, weeks.value));
   if ("error" in parsed) {
     await store.saveGenerationResult(id, { raw_response: text, status: "failed", error: parsed.error });
     showToast(parsed.error, "error");
@@ -256,8 +261,8 @@ function dayLabel(date: string) {
               <div class="diff-items">
                 <div v-for="(i, n) in d.items" :key="n" class="diff-item">
                   <template v-if="i.kind === 'keep'"><span class="kind keep">Mantenuta</span><span>{{ i.old.title }}</span></template>
-                  <template v-else-if="i.kind === 'add'"><span class="kind add">Aggiunta</span><span>{{ i.neu.title }}, {{ formatMinutes(workoutTotals(i.neu).seconds) }}</span></template>
-                  <template v-else-if="i.kind === 'replace'"><span class="kind add">Sostituita</span><span class="old">{{ i.old.title }}</span><span>{{ i.neu.title }}, {{ formatMinutes(workoutTotals(i.neu).seconds) }}</span></template>
+                  <template v-else-if="i.kind === 'add'"><span class="kind add">Aggiunta</span><span>{{ i.neu.title }}, {{ formatMinutes(workoutTotals(i.neu).seconds) }}</span><span v-if="i.neu.needs_review" class="diff-warn">{{ i.neu.needs_review }}</span></template>
+                  <template v-else-if="i.kind === 'replace'"><span class="kind add">Sostituita</span><span class="old">{{ i.old.title }}</span><span>{{ i.neu.title }}, {{ formatMinutes(workoutTotals(i.neu).seconds) }}</span><span v-if="i.neu.needs_review" class="diff-warn">{{ i.neu.needs_review }}</span></template>
                   <template v-else><span class="kind rem">Tolta</span><span class="old">{{ i.old.title }}</span></template>
                 </div>
               </div>
