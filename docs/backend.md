@@ -8,7 +8,8 @@ Lo schema è versionato in `supabase/migrations/`, da eseguire in ordine numeric
 - `0001`/`0002`: RLS e `is_coach()`;
 - `0003`: definizione di `athletes` e `app_settings`, create in origine dalla dashboard;
 - `0004`: tabelle delle sedute, trigger e funzioni SQL;
-- `0005`: rimozione dell'import una tantum dei piani salvati nella scheda, concluso.
+- `0005`: rimozione dell'import una tantum dei piani salvati nella scheda, concluso;
+- `0006`: tipo di generazione `continue` in `plan_generations.kind`.
 
 - **`athletes`**: `id` (text, chiave primaria: l'identificativo di 8 caratteri generato dall'app), `data` (jsonb, l'intero `AthleteTrainingProfile` — vedi [modello-dati.md](modello-dati.md)), `updated_at` (timestamptz, usato per il controllo di concorrenza ottimistico).
 - **`app_settings`**: riga singola (`id = 1`), contiene configurazione globale del coach: `claude_api_key`, `claude_model`, template dei prompt, `weekly_feedback_*` (timezone, giorno, ora, `email_enabled`).

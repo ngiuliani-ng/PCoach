@@ -1,6 +1,6 @@
 # 0018 — Generazione a finestre di al massimo 4 settimane, con il ciclo di carico ancorato al piano
 
-**Quando leggerlo**: per capire perché una generazione non supera 4 settimane, perché la fase di ogni settimana (carico, scarico) la calcola PCoach e non Claude, e come prosegue il ciclo tra una generazione e l'altra.
+**Quando leggerlo**: per capire perché una generazione non supera 4 settimane, perché «Prosegui il piano» e «Ripianifica» sono azioni diverse, perché la fase di ogni settimana (carico, scarico) la calcola PCoach e non Claude, e come prosegue il ciclo tra una generazione e l'altra.
 
 **Stato**: attiva.
 
@@ -26,6 +26,15 @@ Ogni parte doveva dedurre da sola la propria posizione nel ciclo, senza conoscer
    - la generazione successiva, o una ripianificazione a metà ciclo, riparte dall'ultima settimana del piano attivo con `cycle_week` noto, fino alla settimana della data di partenza;
    - senza piano attivo, il ciclo parte dalla settimana 1.
 4. **Regole sulle fasi nel template modificabile** (`DEFAULT_PLAN_PROMPT`), accanto alle altre regole di metodo: carico crescente nelle settimane di carico, scarico di circa un terzo, ripartenza del ciclo successivo. Nel formato fisso resta solo come scrivere `weeks`.
+
+## Correzione del 2026-10-11: «Prosegui il piano» separato da «Ripianifica»
+
+Il punto 1 indicava «Ripianifica» per le settimane successive. Il coach ha fatto notare che proseguire un piano alla fine delle 4 settimane non è una ripianificazione: non cambia nulla e non c'è niente da sostituire. Le azioni sono quindi tre:
+- **Genera il piano**: nessun piano attivo.
+- **Prosegui il piano**: aggiunge settimane dal giorno dopo la fine del piano attivo o dell'ultima seduta attiva, mai prima di domani, senza sostituire nulla.
+- **Ripianifica da…**: sostituisce le sedute da una data scelta, chiedendo cosa è cambiato e quali sedute tenere.
+
+Lo storico delle generazioni le distingue con il tipo `continue` (migrazione `0006_generation_kind_continue.sql`).
 
 ## Motivo
 

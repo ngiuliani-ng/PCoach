@@ -45,10 +45,13 @@ export interface WorkoutEventRecord {
   note: string | null;
 }
 
+/** initial: primo piano; continue: prosegue dopo il piano attivo; regenerate: sostituisce da una data. */
+export type GenerationKind = "initial" | "continue" | "regenerate";
+
 export interface GenerationRecord {
   id: string;
   athlete_id: string;
-  kind: "initial" | "regenerate";
+  kind: GenerationKind;
   from_date: string;
   weeks: number;
   reason: string;
@@ -214,7 +217,7 @@ export const useWorkoutsStore = defineStore("workouts", {
     },
 
     // ---------- Generazioni ----------
-    async createGeneration(g: { athleteId: string; kind: "initial" | "regenerate"; fromDate: string; weeks: number; reason: string; keptIds: string[]; model: string }): Promise<Result<string>> {
+    async createGeneration(g: { athleteId: string; kind: GenerationKind; fromDate: string; weeks: number; reason: string; keptIds: string[]; model: string }): Promise<Result<string>> {
       if (!supabase) return { ok: false, message: "Supabase non configurato." };
       const { data, error } = await supabase.from("plan_generations").insert({
         athlete_id: g.athleteId, kind: g.kind, from_date: g.fromDate, weeks: g.weeks, reason: g.reason,

@@ -6,6 +6,14 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
+**2026-10-11 — «Prosegui il piano» distinto da «Ripianifica»**
+- Nel piano, con sedute attive, due azioni: «Prosegui il piano» aggiunge settimane dopo la fine del piano attivo senza sostituire nulla (`continueFromDate`); «Ripianifica da…» sostituisce le sedute da una data. Il dialogo cambia titolo, testi e campi secondo l'azione e riapre una proposta in sospeso nel modo in cui era stata chiesta.
+- Nuovo tipo di generazione `continue` (migrazione `0006_generation_kind_continue.sql`, applicata in produzione).
+- Test: 72 unitari.
+
+*Motivazione*: con il limite di 4 settimane, proseguire il piano passava da «Ripianifica», con la domanda «Cosa è cambiato» e le sedute da mantenere. Il coach ha fatto notare che proseguire non è ripianificare.
+*Docs aggiornati*: [modello-dati.md](docs/modello-dati.md), [backend.md](docs/backend.md), [architettura.md](docs/architettura.md), [integrazioni.md](docs/integrazioni.md), [design-ui.md](docs/design-ui.md), [sviluppo-deploy.md](docs/sviluppo-deploy.md), [decisioni/0018](docs/decisioni/0018-generazione-a-finestre-ciclo-ancorato.md).
+
 **2026-10-11 — Generazione di al massimo 4 settimane, con il ciclo di carico calcolato da PCoach**
 - Eliminata la generazione a parti: una generazione copre al massimo 4 settimane, in una sola chiamata (`MAX_PLAN_WEEKS`); le successive si pianificano con «Ripianifica».
 - Nuovo `domain/planWeeks.ts`: PCoach calcola numero e fase del ciclo di ogni settimana (da lunedì) dallo schema dell'atleta e li passa a Claude nel calendario. Li salva in `weeks_meta` (`is_deload`, `cycle_week`), che fa da ancora per la generazione successiva o per una ripianificazione a metà ciclo.

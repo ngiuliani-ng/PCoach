@@ -6,7 +6,7 @@ import { computed, ref } from "vue";
 import { addDaysISO, weekStartISO } from "@shared/workouts/calendar.ts";
 import { localSyncState } from "@shared/workouts/sync.ts";
 import { validateWorkout, workoutTotals } from "@shared/workouts/structure.ts";
-import { useWorkoutsStore, type WorkoutRecord } from "../../stores/workouts";
+import { useWorkoutsStore, type GenerationKind, type WorkoutRecord } from "../../stores/workouts";
 import { useAthletesStore } from "../../stores/athletes";
 import { showToast } from "../../composables/useToast";
 import { DAY_LABELS, formatDate, todayISO } from "../../constants";
@@ -16,7 +16,7 @@ import WorkoutRow from "./WorkoutRow.vue";
 import WorkoutDrawer from "./WorkoutDrawer.vue";
 import RegenerateDialog from "./RegenerateDialog.vue";
 import SyncWeekDialog from "./SyncWeekDialog.vue";
-import { CalendarSync, CheckCheck, ChevronLeft, ChevronRight, CloudUpload, Sparkles } from "lucide-vue-next";
+import { CalendarPlus, CalendarSync, CheckCheck, ChevronLeft, ChevronRight, CloudUpload, Sparkles } from "lucide-vue-next";
 
 const emit = defineEmits<{ (e: "go-profile", section: string): void }>();
 
@@ -28,6 +28,11 @@ const mode = ref<"week" | "history">("week");
 const weekStart = ref(weekStartISO(today));
 const openId = ref<string | null>(null);
 const dialog = ref<"regen" | "sync" | null>(null);
+const genKind = ref<GenerationKind>("initial");
+function openGeneration(kind: GenerationKind) {
+  genKind.value = kind;
+  dialog.value = "regen";
+}
 
 const weekEnd = computed(() => addDaysISO(weekStart.value, 6));
 const hasKey = computed(() => !!athletes.currentProfile?.integrations?.intervals_icu_api_key);
@@ -132,10 +137,11 @@ function rangeText(ws: string) {
         <button type="button" :aria-pressed="mode === 'history'" @click="mode = 'history'">Storico</button>
       </div>
       <div class="toolbar-actions">
-        <button type="button" class="secondary" @click="dialog = 'regen'">
-          <template v-if="hasActiveWorkouts"><CalendarSync :size="16" aria-hidden="true" />Ripianifica da…</template>
-          <template v-else><Sparkles :size="16" aria-hidden="true" />Genera il piano</template>
-        </button>
+        <template v-if="hasActiveWorkouts">
+          <button type="button" class="secondary" @click="openGeneration('continue')"><CalendarPlus :size="16" aria-hidden="true" />Prosegui il piano</button>
+          <button type="button" class="secondary" @click="openGeneration('regenerate')"><CalendarSync :size="16" aria-hidden="true" />Ripianifica da…</button>
+        </template>
+        <button v-else type="button" class="secondary" @click="openGeneration('initial')"><Sparkles :size="16" aria-hidden="true" />Genera il piano</button>
         <button v-if="mode === 'week'" type="button" class="primary" :disabled="!hasKey || !inWeek.length" @click="dialog = 'sync'">
           <CloudUpload :size="16" aria-hidden="true" />Sincronizza settimana
         </button>
@@ -164,7 +170,7 @@ function rangeText(ws: string) {
 
       <div v-if="!hasAnything" class="unit plan-empty">
         <p><strong>Nessun piano.</strong> Scegli da quando partire e per quante settimane: Claude propone le sedute, tu le controlli e le approvi.</p>
-        <button type="button" class="primary" @click="dialog = 'regen'"><Sparkles :size="16" aria-hidden="true" />Genera il piano</button>
+        <button type="button" class="primary" @click="openGeneration('initial')"><Sparkles :size="16" aria-hidden="true" />Genera il piano</button>
       </div>
       <div v-else-if="!inWeek.length" class="unit plan-empty"><p>Nessuna seduta in questa settimana.</p></div>
       <div v-else class="week-unit">
@@ -206,7 +212,7 @@ function rangeText(ws: string) {
     </template>
 
     <WorkoutDrawer v-if="openId" :key="openId" :workout-id="openId" @close="openId = null" @open="openId = $event" />
-    <RegenerateDialog v-if="dialog === 'regen'" @close="dialog = null" @applied="onApplied" />
+    <RegenerateDialog v-if="dialog === 'regen'" :kind="genKind" @close="dialog = null" @applied="onApplied" />
     <SyncWeekDialog v-if="dialog === 'sync'" :week-start="weekStart" @close="dialog = null" />
   </div>
 </template>

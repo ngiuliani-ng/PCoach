@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cycleAnchor, parseLoadPattern, planWeeks, withPhases } from "./planWeeks";
+import { continueFromDate, cycleAnchor, parseLoadPattern, planWeeks, withPhases } from "./planWeeks";
 
 const pattern = parseLoadPattern("3:1");
 
@@ -57,5 +57,14 @@ describe("ciclo ancorato al piano attivo", () => {
   it("con un ancora il raccordo di fine settimana segue la fase di quella settimana", () => {
     const weeks = planWeeks("2026-11-08", 1, pattern, cycleAnchor(stored, "2026-11-08"));
     expect(weeks.map((w) => [w.number, w.phase])).toEqual([[0, "scarico"], [1, "carico 1 di 3"]]);
+  });
+});
+
+describe("prosecuzione del piano", () => {
+  it("parte dal giorno dopo la fine del piano o dell'ultima seduta, mai prima di domani", () => {
+    expect(continueFromDate("2026-11-08", ["2026-11-07"], "2026-10-11")).toBe("2026-11-09");
+    expect(continueFromDate("2026-11-08", ["2026-11-12"], "2026-10-11")).toBe("2026-11-13");
+    expect(continueFromDate("2026-10-04", [], "2026-10-11")).toBe("2026-10-12");
+    expect(continueFromDate(null, [], "2026-10-11")).toBe("2026-10-12");
   });
 });

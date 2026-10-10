@@ -100,6 +100,17 @@ export function planWeeks(fromDate: string, weeks: number, pattern: LoadPattern 
   return result;
 }
 
+/**
+ * Primo giorno per proseguire il piano: il giorno dopo l'ultima data coperta (fine del piano attivo
+ * o ultima seduta attiva), ma mai prima di domani.
+ */
+export function continueFromDate(planEnd: string | null | undefined, activeDates: string[], today: string): string {
+  const last = [planEnd ?? "", ...activeDates].reduce((a, b) => (b > a ? b : a), "");
+  const tomorrow = addDaysISO(today, 1);
+  const next = last ? addDaysISO(last, 1) : tomorrow;
+  return next > tomorrow ? next : tomorrow;
+}
+
 /** Numero e fase della settimana che contiene la data. */
 export function weekOf(all: PlanWeek[], date: string): PlanWeek | undefined {
   return all.find((w) => date >= w.from && date <= w.to);

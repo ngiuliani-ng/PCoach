@@ -92,7 +92,7 @@ Regole per chi modifica il layout:
 
 Una sola vista, un pannello e due dialoghi, al posto di schermate separate (motivazione in [decisioni/0017](decisioni/0017-sedute-entita-proprie-sincronizzazione-intervals.md)).
 
-- **Barra**: navigazione per settimana (frecce, intervallo di date, «Oggi»), selettore `.segmented` Settimana / Storico, «Ripianifica da…» (o «Genera il piano» se non ci sono sedute attive) e il pulsante primario «Sincronizza settimana». Quest'ultimo è disattivato senza chiave Intervals.icu; un testo spiega dove aggiungerla.
+- **Barra**: navigazione per settimana (frecce, intervallo di date, «Oggi»), selettore `.segmented` Settimana / Storico, «Prosegui il piano» e «Ripianifica da…» (oppure «Genera il piano» se non ci sono sedute attive) e il pulsante primario «Sincronizza settimana». Quest'ultimo è disattivato senza chiave Intervals.icu; un testo spiega dove aggiungerla.
 - **Riepilogo della settimana**: piano ed etichetta della settimana, badge «Scarico» neutro, numero di sedute e durata, quante sono da sincronizzare.
 - **Avviso** con filetto `--warning` se ci sono bozze approvabili, con «Approva le N»: le bozze non vanno a Intervals.icu finché non sono approvate.
 - **Settimana**: un'unità (`.week-unit`) con una riga per giorno, etichetta del giorno a sinistra (112px) e le sedute a destra, oppure «Riposo». Il giorno di oggi ha un filetto d'accento a sinistra e la scritta «Oggi». Sotto i 560px il giorno va sopra le sedute.
@@ -119,7 +119,7 @@ Una sola vista, un pannello e due dialoghi, al posto di schermate separate (moti
 
   Il piede contiene «Elimina bozza» (solo bozze mai inviate) o «Annulla seduta», poi «Salva modifiche» e, per le bozze, «Salva e approva» / «Approva». Chiudere con modifiche non salvate chiede conferma.
 - **Editor della struttura** (`StepEditor`): ogni step è un'unità con una striscia del colore della zona a sinistra e i campi tipo, durata, unità (min, s, km, m), zona, «fino a…», indicazione per l'atleta. Ha i comandi sposta su/giù e rimuovi. Le ripetute sono un riquadro con nome e numero di ripetizioni che contiene i propri step. L'errore di validazione compare sotto lo step, con il bordo `--danger` sul campo interessato.
-- **Dialoghi** «Ripianifica» e «Sincronizza settimana»: box centrato di 720px (a schermo intero sotto i 560px), con intestazione, corpo scorrevole e piede con le azioni a destra. Il pulsante di conferma dice cosa succede e quante sedute coinvolge («Applica la nuova programmazione», «Sincronizza 3 sedute, di cui 1 da rimuovere»). Le liste dentro i dialoghi (`.op-list`, `.keep-list`, differenze per giorno) sono unità con righe separate da filetti. Gli esiti per riga usano icona e testo: in corso in `--accent`, riuscita neutra, non riuscita in `--danger` con il motivo.
+- **Dialoghi** di generazione («Genera il piano», «Prosegui il piano», «Ripianifica da una data») e «Sincronizza settimana»: box centrato di 720px (a schermo intero sotto i 560px), con intestazione, corpo scorrevole e piede con le azioni a destra. Il pulsante di conferma dice cosa succede e quante sedute coinvolge («Applica la nuova programmazione», «Sincronizza 3 sedute, di cui 1 da rimuovere»). Le liste dentro i dialoghi (`.op-list`, `.keep-list`, differenze per giorno) sono unità con righe separate da filetti. Gli esiti per riga usano icona e testo: in corso in `--accent`, riuscita neutra, non riuscita in `--danger` con il motivo.
 - **Storico**: selettore del piano (attivo, chiusi con la data) e filtri a chip con conteggio: tutte, da revisionare, struttura da verificare, approvate, su Intervals.icu, da aggiornare, errori, svolte, non svolte, in programma, annullate o sostituite. Le sedute sono raggruppate per settimana, dalla più recente.
 
 ## Stati dei componenti
@@ -132,7 +132,7 @@ Ogni componente interattivo gestisce esplicitamente: default, hover, focus (visi
 - Tutti i controlli interattivi sono elementi nativi (`button`, `input`, `select`) raggiungibili da tastiera; ordine di tabulazione naturale (nessun `tabindex` positivo; l'unico `tabindex="-1"` è sulle tab inattive, secondo il pattern ARIA delle tab).
 - Ogni campo ha un'etichetta associata (vedi [§ Layout](#layout)); i campi senza etichetta visibile (note libere, prompt, JSON del piano) hanno `aria-label`.
 - Icone e pulsanti solo-icona privi di testo visibile accompagnati da `aria-label` (nessun attributo `title`, per evitare tooltip nativi ridondanti).
-- Dialoghi (`ConfirmDialog`, drawer mobile, pannello della seduta, dialoghi «Ripianifica» e «Sincronizza settimana») intrappolano il focus e lo restituiscono all'elemento che li ha aperti alla chiusura; Esc chiude (tranne durante un'operazione in corso). Gli esiti asincroni dei dialoghi sono in una regione `aria-live`.
+- Dialoghi (`ConfirmDialog`, drawer mobile, pannello della seduta, dialoghi di generazione e «Sincronizza settimana») intrappolano il focus e lo restituiscono all'elemento che li ha aperti alla chiusura; Esc chiude (tranne durante un'operazione in corso). Gli esiti asincroni dei dialoghi sono in una regione `aria-live`.
 - Il grafico del carico ha un `aria-label` con periodo e valori attuali; il tooltip è solo visivo (`aria-hidden`).
 - Animazioni continue e transizioni rispettano `prefers-reduced-motion`.
 

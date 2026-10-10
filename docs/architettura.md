@@ -64,6 +64,7 @@ supabase/
   migrations/0003_baseline_tables.sql  definizione versionata di athletes e app_settings
   migrations/0004_workouts.sql  tabelle delle sedute, trigger di revisione e cronologia, RLS, apply_plan_generation
   migrations/0005_remove_legacy_import.sql  rimozione dell'import dei piani salvati nella scheda (concluso)
+  migrations/0006_generation_kind_continue.sql  tipo di generazione «continue» (prosecuzione del piano)
 .github/workflows/deploy.yml  Build + pubblicazione su GitHub Pages
 ```
 
