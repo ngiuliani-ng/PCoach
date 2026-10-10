@@ -6,6 +6,14 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
+**2026-10-10 — Generazione dei piani lunghi a blocchi**
+- La generazione chiede a Claude blocchi consecutivi di al massimo 3 settimane, in sequenza, e ne riunisce le risposte in un'unica proposta (`domain/planBlocks.ts`). Ogni blocco conosce la sua posizione nel piano e le sedute proposte nei blocchi precedenti. Il dialogo mostra la parte in corso.
+- L'errore 546 di `claude-proxy` è spiegato al coach come superamento del tempo massimo.
+- Test: 66 unitari.
+
+*Motivazione*: un piano di 10 settimane falliva con «Errore proxy (546)». Dai log, Supabase interrompe `claude-proxy` dopo 150 secondi (`WallClockTime`), e Claude impiega circa 25 secondi per settimana (4 settimane: 101 s). Oltre 5 settimane la chiamata unica non poteva riuscire.
+*Docs aggiornati*: [integrazioni.md](docs/integrazioni.md), [sviluppo-deploy.md](docs/sviluppo-deploy.md).
+
 **2026-10-10 — Rimossa la migrazione nome/cognome dello schema 1.4.0**
 - Eliminata `app/src/schema/migrations/`: la migrazione euristica `identitySplit.ts`, il suo test e il punto d'ingresso `migrateProfile`.
 - Lo store atleti carica le schede così come sono, senza l'avviso «Nome e cognome separati automaticamente».

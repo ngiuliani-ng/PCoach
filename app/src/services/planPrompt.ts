@@ -68,6 +68,8 @@ export interface PlanPromptInput {
   fixed: PromptWorkout[];
   /** Sedute delle ultime due settimane prima della data di inizio. */
   recent: PromptWorkout[];
+  /** Generazione a blocchi: posizione di questo blocco nel piano complessivo. */
+  block?: { index: number; count: number; firstWeek: number; totalWeeks: number; planFrom: string };
 }
 
 // Segnaposto senza i quali Claude non conoscerebbe periodo e vincoli: se un template
@@ -91,6 +93,13 @@ export function buildPlanPrompt(profile: AthleteTrainingProfile, input: PlanProm
   let text = template;
   if (REQUIRED.some((key) => !template.includes(`{{${key}}}`))) {
     text += `\n\nPeriodo: dal {{data_inizio}} al {{data_fine}} compresi. Motivo: {{motivo}}\nCalendario (usa solo le date disponibili, entro la durata massima del giorno):\n{{calendario_json}}\nSedute già fissate da non ripetere:\n{{sedute_fisse_json}}\nFormato della risposta:\n{{formato_training_plan_json}}`;
+  }
+  const b = input.block;
+  if (b && b.count > 1) {
+    const lastWeek = b.firstWeek + input.weeks - 1;
+    const planTo = addDaysISO(b.planFrom, b.totalWeeks * 7 - 1);
+    text += `\n\nQuesta richiesta è la parte ${b.index + 1} di ${b.count} di un piano di ${b.totalWeeks} settimane, dal ${b.planFrom} al ${planTo}. Genera solo le settimane dalla ${b.firstWeek} alla ${lastWeek} del piano (dal {{data_inizio}} al {{data_fine}}), con la progressione e lo schema di carico e scarico adatti alla loro posizione nel piano complessivo.`
+      + (b.index > 0 ? " Le sedute delle parti precedenti sono tra le sedute recenti dei dati dell'atleta: proseguile in modo coerente, senza ripeterle." : "");
   }
   return interpolate(text, values);
 }

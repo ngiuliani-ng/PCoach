@@ -15,6 +15,8 @@ import { addDaysISO, formatDate, todayISO, TRAINING_PLAN_JSON_SHAPE } from "../.
 import { buildPlanPrompt } from "../../services/planPrompt";
 import { callClaudeProxy, copyToClipboardFallback, extractJsonBlock } from "../../services/claude";
 import { hasFtp } from "../../domain/athlete";
+import { mergeBlockResponses, planBlocks } from "../../domain/planBlocks";
+import type { NewWorkout } from "../../domain/workoutDraft";
 import type { DiffDay, Proposal } from "../../domain/regeneration";
 import { buildApplyPayload, defaultKeep, diffCounts, isForcedKeep, parseProposal, regenerationCandidates, regenerationDiff } from "../../domain/regeneration";
 import { workoutTotals } from "@shared/workouts/structure.ts";
@@ -46,6 +48,8 @@ const pastedText = ref("");
 const promptText = ref("");
 const applying = ref(false);
 const resumed = ref<GenerationRecord | null>(null);
+// Generazione a blocchi: blocco in corso e numero di blocchi (vedi domain/planBlocks).
+const progress = ref({ current: 0, count: 1 });
 
 const candidates = computed(() => regenerationCandidates(store.workouts, fromDate.value));
 function resetKeep() {
@@ -123,20 +127,57 @@ async function generate() {
     return;
   }
   step.value = "generating";
-  // Circa 1800 token di output a settimana, con margine per l'apertura e la chiusura del JSON.
-  const result = await callClaudeProxy(prompt, Math.min(64000, w * 1800 + 2000), settings.settings.claude_model);
-  if (!result.ok) {
-    await store.saveGenerationResult(created.value, { status: "failed", error: result.error });
-    showToast(result.error, "error");
-    step.value = "params";
+  // Un piano lungo supera il limite di durata della Edge Function: lo si chiede in blocchi
+  // consecutivi, passando a ogni blocco le sedute proposte nei precedenti.
+  const blocks = planBlocks(fromDate.value, w);
+  const raws: unknown[] = [];
+  const texts: string[] = [];
+  const proposed: NewWorkout[] = [];
+  let truncated = false;
+  for (const b of blocks) {
+    progress.value = { current: b.index + 1, count: b.count };
+    const blockTo = addDaysISO(b.fromDate, b.weeks * 7 - 1);
+    const blockPrompt = b.count === 1 ? prompt : buildPlanPrompt(
+      profile.value,
+      {
+        weeks: b.weeks, fromDate: b.fromDate, reason: reason.value,
+        fixed: keptWorkouts.value.filter((k) => k.planned_date >= b.fromDate && k.planned_date <= blockTo),
+        recent: [...recentWorkouts.value, ...proposed.map((p) => ({ ...p, completed_at: null }))],
+        block: { index: b.index, count: b.count, firstWeek: b.firstWeek, totalWeeks: w, planFrom: fromDate.value }
+      },
+      TRAINING_PLAN_JSON_SHAPE,
+      settings.settings.plan_generation_prompt_template
+    );
+    // Circa 1800 token di output a settimana, con margine per l'apertura e la chiusura del JSON.
+    const result = await callClaudeProxy(blockPrompt, Math.min(64000, b.weeks * 1800 + 2000), settings.settings.claude_model);
+    const where = b.count > 1 ? ` (parte ${b.index + 1} di ${b.count})` : "";
+    if (!result.ok) {
+      await store.saveGenerationResult(created.value, { raw_response: texts.join("\n\n") || undefined, status: "failed", error: result.error + where });
+      showToast(result.error + where, "error");
+      step.value = "params";
+      return;
+    }
+    texts.push(result.text);
+    truncated ||= result.truncated;
+    const raw = extractJsonBlock(result.text);
+    if (b.count > 1 && raw) {
+      const parsed = parseProposal(raw, parseOptions(b.fromDate, b.weeks));
+      if (!("error" in parsed)) proposed.push(...parsed.workouts);
+    }
+    raws.push(raw);
+    if (!raw) break;
+  }
+  if (raws.some((r) => !r)) {
+    handleResponse(texts.join("\n\n"), truncated, null);
     return;
   }
-  handleResponse(result.text, result.truncated);
+  handleResponse(texts.join("\n\n"), truncated, blocks.length > 1 ? mergeBlockResponses(raws) : raws[0]);
 }
 
-async function handleResponse(text: string, truncated = false) {
+// `raw` gia' estratto (generazione a blocchi); se assente lo si estrae dal testo incollato.
+async function handleResponse(text: string, truncated = false, extracted?: unknown) {
   const id = generationId.value!;
-  const raw = extractJsonBlock(text);
+  const raw = extracted === undefined ? extractJsonBlock(text) : extracted;
   if (!raw) {
     await store.saveGenerationResult(id, { raw_response: text, status: "failed", error: "JSON non valido" });
     showToast(truncated
@@ -238,8 +279,8 @@ function dayLabel(date: string) {
         </template>
 
         <template v-else-if="step === 'generating'">
-          <p class="progress-line"><LoaderCircle :size="18" class="spin" aria-hidden="true" />Claude sta preparando {{ weeks }} settimane dal {{ formatDate(fromDate, false) }}…</p>
-          <p class="helper-text">La proposta viene salvata appena arriva: se chiudi la pagina la ritrovi riaprendo questo dialogo. Nulla cambia finché non la applichi.</p>
+          <p class="progress-line"><LoaderCircle :size="18" class="spin" aria-hidden="true" />Claude sta preparando {{ weeks }} settimane dal {{ formatDate(fromDate, false) }}<template v-if="progress.count > 1">: parte {{ progress.current }} di {{ progress.count }}</template>…</p>
+          <p class="helper-text">Ogni parte richiede circa un minuto. La proposta viene salvata quando sono pronte tutte: da quel momento, se chiudi la pagina, la ritrovi riaprendo questo dialogo. Nulla cambia finché non la applichi.</p>
         </template>
 
         <template v-else-if="step === 'paste'">

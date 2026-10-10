@@ -29,6 +29,10 @@ export async function callClaudeProxy(
       body: JSON.stringify({ prompt: promptText, max_tokens: maxTokens || 4096, model })
     });
     const data = await res.json().catch(() => null);
+    // 546: la Edge Function ha superato il limite di durata (150 s) prima della risposta di Claude.
+    if (res.status === 546) {
+      return { ok: false, error: "Claude ha impiegato più del tempo massimo consentito (150 s): riprova o riduci le settimane." };
+    }
     if (!res.ok || !data || data.error) {
       return { ok: false, error: (data && data.error) || `Errore proxy (${res.status})` };
     }

@@ -30,4 +30,14 @@ describe("buildPlanPrompt", () => {
     expect(text).toContain("Periodo: dal 2026-10-12 al 2026-10-18 compresi. Motivo: Nessun motivo indicato.");
     expect(text).toContain('"workouts"');
   });
+
+  it("colloca un blocco nel piano complessivo", () => {
+    const text = buildPlanPrompt(profile, {
+      weeks: 3, fromDate: "2026-11-02", reason: "", fixed: [], recent: [],
+      block: { index: 1, count: 4, firstWeek: 4, totalWeeks: 10, planFrom: "2026-10-12" }
+    }, TRAINING_PLAN_JSON_SHAPE, DEFAULT_PLAN_PROMPT);
+    expect(text).toContain("parte 2 di 4 di un piano di 10 settimane, dal 2026-10-12 al 2026-12-20");
+    expect(text).toContain("dalla 4 alla 6 del piano (dal 2026-11-02 al 2026-11-22)");
+    expect(text).toContain("parti precedenti");
+  });
 });
