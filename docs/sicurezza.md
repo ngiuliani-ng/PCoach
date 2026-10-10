@@ -23,7 +23,7 @@ Setup in dashboard Supabase, da eseguire una sola volta:
 
 - `intervals_icu_api_key` (per-atleta) e `claude_api_key` (globale, in `app_settings`) sono salvate **in chiaro** nel database, non cifrate a livello applicativo.
 - **Motivo**: Postgres/Supabase cifra già a riposo a livello di infrastruttura; l'accesso a queste righe è comunque ristretto dalla RLS al solo utente coach autenticato. Aggiungere cifratura applicativa (con gestione di una chiave di cifratura separata) è stato giudicato un costo non giustificato per un'app mono-utente con un solo coach ad avervi accesso.
-- **Rischio residuo**: chiunque ottenga accesso diretto al database (non tramite l'app) vede le chiavi in chiaro. Mitigazione: accesso al progetto Supabase limitato al solo coach; vedi [limiti-roadmap.md](limiti-roadmap.md) per l'elenco completo dei limiti noti.
+- **Rischio residuo**: chiunque ottenga accesso diretto al database (non tramite l'app) vede le chiavi in chiaro. Con la chiave di un atleta si può anche modificare il suo calendario Intervals.icu, non solo leggerlo. I backup di tabelle fatti prima di una migrazione stanno nello schema `private`, non esposto da PostgREST, così non diventano leggibili via API. Mitigazione: accesso al progetto Supabase limitato al solo coach; vedi [limiti-roadmap.md](limiti-roadmap.md) per l'elenco completo dei limiti noti.
 
 ## Segreti lato server
 
@@ -33,9 +33,10 @@ Setup in dashboard Supabase, da eseguire una sola volta:
 
 ## Verifica del chiamante nelle Edge Function
 
-Sia `claude-proxy` che `weekly-feedback` verificano l'identità del chiamante prima di eseguire un'azione che costa (quota Claude) o che espone dati:
+Tutte le Edge Function verificano l'identità del chiamante prima di eseguire un'azione che costa (quota Claude), che espone dati o che scrive su un servizio esterno:
 
 - `claude-proxy` richiede un JWT di sessione valido del coach (verificato con `auth.getUser()`), non la sola anon key pubblica.
+- `intervals-sync` richiede lo stesso JWT e legge e scrive il database con quel JWT, quindi vale la RLS. Usa la chiave Intervals.icu dell'atleta solo lato server per scrivere sul suo calendario. Non la scrive nei log e non la restituisce: i messaggi d'errore sono riformulati senza header né chiavi. Le scritture remote partono solo da un'operazione confermata dal coach, una seduta alla volta. Le rimozioni riguardano solo eventi creati da PCoach (memorizzati per id) e mai sedute svolte.
 - `weekly-feedback` richiede che il bearer sia **esattamente** la service-role key (così solo `pg_cron`, che la legge da Vault, può invocarla) — dettagli in [backend.md](backend.md).
 
 Motivazioni dell'autenticazione reale e delle policy RLS in [decisioni/0010-autenticazione-coach-rls-reale.md](decisioni/0010-autenticazione-coach-rls-reale.md).

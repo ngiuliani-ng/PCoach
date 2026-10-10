@@ -31,18 +31,48 @@ Rigenera `app/src/schema/types.generated.ts` da `app/src/schema/athlete_profile.
 npm run test
 ```
 
-Esegue Vitest (`vitest run`) su tutti i file `*.test.ts`. Stato attuale: **42 test** in 6 file:
+Esegue Vitest (`vitest run`) sui file `src/**/*.test.ts`. Stato attuale: **69 test** in 8 file:
 
 | File | Test |
 |---|---|
 | `constants.test.ts` | 4 |
 | `composables/useConnectionStatus.test.ts` | 4 |
 | `composables/useDirtyState.test.ts` | 9 |
+| `domain/regeneration.test.ts` | 12 (import dei piani salvati, lettura della proposta, differenze e payload della rigenerazione) |
+| `domain/shared.test.ts` | 26 (moduli condivisi con le Edge Function: calendario, zone e struttura, conversione per Intervals.icu, classificazione della sincronizzazione) |
 | `schema/migrations/identitySplit.test.ts` | 7 |
-| `services/planViewModel.test.ts` | 13 |
+| `services/planPrompt.test.ts` | 2 |
 | `stores/auth.test.ts` | 5 |
 
-Questo conteggio descrive solo lo stato corrente; l'evoluzione nel tempo (es. "33 test" a una fase precedente) è nel [CHANGELOG.md](../CHANGELOG.md), non qui.
+Questo conteggio descrive solo lo stato corrente; l'evoluzione nel tempo è nel [CHANGELOG.md](../CHANGELOG.md), non qui.
+
+### Test end-to-end
+
+```
+npx playwright install chromium   # una volta sola
+npm run test:e2e
+```
+
+Playwright (`playwright.config.ts`, cartella `app/e2e/`) avvia Vite sulla porta 5181 con un URL Supabase fittizio. `e2e/mockBackend.ts` intercetta tutte le richieste:
+- una PostgREST minima in memoria;
+- le funzioni SQL `apply_plan_generation` e `import_legacy_plan`;
+- le Edge Function `claude-proxy` e `intervals-sync`;
+- le letture dirette di Intervals.icu.
+
+Nessuna chiamata raggiunge Supabase, Claude o Intervals.icu. La data è fissata al 10 ottobre 2026 con `page.clock`.
+
+Tre flussi, ognuno su un progetto desktop e uno mobile (6 test):
+- modifica e approvazione di una seduta;
+- rigenerazione con anteprima delle differenze;
+- «Sincronizza settimana» con un errore parziale e il nuovo tentativo.
+
+Gli esiti finiscono in `test-results/`, non tracciata.
+
+## Edge Function
+
+Le funzioni in `supabase/functions/` si pubblicano sul progetto Supabase. Il CLI non è nel repository: si usa la dashboard oppure lo strumento di deploy del MCP Supabase. `intervals-sync` importa i moduli di `functions/_shared/workouts/`, che vanno pubblicati insieme alla funzione.
+
+L'ordine conta: prima le migrazioni (`supabase/migrations/`, in ordine numerico), poi le funzioni che leggono le nuove tabelle (`weekly-feedback`, `intervals-sync`).
 
 ## Build
 

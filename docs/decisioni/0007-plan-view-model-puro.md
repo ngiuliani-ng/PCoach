@@ -2,7 +2,7 @@
 
 **Quando leggerlo**: prima di modificare come il piano viene trasformato per la visualizzazione (colori zona, stato apertura settimane, larghezza delle barre).
 
-**Stato**: attiva.
+**Stato**: superata da [0017](0017-sedute-entita-proprie-sincronizzazione-intervals.md): la vista del piano basata su `training_plan`, con `planViewModel`, è stata sostituita dalla tab Piano sulle tabelle delle sedute.
 
 ## Contesto
 

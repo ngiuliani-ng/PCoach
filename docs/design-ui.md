@@ -57,7 +57,7 @@ Regole per chi modifica il layout:
 - **Valori interni** (enum dello schema, chiavi di disciplina) non compaiono a schermo: passano da etichette (`disciplineLabel`, `PERIODIZATION_LABELS`, le liste di opzioni in `constants.ts`).
 - **Valori con segno** come il TSB usano `formatSigned`: segno sempre esplicito e vero segno meno ("+4", "−12").
 - **Pulsanti** con verbo e oggetto quando l'azione non è ovvia ("Elimina scheda", "Ricarica e scarta le modifiche"); il pulsante di conferma di un dialogo dice esattamente cosa succede.
-- **Errori e stati vuoti** spiegano cosa fare: "Nessun piano assegnato. Scegli quante settimane generare e premi «Genera piano»", non un generico "Nessun dato".
+- **Errori e stati vuoti** spiegano cosa fare: "Nessun piano. Scegli da quando partire e per quante settimane: Claude propone le sedute, tu le controlli e le approvi", non un generico "Nessun dato".
 
 ## Iconografia
 
@@ -77,11 +77,50 @@ Regole per chi modifica il layout:
 - **Desktop**: sidebar atleti a sinistra (260px, `flex-shrink: 0`, sticky), contenuto a destra (`.main`, `flex: 1`) in una colonna centrata di 680px massimi (`.form-wrap`). Lo scroll è quello della pagina: `.main` non ha `overflow`, così l'header sticky funziona.
 - **Sidebar**: "Nuovo atleta" in cima (pulsante tratteggiato in colore accento), poi gli atleti in ordine alfabetico. Ogni atleta è una riga resa come `<button>`: il nome, che va a capo invece di essere troncato, e sotto, su righe proprie, le discipline e l'ultimo TSB (così il TSB è sempre allineato a sinistra, qualunque sia la lunghezza del nome); la riga aperta ha sfondo `--surface-2` e un filetto d'accento a sinistra (`aria-current`). Il pulsante di eliminazione è un fratello del pulsante di selezione (mai annidato) e compare al passaggio del mouse o al focus; sui dispositivi senza hover è sempre visibile.
 - **Header di pagina** (`.page-header`): titolo e azioni principali ("Salva", "Salva impostazioni") con lo stato "Modifiche non salvate". È sticky (`top: --titlebar-h`) in cima alla scheda atleta e alle impostazioni, così il salvataggio è sempre raggiungibile. Sotto l'header, la scheda atleta mostra una riga di riepilogo (discipline, prossimo evento, data di aggiornamento) e, se un'altra sessione ha salvato la scheda, un avviso con "Ricarica i dati più recenti".
-- **Scheda atleta: due viste** a tab (`role="tablist"`, frecce sinistra/destra per cambiare): **Panoramica** (carico e forma, piano con generazione, feedback settimanale) e **Profilo** (identità, Intervals.icu, discipline, soglie, stato di allenamento, obiettivi, vincoli, metodologia, note, esporta/elimina). Si apre sulla Panoramica; una bozza di nuovo atleta si apre sul Profilo e il suo primo salvataggio non cambia vista.
+- **Scheda atleta: tre viste** a tab (`role="tablist"`, frecce sinistra/destra per cambiare):
+  - **Panoramica**: carico e forma, la settimana in corso in sola lettura con «Apri il piano», feedback settimanale;
+  - **Piano**: vedi [sotto](#tab-piano);
+  - **Profilo**: identità, Intervals.icu, discipline, soglie, stato di allenamento, obiettivi, vincoli, metodologia, note, esporta/elimina.
+
+  Si apre sulla Panoramica; una bozza di nuovo atleta si apre sul Profilo e il suo primo salvataggio non cambia vista.
 - **Sezioni** (`<section class="block">`, stile in `base.css`): piatte, separate da un filetto superiore in `--border`, titolo `h3`. Le **unità** (`.unit`) sono l'unico livello di card: sfondo `--surface`, bordo, `--radius-md`, intestazione `.unit-head` con titolo e `IconButton` di rimozione.
 - **Soglie**: una sola sezione con un selettore a segmenti (`.segmented`, `aria-pressed`) Corsa / Bici / Nuoto.
 - **Campi**: `<label class="field">` che avvolge `<span class="field-label">` e il controllo, così ogni etichetta è associata al suo campo senza `id`. Le righe di campi (`.field-row`) sono una griglia `auto-fit` con colonne da almeno 150px.
 - **Stato vuoto** (nessun atleta aperto): titolo e una frase su cosa fare. Non ha pulsanti: non ripete i comandi della sidebar, che su mobile si apre con l'hamburger.
+
+### Tab Piano
+
+Una sola vista, un pannello e due dialoghi, al posto di schermate separate (motivazione in [decisioni/0017](decisioni/0017-sedute-entita-proprie-sincronizzazione-intervals.md)).
+
+- **Barra**: navigazione per settimana (frecce, intervallo di date, «Oggi»), selettore `.segmented` Settimana / Storico, «Ripianifica da…» (o «Genera il piano» se non ci sono sedute attive) e il pulsante primario «Sincronizza settimana». Quest'ultimo è disattivato senza chiave Intervals.icu; un testo spiega dove aggiungerla.
+- **Riepilogo della settimana**: piano ed etichetta della settimana, badge «Scarico» neutro, numero di sedute e durata, quante sono da sincronizzare.
+- **Avviso** con filetto `--warning` se ci sono bozze approvabili, con «Approva le N»: le bozze non vanno a Intervals.icu finché non sono approvate.
+- **Settimana**: un'unità (`.week-unit`) con una riga per giorno, etichetta del giorno a sinistra (112px) e le sedute a destra, oppure «Riposo». Il giorno di oggi ha un filetto d'accento a sinistra e la scritta «Oggi». Sotto i 560px il giorno va sopra le sedute.
+- **Riga di una seduta** (`WorkoutRow`): tutta la riga è un `<button>` che apre il pannello. Contiene:
+  - icona della disciplina (`role="img"`) e nome;
+  - durata, distanza e obiettivo;
+  - la barra mini della struttura;
+  - i badge di stato.
+
+  «Approva» è un pulsante fratello, presente solo per le bozze valide. Le sedute annullate o sostituite hanno il nome barrato e in `--text-muted`.
+- **Badge di stato** (`WorkoutBadges`): icona e testo, mai solo colore; un badge per asse (approvazione, sincronizzazione, esecuzione). Il colore segnala solo ciò che richiede attenzione:
+  - `--warning` per «Da revisionare», «Struttura da verificare», «Da aggiornare su Intervals.icu», «Da rimuovere da Intervals.icu»;
+  - `--danger` per «Invio non riuscito»;
+  - neutri gli stati a posto («Approvata», «Su Intervals.icu», «Svolta»), che non usano l'accento, riservato alla selezione e all'azione primaria.
+- **Pannello della seduta** (`WorkoutDrawer`): modale a destra (600px, a tutta larghezza su mobile), con focus intrappolato, Esc e ritorno del focus (`useModalFocus`). Dall'alto:
+  - nome modificabile nell'intestazione;
+  - stati e numero di revisione;
+  - avvisi (sostituita, annullata con «Ripristina come bozza», struttura da verificare, errore o avviso dell'ultimo invio);
+  - data, disciplina, obiettivo;
+  - struttura: metrica dei target come `.segmented`, barra grande e `StepEditor`;
+  - note per l'atleta, «Mantienila se ripianifico il programma»;
+  - «Testo inviato a Intervals.icu» in un `<details>` (l'unico testo in monospace);
+  - cronologia.
+
+  Il piede contiene «Elimina bozza» (solo bozze mai inviate) o «Annulla seduta», poi «Salva modifiche» e, per le bozze, «Salva e approva» / «Approva». Chiudere con modifiche non salvate chiede conferma.
+- **Editor della struttura** (`StepEditor`): ogni step è un'unità con una striscia del colore della zona a sinistra e i campi tipo, durata, unità (min, s, km, m), zona, «fino a…», indicazione per l'atleta. Ha i comandi sposta su/giù e rimuovi. Le ripetute sono un riquadro con nome e numero di ripetizioni che contiene i propri step. L'errore di validazione compare sotto lo step, con il bordo `--danger` sul campo interessato.
+- **Dialoghi** «Ripianifica» e «Sincronizza settimana»: box centrato di 720px (a schermo intero sotto i 560px), con intestazione, corpo scorrevole e piede con le azioni a destra. Il pulsante di conferma dice cosa succede e quante sedute coinvolge («Applica la nuova programmazione», «Sincronizza 3 sedute, di cui 1 da rimuovere»). Le liste dentro i dialoghi (`.op-list`, `.keep-list`, differenze per giorno) sono unità con righe separate da filetti. Gli esiti per riga usano icona e testo: in corso in `--accent`, riuscita neutra, non riuscita in `--danger` con il motivo.
+- **Storico**: selettore del piano (attivo, chiusi con la data) e filtri a chip con conteggio: tutte, da revisionare, approvate, su Intervals.icu, da aggiornare, errori, svolte, non svolte, in programma, annullate o sostituite. Le sedute sono raggruppate per settimana, dalla più recente.
 
 ## Stati dei componenti
 
@@ -93,15 +132,20 @@ Ogni componente interattivo gestisce esplicitamente: default, hover, focus (visi
 - Tutti i controlli interattivi sono elementi nativi (`button`, `input`, `select`) raggiungibili da tastiera; ordine di tabulazione naturale (nessun `tabindex` positivo; l'unico `tabindex="-1"` è sulle tab inattive, secondo il pattern ARIA delle tab).
 - Ogni campo ha un'etichetta associata (vedi [§ Layout](#layout)); i campi senza etichetta visibile (note libere, prompt, JSON del piano) hanno `aria-label`.
 - Icone e pulsanti solo-icona privi di testo visibile accompagnati da `aria-label` (nessun attributo `title`, per evitare tooltip nativi ridondanti).
-- Dialoghi (`ConfirmDialog`, drawer mobile) intrappolano il focus e lo restituiscono all'elemento che li ha aperti alla chiusura.
+- Dialoghi (`ConfirmDialog`, drawer mobile, pannello della seduta, dialoghi «Ripianifica» e «Sincronizza settimana») intrappolano il focus e lo restituiscono all'elemento che li ha aperti alla chiusura; Esc chiude (tranne durante un'operazione in corso). Gli esiti asincroni dei dialoghi sono in una regione `aria-live`.
 - Il grafico del carico ha un `aria-label` con periodo e valori attuali; il tooltip è solo visivo (`aria-hidden`).
 - Animazioni continue e transizioni rispettano `prefers-reduced-motion`.
 
 ## Zone e discipline
 
-- Colori di zona (Z1-Z7, `--zone-1`…`--zone-7`; le zone non riconosciute usano `--zone-unknown`) da una scala condivisa, non hardcoded per componente (`zoneColorVar` in `planViewModel.ts`). Le tinte sono distinte dall'accento e dai colori semantici; sono usate come bordo del chip di zona e come riempimento dei segmenti, mai come sfondo di testo.
+- Colori di zona (Z1-Z7, `--zone-1`…`--zone-7`; gli step senza zona usano `--zone-unknown`) da una scala condivisa, non hardcoded per componente. Il colore di uno step è quello della zona più alta del suo target (`peakZone`).
+- Le tinte di zona sono distinte dall'accento e dai colori semantici. Sono usate come riempimento dei segmenti della barra della struttura (`StructureBar`) e come striscia a sinistra degli step nell'editor, mai come sfondo di testo.
+- **Barra della struttura**: è l'elemento visivamente forte della tab Piano.
+  - Mini (8px, piatta, decorativa) nelle righe delle sedute.
+  - Grande nel pannello: 64px, larghezza proporzionale alla durata, altezza crescente con la zona, `role="img"` con un `aria-label` riassuntivo.
+  - Gli step a distanza sono proporzionati con una velocità di riferimento per disciplina, solo a scopo visivo.
 - Icone ed etichette delle discipline da `constants.ts` (`disciplineIcon`, `disciplineLabel`), associate per chiave disciplina.
-- Il badge "Scarico" di una settimana è neutro (`--surface-2`): non è un avviso. La settimana corrente ha bordo e badge "Questa settimana" in colore accento.
+- Il badge "Scarico" di una settimana è neutro (`--surface-2`): non è un avviso.
 
 ## Grafico del carico
 
@@ -116,7 +160,7 @@ Ogni componente interattivo gestisce esplicitamente: default, hover, focus (visi
 
 ## Regole mobile
 
-Breakpoint: `720px` (passaggio a layout mobile a singola colonna) e `480px` (ulteriori compattazioni).
+Breakpoint: `720px` (passaggio a layout mobile a singola colonna), `560px` (tab Piano: giorno sopra le sedute, dialoghi a schermo intero) e `480px` (ulteriori compattazioni).
 
 Sotto i `720px` la sidebar atleti diventa un **drawer**: nascosta di default, aperta con un bottone hamburger, sovrapposta al contenuto con backdrop cliccabile. Tutta la logica del drawer — apertura/chiusura, backdrop cliccabile, chiusura con Esc, blocco dello scroll del body mentre è aperto, gestione del focus — vive nel composable `app/src/composables/useMobileSidebar.ts`, non in `App.vue`. Il bottone hamburger è nascosto mentre il drawer è aperto (si usano il backdrop o Esc per chiuderlo). Motivazioni in [decisioni/0009-rifinitura-mobile-fase-8.md](decisioni/0009-rifinitura-mobile-fase-8.md) e [decisioni/0011-rifinitura-sidebar-iconbutton.md](decisioni/0011-rifinitura-sidebar-iconbutton.md).
 
