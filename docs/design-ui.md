@@ -108,13 +108,13 @@ Una sola vista, un pannello e due dialoghi, al posto di schermate separate (moti
 
   «Approva» è un pulsante fratello, presente solo per le bozze valide. Le sedute annullate o sostituite hanno il nome barrato e in `--text-muted`.
 - **Badge di stato** (`WorkoutBadges`): icona e testo, mai solo colore; un badge per asse (approvazione, sincronizzazione, esecuzione). Il colore segnala solo ciò che richiede attenzione:
-  - `--warning` per «Da revisionare», «Struttura da verificare», «Da aggiornare su Intervals.icu», «Da rimuovere da Intervals.icu»;
+  - `--warning` per «Da revisionare», «Da verificare» (struttura incompleta o vincolo di disponibilità non rispettato, con il motivo nel pannello), «Da aggiornare su Intervals.icu», «Da rimuovere da Intervals.icu»;
   - `--danger` per «Invio non riuscito»;
   - neutri gli stati a posto («Approvata», «Su Intervals.icu», «Svolta»), che non usano l'accento, riservato alla selezione e all'azione primaria.
 - **Pannello della seduta** (`WorkoutDrawer`): modale a destra (600px, a tutta larghezza su mobile), con focus intrappolato, Esc e ritorno del focus (`useModalFocus`). Dall'alto:
   - nome modificabile nell'intestazione;
   - stati e numero di revisione;
-  - avvisi (sostituita, annullata con «Ripristina come bozza», struttura da verificare, errore o avviso dell'ultimo invio);
+  - avvisi (sostituita, annullata con «Ripristina come bozza», motivo per cui è da verificare, errore o avviso dell'ultimo invio);
   - data, disciplina, obiettivo;
   - struttura: metrica dei target come `.segmented`, barra grande e `StepEditor`;
   - note per l'atleta, «Mantienila se ripianifico il programma»;
@@ -123,8 +123,8 @@ Una sola vista, un pannello e due dialoghi, al posto di schermate separate (moti
 
   Il piede contiene «Elimina bozza» (solo bozze mai inviate) o «Annulla seduta», poi «Salva modifiche» e, per le bozze, «Salva e approva» / «Approva». Chiudere con modifiche non salvate chiede conferma.
 - **Editor della struttura** (`StepEditor`): ogni step è un'unità con una striscia del colore della zona a sinistra e i campi tipo, durata, unità (min, s, km, m), zona, «fino a…», indicazione per l'atleta. Ha i comandi sposta su/giù e rimuovi. Le ripetute sono un riquadro con nome e numero di ripetizioni che contiene i propri step. L'errore di validazione compare sotto lo step, con il bordo `--danger` sul campo interessato.
-- **Dialoghi** di generazione («Genera il piano», «Prosegui il piano», «Ripianifica da una data») e «Sincronizza settimana»: box centrato di 720px (a schermo intero sotto i 560px), con intestazione, corpo scorrevole e piede con le azioni a destra. Il pulsante di conferma dice cosa succede e quante sedute coinvolge («Applica la nuova programmazione», «Sincronizza 3 sedute, di cui 1 da rimuovere»). Le liste dentro i dialoghi (`.op-list`, `.keep-list`, differenze per giorno) sono unità con righe separate da filetti. Gli esiti per riga usano icona e testo: in corso in `--accent`, riuscita neutra, non riuscita in `--danger` con il motivo.
-- **Storico**: selettore del piano (attivo, chiusi con la data) e filtri a chip con conteggio: tutte, da revisionare, struttura da verificare, approvate, su Intervals.icu, da aggiornare, errori, svolte, non registrate, in programma, annullate o sostituite. Le sedute sono raggruppate per settimana, dalla più recente.
+- **Dialoghi** di generazione («Genera il piano», «Prosegui il piano», «Ripianifica da una data») e «Sincronizza settimana». Nella generazione, «Genera la proposta» resta disattivato con «Preparo la richiesta…» fino alla chiamata a Claude; uno schema di carico non riconosciuto è segnalato nei parametri; nella proposta gli avvisi (sedute a settimana, variazione di volume, date riallineate o scartate) sono in un riquadro d'avviso con il conteggio. In generale: box centrato di 720px (a schermo intero sotto i 560px), con intestazione, corpo scorrevole e piede con le azioni a destra. Il pulsante di conferma dice cosa succede e quante sedute coinvolge («Applica la nuova programmazione», «Sincronizza 3 sedute, di cui 1 da rimuovere»). Le liste dentro i dialoghi (`.op-list`, `.keep-list`, differenze per giorno) sono unità con righe separate da filetti. Gli esiti per riga usano icona e testo: in corso in `--accent`, riuscita neutra, non riuscita in `--danger` con il motivo.
+- **Storico**: selettore del piano (attivo, chiusi con la data) e filtri a chip con conteggio: tutte, da revisionare, da verificare, approvate, su Intervals.icu, da aggiornare, errori, svolte, non registrate, in programma, annullate o sostituite. Le sedute sono raggruppate per settimana, dalla più recente.
 
 ## Stati dei componenti
 
@@ -185,13 +185,15 @@ Sezione della Panoramica (`WeeklyReviews.vue`):
   - «Sedute della settimana» (`<details>`): data, titolo ed esito di ogni seduta. Gli esiti che chiedono attenzione («Nessuna attività registrata», «Dato non disponibile», «Non attribuibile con certezza», «Al suo posto un'altra disciplina», «Molto più breve del previsto») sono in `--warning`;
   - limitazioni dei dati, in testo secondario;
   - «Per te:» con la sintesi di Claude per il coach.
-- **Bozza**: testo per l'atleta in un campo modificabile, «Approva e invia» (o «Approva» se l'email è disattivata, con una nota) e «Rigenera».
+- **Bozza**: testo per l'atleta in un campo modificabile, «Approva e invia» e «Rigenera». Il pulsante dice solo «Approva», con una nota, se l'email è disattivata o se l'atleta non ha un indirizzo; in quel caso un invio non riuscito non propone «Riprova l'invio» ma di aggiungere l'indirizzo nel Profilo.
+- **In preparazione**: la sezione si rilegge da sola ogni 30 secondi finché c'è una valutazione in preparazione, con «Aggiorna ora».
 - **Approvata**: il testo inviato, la data di invio oppure l'errore con «Riprova l'invio», e «Rigenera».
 - **Non riuscita**: il messaggio d'errore e «Riprova».
 
 In Impostazioni:
 - **«Tono del feedback settimanale»**: il template modificabile;
-- **«Soglie del feedback»**: le soglie principali e, in un `<details>`, quelle sulla qualità dei dati, con validazione per campo e «Ripristina i valori predefiniti».
+- **«Soglie del feedback»**: le soglie principali e, in un `<details>`, quelle sulla qualità dei dati, con validazione per campo e «Ripristina i valori predefiniti»;
+- **«Fuso orario»**: un elenco dei fusi riconosciuti dal browser; un valore salvato non valido compare segnalato e il salvataggio è bloccato finché non se ne sceglie uno.
 
-Nel Profilo, la sezione Metodologia ha i tre campi della progressione del carico.
+Nel Profilo, la sezione Metodologia ha lo schema di carico e scarico come due selettori («Settimane di carico» 1-8, «Settimane di scarico» 1-4; un valore salvato non riconosciuto è segnalato) e i tre campi della progressione del carico.
 

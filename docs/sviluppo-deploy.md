@@ -31,7 +31,7 @@ Rigenera `app/src/schema/types.generated.ts` da `app/src/schema/athlete_profile.
 npm run test
 ```
 
-Esegue Vitest (`vitest run`) sui file `src/**/*.test.ts`. Stato attuale: **143 test** in 14 file:
+Esegue Vitest (`vitest run`) sui file `src/**/*.test.ts`. Stato attuale: **145 test** in 14 file:
 
 | File | Test |
 |---|---|
@@ -39,8 +39,8 @@ Esegue Vitest (`vitest run`) sui file `src/**/*.test.ts`. Stato attuale: **143 t
 | `composables/useConnectionStatus.test.ts` | 4 |
 | `composables/useDirtyState.test.ts` | 9 |
 | `domain/availability.test.ts` | 6 (calendario del periodo, riallineamento al giorno, vincoli di disponibilità e durata) |
-| `domain/feedback.test.ts` | 34 (feedback: periodo, parametri, normalizzazione, abbinamento, metriche, tendenza, risposta dell'atleta, sedute svolte con esito e dati dell'attività, aggiornamento dell'RPE, validazione dell'output, anche a cavallo d'anno) |
-| `domain/feedbackPipeline.test.ts` | 16 (pipeline del feedback con porte finte: stati, nuovi tentativi, idempotenza, sostituzione della valutazione anticipata, approvazione con o senza invio, consegna) |
+| `domain/feedback.test.ts` | 35 (feedback: periodo, fuso non valido, parametri, normalizzazione, abbinamento, metriche, tendenza, risposta dell'atleta, sedute svolte con esito e dati dell'attività, aggiornamento dell'RPE, validazione dell'output, anche a cavallo d'anno) |
+| `domain/feedbackPipeline.test.ts` | 17 (pipeline del feedback con porte finte: stati, fuso non valido, nuovi tentativi, idempotenza, sostituzione della valutazione anticipata, approvazione con o senza invio, consegna) |
 | `domain/planChecks.test.ts` | 3 (sedute a settimana, variazione di volume rispetto alla fase, struttura incompleta) |
 | `domain/planWeeks.test.ts` | 14 (settimane del piano, fasi del ciclo di carico, ancoraggio al piano attivo, data di prosecuzione, gare e tapering) |
 | `domain/regeneration.test.ts` | 6 (lettura della proposta, differenze e payload della rigenerazione) |
@@ -67,7 +67,7 @@ Playwright (`playwright.config.ts`, cartella `app/e2e/`) avvia Vite sulla porta 
 
 Nessuna chiamata raggiunge Supabase, Claude o Intervals.icu. La data è fissata al 10 ottobre 2026 con `page.clock`.
 
-Undici flussi, ognuno su un progetto desktop e uno mobile (22 test):
+Diciotto flussi, ognuno su un progetto desktop e uno mobile (36 test):
 - modifica e approvazione di una seduta;
 - rigenerazione con anteprima delle differenze;
 - «Sincronizza settimana» con un errore parziale e il nuovo tentativo;
@@ -77,7 +77,14 @@ Undici flussi, ognuno su un progetto desktop e uno mobile (22 test):
   - ritorno dalle Impostazioni modificate;
   - salvataggio fallito di una scheda nuova e di una esistente, poi riuscito;
   - vista e seduta nell'URL dopo un ricaricamento, e «indietro» che chiude il pannello;
-  - errore di rete al salvataggio di una seduta, con il pannello che resta aperto.
+  - errore di rete al salvataggio di una seduta, con il pannello che resta aperto;
+- coerenza fra interfaccia e comportamento (`coherence.spec.ts`):
+  - doppio clic su «Genera la proposta», con una sola generazione;
+  - schema di carico non riconosciuto, segnalato e corretto;
+  - generazione con modifiche non salvate, in entrambe le scelte;
+  - feedback per un atleta senza email;
+  - fuso orario non valido;
+  - valutazione in preparazione aggiornata senza ricaricare.
 
 Gli esiti finiscono in `test-results/`, non tracciata.
 

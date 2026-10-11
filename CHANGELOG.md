@@ -6,6 +6,18 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
+**2026-10-11 — Interfaccia coerente con i dati usati**
+- Schema di carico e scarico con due selettori (settimane di carico 1-8, di scarico 1-4); un valore salvato non riconosciuto è segnalato nel Profilo e prima di generare.
+- La generazione usa la scheda salvata: con modifiche non salvate chiede «Salva e genera» o «Genera con i dati salvati».
+- Fuso orario scelto da un elenco. Il feedback automatico ripiega su `Europe/Rome` se il fuso salvato non è valido, invece di fermarsi.
+- «Genera la proposta» non accetta un secondo clic; gli avvisi della proposta sono in un riquadro con il conteggio.
+- Feedback: per un atleta senza email il pulsante dice «Approva» con una nota; le valutazioni in preparazione si aggiornano da sole.
+- Badge e filtro «Da verificare» al posto di «Struttura da verificare», che indicava anche i vincoli di disponibilità.
+- Test: 145 unitari, 36 end-to-end.
+
+*Motivazione*: decisioni D-UX-2 e D-UX-4 del coach e problemi U-03, U-04, U-05, U-06, U-09, U-11, U-17, U-18 dell'[audit UI/UX](docs/audit/2026-10-ux-e-usabilita/PCOACH_UX_AUDIT.md).
+*Docs aggiornati*: [decisioni/0024](docs/decisioni/0024-interfaccia-coerente-con-i-dati-usati.md), [architettura.md](docs/architettura.md), [design-ui.md](docs/design-ui.md), [modello-dati.md](docs/modello-dati.md), [backend.md](docs/backend.md), [integrazioni.md](docs/integrazioni.md), [sviluppo-deploy.md](docs/sviluppo-deploy.md).
+
 **2026-10-11 — Navigazione con vue-router, modifiche non salvate protette, salvataggi falliti visibili**
 - Atleta, vista della scheda, Impostazioni, pannello della seduta e dialoghi del piano stanno nell'URL (`vue-router`, cronologia a hash). Ricaricare o riaprire la PWA riporta alla stessa vista; «indietro» chiude pannelli e dialoghi.
 - Lasciare una scheda o le Impostazioni con modifiche non salvate, o premere «Esci», chiede «Salva e continua», «Esci senza salvare» o «Resta». Alla chiusura della pagina compare l'avviso del browser.

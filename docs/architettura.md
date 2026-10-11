@@ -147,7 +147,8 @@ Il salvataggio scrive comunque l'intero blob `data`, ma l'update è condizionato
 
 **Generazione e rigenerazione delle sedute**
 ```
-PlanTab → RegenerateDialog: data di ripartenza, settimane, motivo, sedute da mantenere
+PlanTab: con modifiche non salvate alla scheda chiede «Salva e genera» oppure «Genera con i dati salvati»
+  → RegenerateDialog: data di ripartenza, settimane, motivo, sedute da mantenere; usa la scheda salvata
   → services/planPrompt.ts: istruzioni (regole fisse + preferenze del coach) e messaggio (dati calcolati)
   → plan_generations (status proposed, con il prompt inviato)
   → services/claude.ts → claude-proxy → api.anthropic.com
