@@ -13,7 +13,7 @@ import { useModalFocus } from "../../composables/useModalFocus";
 import { confirmDialog } from "../../composables/useConfirmDialog";
 import { showToast } from "../../composables/useToast";
 import { disciplineIcon, disciplineLabel, formatDate, todayISO } from "../../constants";
-import { TARGET_LABELS, formatMinutes, formatMeters, execState } from "../../domain/workoutState";
+import { TARGET_LABELS, activitySummary, formatMinutes, formatMeters, execState, isPartlyDone } from "../../domain/workoutState";
 import { hasFtp } from "../../domain/athlete";
 import StepEditor from "./StepEditor.vue";
 import StructureBar from "./StructureBar.vue";
@@ -229,6 +229,9 @@ const exec = computed(() => execState(original.value, todayISO()));
         <input type="checkbox" v-model="draft.locked" />
         Mantienila se ripianifico il programma
       </label>
+      <p v-if="original.completion_source === 'intervals' && original.completed_at" class="drawer-done">
+        {{ isPartlyDone(original) ? "Svolta in parte" : "Svolta" }} su Intervals.icu<template v-if="activitySummary(original, totals.seconds)">: {{ activitySummary(original, totals.seconds) }}</template>.
+      </p>
       <p v-if="canMarkDone" class="drawer-done">
         {{ exec === "done" ? "Segnata come svolta a mano." : "Non risulta svolta su Intervals.icu." }}
         <button type="button" class="link-btn" @click="onToggleDone">{{ exec === "done" ? "Segna come non svolta" : "Segna come svolta" }}</button>

@@ -6,7 +6,7 @@ import { computed } from "vue";
 import type { SyncRow } from "@shared/workouts/sync.ts";
 import { localSyncState } from "@shared/workouts/sync.ts";
 import type { WorkoutRecord } from "../../stores/workouts";
-import { execState } from "../../domain/workoutState";
+import { execState, isPartlyDone } from "../../domain/workoutState";
 import { todayISO } from "../../constants";
 import { Ban, Check, CircleCheck, CircleDashed, Cloud, CloudOff, PencilLine, RefreshCw, Replace, TriangleAlert, Lock } from "lucide-vue-next";
 
@@ -32,7 +32,7 @@ const badges = computed<Badge[]>(() => {
   if (s === "removed") out.push({ key: "s", text: "Rimossa da Intervals.icu", tone: "plain", icon: CloudOff });
   if (s === "unlinked") out.push({ key: "s", text: "Scollegata da Intervals.icu", tone: "plain", icon: CloudOff });
   const e = execState(w, todayISO());
-  if (e === "done") out.push({ key: "e", text: "Svolta", tone: "neutral", icon: CircleCheck });
+  if (e === "done") out.push({ key: "e", text: isPartlyDone(w) ? "Svolta in parte" : "Svolta", tone: "neutral", icon: CircleCheck });
   if (e === "unrecorded") out.push({ key: "e", text: "Non registrata", tone: "plain", icon: CircleDashed });
   return out;
 });

@@ -7,11 +7,21 @@ import type { WorkoutContent } from "@shared/workouts/structure.ts";
 import { dayName, planningCalendar } from "../domain/availability";
 import type { PlanWeek } from "../domain/planWeeks";
 import { loadProgressionOf } from "@shared/feedback/params.ts";
+import type { FeedbackInput } from "@shared/feedback/contract.ts";
 
 /** Seduta esistente come la vede Claude: sintetica, senza identificativi interni. */
 export interface PromptWorkout extends WorkoutContent {
   status: string;
   completed_at: string | null;
+  /** Esito e dati dell'attivita' abbinata, se riconosciuta da Intervals.icu (ADR 0021). */
+  completion_outcome?: string | null;
+  activity_minutes?: number | null;
+  activity_rpe?: number | null;
+}
+
+function esito(w: PromptWorkout): string {
+  if (w.completed_at) return w.completion_outcome === "partial" || w.completion_outcome === "short" ? "svolta in parte" : "svolta";
+  return w.planned_date < todayISO() ? "nessuna attività registrata" : "in programma";
 }
 
 function summarize(w: PromptWorkout) {
@@ -24,11 +34,51 @@ function summarize(w: PromptWorkout) {
     title: w.title,
     minutes: Math.round(totals.seconds / 60),
     zones,
-    esito: w.completed_at ? "svolta" : w.planned_date < todayISO() ? "nessuna attività registrata" : "in programma"
+    esito: esito(w),
+    ...(w.activity_minutes != null ? { minuti_svolti: Math.round(w.activity_minutes) } : {}),
+    ...(w.activity_rpe != null ? { rpe: w.activity_rpe } : {})
   };
 }
 
-export function buildAthleteContextForPrompt(profile: AthleteTrainingProfile, recent: PromptWorkout[] = []) {
+/** Analisi settimanale calcolata da PCoach (feedback_input), anche non ancora approvata (decisione D-09). */
+export interface RecentReview {
+  period_start: string;
+  period_end: string;
+  input: FeedbackInput;
+}
+
+type DisciplineVolume = { planned_min: number; matched_min: number; volume_ratio: number | null; deviation: { direction: string; level: string } | null };
+
+/**
+ * Riepilogo dei soli dati calcolati di una valutazione: mai il testo scritto da Claude o dal coach.
+ * Tollerante: un contratto incompleto o di una versione precedente da' null e viene tralasciato.
+ */
+export function reviewSummaryForPrompt(r: RecentReview) {
+  const m = r.input?.metrics;
+  const s = m?.sessions;
+  if (!m || !s) return null;
+  const volumes = (m.by_discipline ?? {}) as Record<string, DisciplineVolume>;
+  const level = (v: DisciplineVolume["deviation"]) =>
+    !v ? null : v.level === "in_line" ? "in linea" : `${v.level === "minor" ? "lieve" : "rilevante"}, ${v.direction === "above" ? "sopra" : "sotto"}`;
+  return {
+    settimana: `${r.period_start}/${r.period_end}`,
+    completa: r.input.period?.complete ?? null,
+    sedute: {
+      assegnate: s.assigned, svolte: s.completed, svolte_in_parte: s.partial, spostate: s.moved,
+      nessuna_attivita_registrata: s.not_recorded, non_valutabili: s.unknown, extra: s.extra
+    },
+    tasso_completamento: m.completion_rate?.reportable ? m.completion_rate.value : null,
+    volume_per_disciplina: Object.fromEntries(Object.entries(volumes).map(([d, v]) => [d, {
+      previsti_min: v.planned_min, svolti_min: v.matched_min, rapporto: v.volume_ratio, scostamento: level(v.deviation)
+    }])),
+    variazione_volume: m.trend?.comparable ? { percentuale: m.trend.endurance_minutes?.change_pct ?? null, rispetto_attesa: m.trend.within_expected ?? null } : null,
+    rpe_medio: r.input.response?.rpe?.mean ?? null,
+    copertura_rpe: r.input.response?.rpe?.coverage ?? null,
+    limitazioni: r.input.limitations ?? []
+  };
+}
+
+export function buildAthleteContextForPrompt(profile: AthleteTrainingProfile, recent: PromptWorkout[] = [], reviews: RecentReview[] = []) {
   const cutoff = addDaysISO(todayISO(), -30);
   const latestThreshold = <T extends { date: string }>(log: T[] | undefined): T | undefined =>
     log && log.length ? [...log].sort((a, b) => a.date.localeCompare(b.date)).at(-1) : undefined;
@@ -53,7 +103,8 @@ export function buildAthleteContextForPrompt(profile: AthleteTrainingProfile, re
     constraints: profile.constraints,
     methodology_preferences: profile.methodology_preferences,
     notes_free_text: profile.notes_free_text,
-    recent_workouts: recent.map(summarize)
+    recent_workouts: recent.map(summarize),
+    recent_reviews: reviews.map(reviewSummaryForPrompt).filter((x) => x !== null)
   };
 }
 
@@ -67,10 +118,12 @@ export interface PlanPromptInput {
   fixed: PromptWorkout[];
   /** Sedute delle ultime due settimane prima della data di inizio. */
   recent: PromptWorkout[];
+  /** Ultime analisi settimanali prima della data di inizio. */
+  reviews?: RecentReview[];
 }
 
 /** Versione delle istruzioni fisse e della forma del messaggio: salvata con ogni generazione. */
-export const PLAN_PROMPT_VERSION = "2.0.0";
+export const PLAN_PROMPT_VERSION = "2.1.0";
 
 // Regole e formato fissi nel codice (ADR 0020, decisione del coach D-01): il coach modifica solo le
 // preferenze metodologiche, che non possono togliere a Claude i dati dell'atleta, i vincoli o il formato.
@@ -84,6 +137,7 @@ Regole:
 - Rispetta la distribuzione dell'intensità scelta per l'atleta (methodology_preferences.intensity_distribution_model).
 - Rispetta la fase di ogni settimana e la variazione di carico indicate nel calendario ("fase", "variazione_carico"), in ogni disciplina: le percentuali sono quelle scelte dal coach per questo atleta.
 - Le sedute già fissate nel periodo non vanno ripetute né spostate: pianifica intorno a queste, tenendone conto nel carico.
+- "recent_workouts" e "recent_reviews" descrivono com'è andato il periodo precedente, con dati calcolati da PCoach (esiti, minuti svolti, RPE, scostamenti di volume): usali per calibrare il carico, senza ricalcolarli. "nessuna attività registrata" non significa che l'atleta non si sia allenato.
 
 Restituisci SOLO un oggetto JSON valido (puoi racchiuderlo in un blocco di codice \`\`\`json, oppure scriverlo senza altro testo prima o dopo), con questa struttura esatta:
 ${TRAINING_PLAN_JSON_SHAPE}`;
@@ -113,8 +167,8 @@ ${prefs}`
   const calendar = planningCalendar(profile.constraints, input.fromDate, toDate, input.planWeeks, loadProgressionOf(profile.methodology_preferences));
   const user = `Prepara le sedute di ${input.weeks} ${input.weeks === 1 ? "settimana" : "settimane"} per ${name}, dal ${input.fromDate} al ${toDate} compresi.
 
-Dati dell'atleta (profilo, soglie, carico recente, sedute delle ultime due settimane con l'esito):
-${JSON.stringify(buildAthleteContextForPrompt(profile, input.recent), null, 2)}
+Dati dell'atleta (profilo, soglie, carico recente, sedute approvate delle ultime due settimane con l'esito, ultime valutazioni settimanali):
+${JSON.stringify(buildAthleteContextForPrompt(profile, input.recent, input.reviews ?? []), null, 2)}
 
 Motivo della pianificazione indicato dal coach:
 ${input.reason.trim() || "Nessun motivo indicato."}

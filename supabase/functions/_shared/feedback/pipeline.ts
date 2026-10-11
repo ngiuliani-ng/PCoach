@@ -11,7 +11,7 @@
 // da una riga che il coach non ha approvato.
 import { addDaysISO } from "../workouts/calendar.ts";
 import { resolveModel } from "../claude/models.ts";
-import { completionsFrom } from "./completion.ts";
+import { type Completion, completionsFrom } from "./completion.ts";
 import { buildFeedbackInput, type FeedbackInput } from "./contract.ts";
 import { buildFeedbackPrompt, buildFeedbackTool, DEFAULT_FEEDBACK_STYLE, type FeedbackOutput, type FeedbackTool, validateFeedbackOutput } from "./output.ts";
 import { loadProgressionOf, resolveFeedbackParams } from "./params.ts";
@@ -86,7 +86,8 @@ export interface FeedbackStore {
   draftCount(athleteId: string, period: Period): Promise<number>;
   coachChanges(athleteId: string, period: Period): Promise<CoachChange[]>;
   plans(athleteId: string, from: string, to: string): Promise<PlanWindow[]>;
-  markCompleted(workoutId: string, activityId: string, completedAt: string): Promise<void>;
+  /** Registra la seduta come svolta, con esito e dati dell'attivita', se non lo e' gia'. */
+  markCompleted(c: Completion): Promise<void>;
 }
 
 export interface IntervalsPort {
@@ -188,7 +189,7 @@ export async function analyze(deps: Deps, row: ReviewRow, settings: FeedbackSett
 
   // Le sedute abbinate con certezza risultano svolte anche nel piano.
   for (const c of completionsFrom(input.sessions, workouts, acts.data)) {
-    await store.markCompleted(c.workout_id, c.activity_id, c.completed_at);
+    await store.markCompleted(c);
   }
 
   await store.update(row.id, "pending", {

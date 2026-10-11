@@ -1,7 +1,8 @@
 // Sincronizzazione delle sedute con il calendario Intervals.icu (ADR 0017).
 // Due azioni, entrambe autenticate con il JWT di sessione del coach (come claude-proxy):
 // - preview: legge lo stato remoto della settimana (eventi, eventi spariti) e registra come
-//   svolte le sedute abbinate a un'attivita' (paired_event_id). Non scrive nulla su Intervals.icu.
+//   svolte le sedute abbinate con certezza a un'attivita' (evento abbinato, o stesso giorno e
+//   disciplina con una sola coppia). Non scrive nulla su Intervals.icu.
 // - apply: esegue UNA operazione su UNA seduta (create, update, overwrite, recreate, delete).
 //   Il client invoca apply una seduta alla volta: l'avanzamento e' visibile riga per riga e una
 //   pagina chiusa a meta' lascia uno stato coerente.
@@ -16,6 +17,9 @@ import { addDaysISO, isISODate, todayISO } from "../_shared/workouts/calendar.ts
 import { buildIntervalsEvent, expectedTopLevelSteps, externalIdFor, INTERVALS_TYPES } from "../_shared/workouts/intervals.ts";
 import type { WorkoutContent } from "../_shared/workouts/structure.ts";
 import { validateWorkout } from "../_shared/workouts/structure.ts";
+import { completionColumns, completionsIn } from "../_shared/feedback/completion.ts";
+import { resolveFeedbackParams } from "../_shared/feedback/params.ts";
+import type { PlannedWorkout, RawActivity } from "../_shared/feedback/types.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -121,7 +125,7 @@ async function logEvent(db: SupabaseClient, w: WorkoutRow, type: string, note: s
 }
 
 // ---------- preview ----------
-async function preview(db: SupabaseClient, athleteId: string, weekStart: string, timezone: string) {
+async function preview(db: SupabaseClient, athleteId: string, weekStart: string, timezone: string, feedbackParams: unknown) {
   const apiKey = await athleteKey(db, athleteId);
   if (!apiKey) return jsonResponse({ error: "Questo atleta non ha una chiave Intervals.icu: aggiungila nel Profilo." }, 400);
   const weekEnd = addDaysISO(weekStart, 6);
@@ -151,24 +155,26 @@ async function preview(db: SupabaseClient, athleteId: string, weekStart: string,
     else if (one.status === 404) missingIds.push(id);
   }
 
-  // Esecuzione: un'attivita' abbinata all'evento rende la seduta svolta.
+  // Esecuzione: le sedute approvate abbinate con certezza a un'attivita' risultano svolte, con
+  // esito e dati dell'attivita' (regola unica in _shared/feedback/completion.ts, ADR 0021).
   let completed = 0;
   const today = todayISO(timezone);
-  if (remoteIds.size && weekStart <= today) {
-    const acts = await icu(apiKey, "GET", `/activities?oldest=${weekStart}&newest=${weekEnd < today ? weekEnd : today}`);
-    if (acts.ok && Array.isArray(acts.data)) {
-      // start_date e' in UTC; start_date_local non ha fuso e letto come data sarebbe spostato.
-      const byEvent = new Map<number, { id: string; start: string | null }>();
-      for (const a of acts.data as Array<{ id?: string | number; paired_event_id?: number | null; start_date?: string }>) {
-        if (a.paired_event_id != null && remoteIds.has(a.paired_event_id)) byEvent.set(a.paired_event_id, { id: String(a.id ?? ""), start: a.start_date ?? null });
-      }
-      for (const r of syncRows ?? []) {
-        const hit = r.remote_event_id != null ? byEvent.get(r.remote_event_id) : undefined;
-        if (!hit) continue;
-        const { data: upd } = await db.from("workouts")
-          .update({ completed_at: hit.start ? new Date(hit.start).toISOString() : new Date().toISOString(), completed_activity_id: hit.id, completion_source: "intervals" })
-          .eq("id", r.workout_id).is("completed_at", null).select("id");
-        completed += upd?.length ?? 0;
+  if (weekStart <= today) {
+    const until = weekEnd < today ? weekEnd : today;
+    const { data: approved } = await db.from("workouts")
+      .select("id, revision, planned_date, slot, discipline, title, objective, duration_min, structure, primary_target, completed_at, workout_sync(provider, remote_event_id)")
+      .eq("athlete_id", athleteId).eq("status", "approved").gte("planned_date", weekStart).lte("planned_date", until);
+    type Row = Omit<PlannedWorkout, "remote_event_id"> & { workout_sync?: { provider: string; remote_event_id: number | null }[] };
+    const planned: PlannedWorkout[] = ((approved ?? []) as Row[]).map(({ workout_sync, ...w }) => ({
+      ...w, remote_event_id: workout_sync?.find((x) => x.provider === "intervals_icu")?.remote_event_id ?? null
+    }));
+    if (planned.some((w) => !w.completed_at)) {
+      const acts = await icu(apiKey, "GET", `/activities?oldest=${weekStart}&newest=${until}`);
+      if (acts.ok && Array.isArray(acts.data)) {
+        for (const c of completionsIn(planned, acts.data as RawActivity[], { start: weekStart, end: until }, today, resolveFeedbackParams(feedbackParams))) {
+          const { data: upd } = await db.from("workouts").update(completionColumns(c)).eq("id", c.workout_id).is("completed_at", null).select("id");
+          completed += upd?.length ?? 0;
+        }
       }
     }
   }
@@ -308,8 +314,9 @@ Deno.serve(async (req: Request) => {
   try {
     if (body.action === "preview") {
       if (!isISODate(body.week_start)) return jsonResponse({ error: "Settimana non valida." }, 400);
-      const { data: settings } = await db.from("app_settings").select("weekly_feedback_timezone").eq("id", 1).maybeSingle();
-      return await preview(db, athleteId, body.week_start, (settings as { weekly_feedback_timezone?: string } | null)?.weekly_feedback_timezone || "Europe/Rome");
+      const { data: settings } = await db.from("app_settings").select("weekly_feedback_timezone, feedback_params").eq("id", 1).maybeSingle();
+      const cfg = settings as { weekly_feedback_timezone?: string; feedback_params?: unknown } | null;
+      return await preview(db, athleteId, body.week_start, cfg?.weekly_feedback_timezone || "Europe/Rome", cfg?.feedback_params);
     }
     if (body.action === "apply") {
       const op = body.op as ApplyOp;

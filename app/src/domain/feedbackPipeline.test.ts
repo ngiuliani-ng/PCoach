@@ -69,7 +69,7 @@ class MemoryStore implements FeedbackStore {
   async draftCount() { return 0; }
   async coachChanges() { return []; }
   async plans() { return [{ id: "p1", start_date: "2026-10-01", end_date: null, status: "active", weeks_meta: [] }]; }
-  async markCompleted(id: string) { this.completed.push(id); }
+  async markCompleted(c: { workout_id: string }) { this.completed.push(c.workout_id); }
 }
 
 const VALID = {

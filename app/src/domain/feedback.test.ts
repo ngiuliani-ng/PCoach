@@ -4,7 +4,7 @@
 import { describe, expect, it } from "vitest";
 import { buildFeedbackInput, type AnalysisInput } from "@shared/feedback/contract.ts";
 import { normalizeActivities } from "@shared/feedback/normalize.ts";
-import { recentCompletions } from "@shared/feedback/completion.ts";
+import { completionColumns, recentCompletions, snapshotRefreshes } from "@shared/feedback/completion.ts";
 import { buildFeedbackTool, validateFeedbackOutput, buildFeedbackPrompt } from "@shared/feedback/output.ts";
 import { DEFAULT_FEEDBACK_PARAMS, loadProgressionOf, resolveFeedbackParams, validateFeedbackParams } from "@shared/feedback/params.ts";
 import { inScheduleWindow, localDayHour, reviewPeriod } from "@shared/feedback/period.ts";
@@ -267,6 +267,26 @@ describe("sedute svolte all'apertura della scheda", () => {
     const got = recentCompletions(ws, as, today);
     expect(got.map((c) => [c.workout_id, c.activity_id])).toEqual([["p", "a1"], ["s", "a2"]]);
     expect(got[0].completed_at).toBe("2026-10-13T16:00:00Z");
+  });
+
+  it("salva esito e dati dell'attivita': una seduta molto ridotta e' svolta in parte (D-09, D-10)", () => {
+    const ws = [wk("full", "2026-10-13", "running", 60), wk("half", "2026-10-14", "cycling", 60)];
+    const as = [
+      act("a1", "2026-10-13T18:00:00", "running", 58, { icu_rpe: 6, distance: 11200.4, icu_training_load: 70 }),
+      act("a2", "2026-10-14T18:00:00", "cycling", 30)
+    ];
+    const [full, half] = recentCompletions(ws, as, today);
+    expect(full).toMatchObject({ outcome: "completed", ratio: 0.97, snapshot: { activity_minutes: 58, activity_meters: 11200, activity_load: 70, activity_rpe: 6 } });
+    expect(half).toMatchObject({ outcome: "partial", ratio: 0.5 });
+    expect(completionColumns(half)).toMatchObject({ completion_source: "intervals", completed_activity_id: "a2", completion_outcome: "partial", activity_rpe: null });
+  });
+
+  it("aggiorna i dati dell'attivita' cambiati dopo il riconoscimento, come l'RPE inserito piu' tardi", () => {
+    const as = [act("a1", "2026-10-13T18:00:00", "running", 58, { icu_rpe: 7, icu_training_load: 70 })];
+    const recorded = { id: "w", completion_source: "intervals", completed_activity_id: "a1", activity_minutes: 58, activity_meters: null, activity_load: 70, activity_rpe: null };
+    expect(snapshotRefreshes([recorded], as)).toEqual([{ workout_id: "w", snapshot: { activity_minutes: 58, activity_meters: null, activity_load: 70, activity_rpe: 7 } }]);
+    expect(snapshotRefreshes([{ ...recorded, activity_rpe: 7 }], as)).toEqual([]);
+    expect(snapshotRefreshes([{ ...recorded, completion_source: "manual" }], as)).toEqual([]);
   });
 
   it("ignora le sedute fuori dagli ultimi 14 giorni e quelle non abbinate", () => {

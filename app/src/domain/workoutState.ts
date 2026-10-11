@@ -14,6 +14,23 @@ export function execState(w: { status: string; planned_date: string; completed_a
   return "planned";
 }
 
+/** Svolta, ma molto meno del prescritto (esiti "partial" e "short" dell'abbinamento): decisione D-10. */
+export function isPartlyDone(w: { completed_at: string | null; completion_outcome?: string | null }): boolean {
+  return !!w.completed_at && (w.completion_outcome === "partial" || w.completion_outcome === "short");
+}
+
+/** Riepilogo dell'attivita' abbinata: "42 min su 60 previsti, RPE 7". */
+export function activitySummary(
+  w: { activity_minutes?: number | null; activity_rpe?: number | null; completion_ratio?: number | null },
+  plannedSeconds: number
+): string {
+  const parts: string[] = [];
+  if (w.activity_minutes != null) parts.push(plannedSeconds > 0 ? `${formatMinutes(w.activity_minutes * 60)} su ${formatMinutes(plannedSeconds)} previsti` : formatMinutes(w.activity_minutes * 60));
+  if (w.completion_ratio != null) parts.push(`${Math.round(w.completion_ratio * 100)}% del prescritto`);
+  if (w.activity_rpe != null) parts.push(`RPE ${w.activity_rpe}`);
+  return parts.join(", ");
+}
+
 export const STATUS_LABELS: Record<string, string> = {
   draft: "Da revisionare",
   approved: "Approvata",

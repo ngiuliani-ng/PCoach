@@ -10,7 +10,7 @@ import { useWorkoutsStore, type GenerationKind, type WorkoutRecord } from "../..
 import { useAthletesStore } from "../../stores/athletes";
 import { showToast } from "../../composables/useToast";
 import { DAY_LABELS, formatDate, todayISO } from "../../constants";
-import { execState, formatMinutes } from "../../domain/workoutState";
+import { execState, formatMinutes, isPartlyDone } from "../../domain/workoutState";
 import { isActiveStatus } from "../../domain/regeneration";
 import WorkoutRow from "./WorkoutRow.vue";
 import WorkoutDrawer from "./WorkoutDrawer.vue";
@@ -94,6 +94,7 @@ const FILTERS: Filter[] = [
   { key: "outdated", label: "Da aggiornare", test: (w) => localSyncState(w, store.syncRows[w.id]) === "outdated" },
   { key: "error", label: "Errori di sincronizzazione", test: (w) => localSyncState(w, store.syncRows[w.id]) === "error" },
   { key: "done", label: "Svolte", test: (w) => execState(w, today) === "done" },
+  { key: "partial", label: "Svolte in parte", test: (w) => isPartlyDone(w) },
   { key: "unrecorded", label: "Non registrate", test: (w) => execState(w, today) === "unrecorded" },
   { key: "planned", label: "In programma", test: (w) => execState(w, today) === "planned" || execState(w, today) === "today" },
   { key: "closed", label: "Annullate o sostituite", test: (w) => !isActiveStatus(w.status) }

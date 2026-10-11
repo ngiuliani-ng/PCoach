@@ -9,6 +9,7 @@ import { computed, onMounted, ref } from "vue";
 import { useWorkoutsStore, type GenerationKind, type GenerationRecord } from "../../stores/workouts";
 import { useAthletesStore } from "../../stores/athletes";
 import { useSettingsStore } from "../../stores/settings";
+import { useReviewsStore } from "../../stores/reviews";
 import { useModalFocus } from "../../composables/useModalFocus";
 import { useIntervalsSync } from "../../composables/useIntervalsSync";
 import { showToast } from "../../composables/useToast";
@@ -97,7 +98,8 @@ function onFromDateChange(value: string) {
 const keptIds = computed(() => candidates.value.filter((w) => keep.value[w.id] || isForcedKeep(w)).map((w) => w.id));
 const keptWorkouts = computed(() => candidates.value.filter((w) => keptIds.value.includes(w.id)));
 const recentWorkouts = computed(() =>
-  store.workouts.filter((w) => (w.status === "draft" || w.status === "approved") && w.planned_date < fromDate.value && w.planned_date >= addDaysISO(fromDate.value, -14))
+  // Solo le approvate: una bozza mai approvata l'atleta non l'ha mai vista.
+  store.workouts.filter((w) => w.status === "approved" && w.planned_date < fromDate.value && w.planned_date >= addDaysISO(fromDate.value, -14))
 );
 
 // Vincoli dell'atleta e sedute mantenute: la proposta viene ricontrollata contro entrambi.
@@ -126,9 +128,10 @@ async function generate() {
   // Carico aggiornato prima di chiedere il piano (trigger di sincronizzazione "generazione").
   await useIntervalsSync().syncNow(athleteId.value, profile.value.integrations?.intervals_icu_api_key);
   const preferences = settings.settings.plan_generation_prompt_template;
+  const reviews = await useReviewsStore().analysesBefore(athleteId.value, fromDate.value);
   const prompt = buildPlanPrompt(
     profile.value,
-    { weeks: w, fromDate: fromDate.value, reason: reason.value, fixed: keptWorkouts.value, recent: recentWorkouts.value, planWeeks: weeksOfPlan(fromDate.value, w) },
+    { weeks: w, fromDate: fromDate.value, reason: reason.value, fixed: keptWorkouts.value, recent: recentWorkouts.value, reviews, planWeeks: weeksOfPlan(fromDate.value, w) },
     preferences
   );
   const maxTokens = planMaxTokens(w);

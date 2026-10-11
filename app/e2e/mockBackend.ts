@@ -118,6 +118,7 @@ function matches(row: Row, key: string, raw: string): boolean {
     case "eq": ok = String(v) === val; break;
     case "gte": ok = String(v) >= val; break;
     case "lte": ok = String(v) <= val; break;
+    case "lt": ok = String(v) < val; break;
     case "is": ok = val === "null" ? v === null || v === undefined : String(v) === val; break;
     case "in": ok = val.replace(/^\(|\)$/g, "").split(",").map((x) => x.replace(/^"|"$/g, "")).includes(String(v)); break;
     default: ok = true;

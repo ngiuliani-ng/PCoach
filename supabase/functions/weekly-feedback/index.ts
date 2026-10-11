@@ -13,6 +13,7 @@ import {
   processReview, type Profile, type Result, type ReviewRow, type ReviewStatus, runScheduled
 } from "../_shared/feedback/pipeline.ts";
 import { periodOf } from "../_shared/feedback/period.ts";
+import { type Completion, completionColumns } from "../_shared/feedback/completion.ts";
 import type { CoachChange, Period, PlannedWorkout, PlanWindow, RawActivity, RawWellness } from "../_shared/feedback/types.ts";
 import { addDaysISO, isISODate, todayISO, weekStartISO } from "../_shared/workouts/calendar.ts";
 
@@ -144,10 +145,8 @@ class SupabaseStore implements FeedbackStore {
     return (data ?? []) as PlanWindow[];
   }
 
-  async markCompleted(workoutId: string, activityId: string, completedAt: string): Promise<void> {
-    await this.db.from("workouts")
-      .update({ completed_at: completedAt, completed_activity_id: activityId, completion_source: "intervals" })
-      .eq("id", workoutId).is("completed_at", null);
+  async markCompleted(c: Completion): Promise<void> {
+    await this.db.from("workouts").update(completionColumns(c)).eq("id", c.workout_id).is("completed_at", null);
   }
 }
 

@@ -7,12 +7,12 @@ import { supabase } from "../services/supabase";
 import type { SyncRow, SyncableWorkout } from "@shared/workouts/sync.ts";
 import type { WorkoutContent } from "@shared/workouts/structure.ts";
 import type { ApplyPayload, WeekMeta } from "../domain/regeneration";
-import { RECENT_COMPLETION_DAYS, recentCompletions } from "@shared/feedback/completion.ts";
+import { completionColumns, RECENT_COMPLETION_DAYS, recentCompletions, snapshotRefreshes, type ActivitySnapshot, type CompletionOutcome } from "@shared/feedback/completion.ts";
 import type { FeedbackParams } from "@shared/feedback/params.ts";
 import { addDaysISO, todayISO } from "@shared/workouts/calendar.ts";
 import { fetchActivities } from "../services/intervals";
 
-export interface WorkoutRecord extends SyncableWorkout {
+export interface WorkoutRecord extends SyncableWorkout, Partial<ActivitySnapshot> {
   athlete_id: string;
   plan_id: string | null;
   generation_id: string | null;
@@ -21,6 +21,9 @@ export interface WorkoutRecord extends SyncableWorkout {
   locked: boolean;
   completed_activity_id: string | null;
   completion_source: "intervals" | "manual" | null;
+  /** Esito rispetto al prescritto, per le sedute svolte riconosciute da Intervals.icu (ADR 0021). */
+  completion_outcome: CompletionOutcome | null;
+  completion_ratio: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -68,15 +71,25 @@ export interface GenerationRecord {
 export type Result<T = undefined> = { ok: true; value: T; message?: string } | { ok: false; message: string };
 
 const WORKOUT_COLUMNS =
-  "id, athlete_id, plan_id, generation_id, planned_date, slot, discipline, title, objective, notes_for_athlete, duration_min, structure, primary_target, status, superseded_by, locked, needs_review, completed_at, completed_activity_id, completion_source, revision, created_at, updated_at";
+  "id, athlete_id, plan_id, generation_id, planned_date, slot, discipline, title, objective, notes_for_athlete, duration_min, structure, primary_target, status, superseded_by, locked, needs_review, completed_at, completed_activity_id, completion_source, completion_outcome, completion_ratio, activity_minutes, activity_meters, activity_load, activity_rpe, revision, created_at, updated_at";
 
 /** Oltre questo tempo una generazione senza proposta non ricevera' piu' risposta (proxy: 150 s). */
 const ORPHAN_MINUTES = 30;
 
 const CONFLICT_MESSAGE ="La seduta è stata modificata altrove: ricarico i dati, riapri la seduta e riapplica le modifiche.";
 
+const numOrNull = (v: unknown) => (v == null ? null : Number(v));
+
 function normalize(row: Record<string, unknown>): WorkoutRecord {
-  return { ...(row as unknown as WorkoutRecord), duration_min: row.duration_min == null ? null : Number(row.duration_min) };
+  return {
+    ...(row as unknown as WorkoutRecord),
+    duration_min: numOrNull(row.duration_min),
+    completion_ratio: numOrNull(row.completion_ratio),
+    activity_minutes: numOrNull(row.activity_minutes),
+    activity_meters: numOrNull(row.activity_meters),
+    activity_load: numOrNull(row.activity_load),
+    activity_rpe: numOrNull(row.activity_rpe)
+  };
 }
 
 export const useWorkoutsStore = defineStore("workouts", {
@@ -147,18 +160,26 @@ export const useWorkoutsStore = defineStore("workouts", {
         .filter((w) => w.status === "approved")
         .map((w) => ({ ...w, remote_event_id: this.syncRows[w.id]?.remote_event_id ?? null }));
       let marked = 0;
+      const replaceRow = (row: unknown) => {
+        const updated = normalize(row as Record<string, unknown>);
+        const i = this.workouts.findIndex((w) => w.id === updated.id);
+        if (i >= 0) this.workouts[i] = updated;
+      };
       for (const c of recentCompletions(approved, res.activities, today, params)) {
-        const { data } = await supabase
-          .from("workouts")
-          .update({ completed_at: c.completed_at, completed_activity_id: c.activity_id, completion_source: "intervals" })
-          .eq("id", c.workout_id)
-          .is("completed_at", null)
-          .select(WORKOUT_COLUMNS);
+        const { data } = await supabase.from("workouts").update(completionColumns(c))
+          .eq("id", c.workout_id).is("completed_at", null).select(WORKOUT_COLUMNS);
         const row = data?.[0];
         if (!row || this.athleteId !== athleteId) continue;
-        const i = this.workouts.findIndex((w) => w.id === c.workout_id);
-        if (i >= 0) this.workouts[i] = normalize(row as Record<string, unknown>);
+        replaceRow(row);
         marked++;
+      }
+      // Dati dell'attivita' cambiati dopo il riconoscimento (ad esempio l'RPE inserito piu' tardi).
+      const windowStart = addDaysISO(today, -(RECENT_COMPLETION_DAYS - 1));
+      const recorded = this.workouts.filter((w) => w.completed_at && w.planned_date >= windowStart);
+      for (const r of snapshotRefreshes(recorded, res.activities)) {
+        const { data } = await supabase.from("workouts").update(r.snapshot)
+          .eq("id", r.workout_id).eq("completion_source", "intervals").select(WORKOUT_COLUMNS);
+        if (data?.[0] && this.athleteId === athleteId) replaceRow(data[0]);
       }
       return marked;
     },
@@ -243,9 +264,10 @@ export const useWorkoutsStore = defineStore("workouts", {
     },
 
     async setCompleted(id: string, completed: boolean) {
+      const noActivity = { completed_activity_id: null, completion_outcome: null, completion_ratio: null, activity_minutes: null, activity_meters: null, activity_load: null, activity_rpe: null };
       return this.update(id, completed
-        ? { completed_at: new Date().toISOString(), completion_source: "manual", completed_activity_id: null }
-        : { completed_at: null, completion_source: null, completed_activity_id: null });
+        ? { ...noActivity, completed_at: new Date().toISOString(), completion_source: "manual" }
+        : { ...noActivity, completed_at: null, completion_source: null });
     },
 
     async events(id: string): Promise<WorkoutEventRecord[]> {

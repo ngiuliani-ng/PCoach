@@ -69,6 +69,17 @@ export const useReviewsStore = defineStore("reviews", {
         this.busy = null;
       }
     },
+    /**
+     * Ultime analisi settimanali concluse prima di una data, anche non approvate: i dati sono calcolati
+     * da PCoach e servono alla generazione successiva (decisione D-09). Solo il contratto, non il testo.
+     */
+    async analysesBefore(athleteId: string, date: string, limit = 2): Promise<{ period_start: string; period_end: string; input: FeedbackInput }[]> {
+      if (!supabase) return [];
+      const { data } = await supabase.from("weekly_reviews").select("period_start, period_end, input")
+        .eq("athlete_id", athleteId).neq("status", "superseded").not("input", "is", null).lt("period_end", date)
+        .order("period_start", { ascending: false }).limit(limit);
+      return (data ?? []) as { period_start: string; period_end: string; input: FeedbackInput }[];
+    },
     create(weekStart: string) {
       const id = this.athleteId!;
       return this.run("new", () => api.createReview(id, weekStart), statusMessage);
