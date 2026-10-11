@@ -20,6 +20,7 @@ import { availabilityIssues } from "../../domain/availability";
 import StepEditor from "./StepEditor.vue";
 import StructureBar from "./StructureBar.vue";
 import WorkoutBadges from "./WorkoutBadges.vue";
+import FieldHelp from "../ui/FieldHelp.vue";
 import { Ban, Check, RotateCcw, Trash2, X } from "lucide-vue-next";
 
 const props = defineProps<{ workoutId: string }>();
@@ -242,6 +243,7 @@ const exec = computed(() => execState(original.value, todayISO()));
             <div class="segmented" role="group" aria-labelledby="wd-metric">
               <button v-for="m in (['power', 'hr', 'pace'] as const)" :key="m" type="button" :aria-pressed="draft.primary_target === m" :disabled="!editable" @click="draft.primary_target = m">{{ TARGET_LABELS[m] }}</button>
             </div>
+            <FieldHelp field="workout.primary_target" />
           </div>
           <StructureBar :discipline="draft.discipline" :structure="draft.structure" />
           <StepEditor v-if="draft.structure" :structure="draft.structure" :errors="errors" :readonly="!editable" :max-zone="maxZone" />

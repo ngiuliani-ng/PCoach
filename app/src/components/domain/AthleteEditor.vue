@@ -31,6 +31,7 @@ import WeeklyReviews from "./WeeklyReviews.vue";
 import PasswordField from "../ui/PasswordField.vue";
 import type { AthleteTab } from "../../router";
 import IconButton from "../ui/IconButton.vue";
+import FieldHelp from "../ui/FieldHelp.vue";
 import { Download, Plus, Trash2 } from "lucide-vue-next";
 
 const athletes = useAthletesStore();
@@ -347,6 +348,8 @@ function onExport() {
           <label class="field"><span class="field-label">Altezza (cm)</span><input type="number" v-model.number="profile.identity.height_cm" /></label>
           <label class="field"><span class="field-label">Peso (kg)</span><input type="number" v-model.number="profile.identity.weight_kg" /></label>
         </div>
+        <FieldHelp field="identity.email" />
+        <FieldHelp field="identity" />
       </section>
 
       <section class="block" id="sec-intervals">
@@ -356,7 +359,7 @@ function onExport() {
           <PasswordField v-model="profile.integrations!.intervals_icu_api_key as string" input-id="intervals-api-key" />
         </div>
         <p v-if="intervalsStatusText" class="helper-text status-text" :class="{ 'error-text': intervalsKeyStatus === 'invalid' }">{{ intervalsStatusText }}</p>
-        <p class="helper-text">Con la chiave, il carico di allenamento si aggiorna da solo quando la inserisci, quando apri la scheda e quando generi un piano, e le sedute approvate si possono inviare al calendario dell'atleta con «Sincronizza settimana».</p>
+        <FieldHelp field="integrations.intervals_icu_api_key" />
       </section>
 
       <section class="block">
@@ -398,7 +401,7 @@ function onExport() {
               </select>
             </label>
           </div>
-          <p class="helper-text">Il volume di oggi, non quello storico: serve a capire da dove si riparte.</p>
+          <FieldHelp field="disciplines[].current_weekly_volume" />
           <div class="field-row">
             <label class="field">
               <span class="field-label">Picco settimanale negli ultimi 12 mesi</span>
@@ -411,7 +414,7 @@ function onExport() {
               </select>
             </label>
           </div>
-          <p class="helper-text">Il volume massimo raggiunto: è il riferimento per la crescita del carico.</p>
+          <FieldHelp field="disciplines[].peak_weekly_volume_last_12_months" />
         </div>
         <button type="button" class="add-row" @click="addDiscipline"><Plus :size="16" aria-hidden="true" />Aggiungi disciplina</button>
       </section>
@@ -454,11 +457,10 @@ function onExport() {
           <MetricLogList v-model="profile.physiological_thresholds!.cycling!.thresholds_log as never" :field-defs="BIKE_THRESHOLD_FIELDS" />
         </template>
         <MetricLogList v-else v-model="profile.physiological_thresholds!.swimming!.thresholds_log as never" :field-defs="SWIM_THRESHOLD_FIELDS" />
-        <p class="helper-text">
-          <template v-if="thresholdSport === 'swimming'">Il nuoto usa 7 zone.</template>
-          <template v-else>Le sedute di {{ thresholdSport === "running" ? "corsa" : "bici" }} usano solo le zone da Z1 a quella indicata, sia nella generazione sia nell'editor: devono coincidere con le zone impostate su Intervals.icu per l'atleta.</template>
-          Conta l'ultima rilevazione per data.
-        </p>
+        <FieldHelp v-if="thresholdSport === 'running'" field="physiological_thresholds.running.zone_system" />
+        <FieldHelp v-else-if="thresholdSport === 'cycling'" field="physiological_thresholds.cycling.zone_system" />
+        <p v-else class="helper-text">Il nuoto usa 7 zone.</p>
+        <FieldHelp field="physiological_thresholds" />
       </section>
 
       <section class="block">
@@ -505,6 +507,7 @@ function onExport() {
           <span class="field-label">Nota sui fattori di vita</span>
           <textarea v-model="profile.training_status!.lifestyle_factors_note"></textarea>
         </label>
+        <FieldHelp field="training_status.lifestyle_factors" />
       </section>
 
       <section class="block">
@@ -538,7 +541,7 @@ function onExport() {
           <span class="field-label">Periodizzazione</span>
           {{ PERIODIZATION_LABELS[profile.goals.periodization_model] || profile.goals.periodization_model }}
         </p>
-        <p class="helper-text">Deriva dall'obiettivo principale: «Preparazione gara» porta a picco e scarico, gli altri obiettivi a un miglioramento continuo.</p>
+        <FieldHelp field="goals.periodization_model" />
 
         <template v-if="showTargetEvents">
           <h4 class="subsection-title">Eventi target</h4>
@@ -581,7 +584,7 @@ function onExport() {
                   :value="ev.taper_volume_decrease_pct ?? ''" @input="ev.taper_volume_decrease_pct = numOrNull(($event.target as HTMLInputElement).value) ?? undefined" />
               </label>
             </div>
-            <p class="helper-text">Prima della settimana di gara PCoach pianifica le settimane di tapering indicate (vuoto: A 2, B 1, C 0) e sospende il ciclo di carico; dopo una gara A il ciclo riparte da «carico 1».</p>
+            <FieldHelp field="goals.target_events" />
           </div>
           <button type="button" class="add-row" @click="addTargetEvent"><Plus :size="16" aria-hidden="true" />Aggiungi evento</button>
         </template>
@@ -595,9 +598,11 @@ function onExport() {
           <label class="field"><span class="field-label">Durata massima (min)</span><input type="number" v-model.number="day.max_duration_minutes" /></label>
           <label class="field"><span class="field-label">Attività abituale</span><input type="text" v-model="day.fixed_activity" /></label>
         </div>
+        <FieldHelp field="constraints.days_available" />
         <div class="field-row">
           <label class="field"><span class="field-label">Sessioni a settimana (obiettivo)</span><input type="number" v-model.number="profile.constraints.sessions_per_week_target" /></label>
         </div>
+        <FieldHelp field="constraints.sessions_per_week_target" />
       </section>
 
       <section class="block">
@@ -613,6 +618,7 @@ function onExport() {
             </select>
           </label>
         </div>
+        <FieldHelp field="methodology_preferences.intensity_distribution_model" />
         <div class="field-row">
           <label class="field">
             <span class="field-label">Settimane di carico</span>
@@ -632,7 +638,7 @@ function onExport() {
         <p v-if="!loadPattern" class="helper-text error-text">
           Lo schema salvato «{{ profile.methodology_preferences.load_deload_pattern || "vuoto" }}» non è riconosciuto: finché non scegli le settimane, il piano non avrà fasi di carico e scarico.
         </p>
-        <p class="helper-text">Il ciclo di carico e scarico: ad esempio 3 settimane di carico e 1 di scarico. PCoach calcola da qui la fase di ogni settimana del piano e la passa a Claude.</p>
+        <FieldHelp field="methodology_preferences.load_deload_pattern" />
         <div class="field-row">
           <label class="field">
             <span class="field-label">Aumento fra settimane di carico (% minimo)</span>
@@ -647,12 +653,13 @@ function onExport() {
             <input type="number" min="5" max="80" step="1" v-model.number="profile.methodology_preferences.deload_decrease_pct" placeholder="33" />
           </label>
         </div>
-        <p class="helper-text">Claude le usa per pianificare il ciclo di carico e scarico; il feedback le usa per dire se la variazione di volume fra due settimane era quella prevista. Vuote: 5-10% e 33%.</p>
+        <FieldHelp field="methodology_preferences.load_increase_min_pct" />
       </section>
 
       <section class="block">
         <h3>Note libere</h3>
         <textarea v-model="profile.notes_free_text" rows="4" aria-label="Note libere"></textarea>
+        <FieldHelp field="notes_free_text" />
       </section>
 
       <section class="block">

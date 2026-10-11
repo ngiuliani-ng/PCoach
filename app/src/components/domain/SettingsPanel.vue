@@ -9,6 +9,7 @@ import { DEFAULT_PLAN_PREFERENCES } from "../../constants";
 import { SUPPORTED_MODELS } from "@shared/claude/models.ts";
 import { isValidTimeZone } from "@shared/feedback/period.ts";
 import PasswordField from "../ui/PasswordField.vue";
+import FieldHelp from "../ui/FieldHelp.vue";
 
 const settings = useSettingsStore();
 const paramErrors = computed(() => validateFeedbackParams(settings.settings.feedback_params));
@@ -75,7 +76,7 @@ async function onSave() {
     <section class="block">
       <h3>Preferenze per generare il piano</h3>
       <textarea v-model="settings.settings.plan_generation_prompt_template" rows="6" aria-label="Preferenze per generare il piano"></textarea>
-      <p class="helper-text">Come preferisci impostare le settimane: scarico, ripartenza del ciclo, uso del carico recente. Dati dell'atleta, calendario, disponibilità, fasi del ciclo e formato della risposta li aggiunge PCoach e non dipendono da questo testo. <span v-pre>{{nome_atleta}}</span> diventa il nome.</p>
+      <FieldHelp field="settings.plan_generation_prompt_template" />
       <button type="button" class="link-btn" @click="settings.settings.plan_generation_prompt_template = DEFAULT_PLAN_PREFERENCES">Ripristina le preferenze predefinite</button>
     </section>
     <section class="block">
@@ -85,7 +86,7 @@ async function onSave() {
     </section>
     <section class="block">
       <h3>Soglie del feedback</h3>
-      <p class="helper-text">Regole pratiche, non valori fisiologici: decidono come PCoach classifica le sedute e gli scostamenti prima che Claude scriva il testo.</p>
+      <FieldHelp field="settings.feedback_params" />
       <div class="field-row">
         <label v-for="[key, label] in MAIN_PARAMS" :key="key" class="field">
           <span class="field-label">{{ label }}</span>
