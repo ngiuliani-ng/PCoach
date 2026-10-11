@@ -157,9 +157,10 @@ async function preview(db: SupabaseClient, athleteId: string, weekStart: string,
   if (remoteIds.size && weekStart <= today) {
     const acts = await icu(apiKey, "GET", `/activities?oldest=${weekStart}&newest=${weekEnd < today ? weekEnd : today}`);
     if (acts.ok && Array.isArray(acts.data)) {
+      // start_date e' in UTC; start_date_local non ha fuso e letto come data sarebbe spostato.
       const byEvent = new Map<number, { id: string; start: string | null }>();
-      for (const a of acts.data as Array<{ id?: string | number; paired_event_id?: number | null; start_date_local?: string }>) {
-        if (a.paired_event_id != null && remoteIds.has(a.paired_event_id)) byEvent.set(a.paired_event_id, { id: String(a.id ?? ""), start: a.start_date_local ?? null });
+      for (const a of acts.data as Array<{ id?: string | number; paired_event_id?: number | null; start_date?: string }>) {
+        if (a.paired_event_id != null && remoteIds.has(a.paired_event_id)) byEvent.set(a.paired_event_id, { id: String(a.id ?? ""), start: a.start_date ?? null });
       }
       for (const r of syncRows ?? []) {
         const hit = r.remote_event_id != null ? byEvent.get(r.remote_event_id) : undefined;

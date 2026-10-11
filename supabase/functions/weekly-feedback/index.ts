@@ -1,22 +1,20 @@
-// Edge Function schedulata per il feedback settimanale (Fase 7): per ogni atleta con sedute
-// e chiave Intervals.icu, sincronizza CTL/ATL da Intervals.icu (stesso 4° trigger descritto in
-// docs/DOCUMENTAZIONE.md §7), confronta la settimana pianificata con quella reale, genera un
-// feedback con Claude, lo salva in weekly_feedback_log e invia un'email opzionale.
-// Pensata per essere invocata frequentemente (es. ogni ora) da pg_cron: internamente verifica
-// se il giorno attuale e' quello configurato e l'ora e' arrivata o passata quella configurata
-// (finestra "resto della giornata", non match esatto sull'ora: un'invocazione oraria mancata
-// non blocca piu' l'esecuzione fino alla settimana successiva), cosi' le impostazioni
-// modificabili dall'UI (§9.1) sono effettive senza dover toccare la configurazione del cron
-// (vedi docs/DOCUMENTAZIONE.md §6/§10). L'idempotenza (un solo feedback/settimana per atleta,
-// vedi sotto) resta l'unica guardia contro invocazioni ripetute nella stessa finestra.
-// Verifica del chiamante (Fase 9): accetta solo richieste con la service-role key come bearer
-// (vedi docs/DOCUMENTAZIONE.md §8) — il gateway JWT di Supabase da solo accetterebbe anche la
-// anon key pubblica, che non deve poter invocare questa function.
-// Duplicazione deliberata della logica di app/src/services/intervals.ts e planPrompt.ts:
-// le Edge Function Deno non possono importare moduli TypeScript da app/src (runtime/bundling
-// separati).
+// Feedback settimanale (ADR 0019). Adattatore della pipeline in _shared/feedback/pipeline.ts:
+// qui ci sono solo il database (supabase-js), Intervals.icu, Claude e Resend.
+// Due chiamanti:
+// - pg_cron, ogni ora, con la service-role key come bearer: nella finestra configurata crea le
+//   valutazioni della settimana appena conclusa, poi elabora la coda (analisi, testo, consegna);
+// - il coach, con il JWT di sessione (RLS attiva): crea la valutazione di una settimana,
+//   la rigenera, la riprova dopo un errore o la approva (solo allora parte l'email).
+// Nessun feedback raggiunge l'atleta senza l'approvazione del coach.
+import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { ResendEmailSender } from "../_shared/resendEmailSender.ts";
-import type { EmailSender } from "../_shared/emailSender.ts";
+import {
+  approveReview, type Deps, type FeedbackSettings, type FeedbackStore, type LlmPort, MAX_ATTEMPTS, type IntervalsPort,
+  processReview, type Profile, type Result, type ReviewRow, type ReviewStatus, runScheduled
+} from "../_shared/feedback/pipeline.ts";
+import { periodOf } from "../_shared/feedback/period.ts";
+import type { CoachChange, Period, PlannedWorkout, PlanWindow, RawActivity, RawWellness } from "../_shared/feedback/types.ts";
+import { addDaysISO, isISODate, todayISO, weekStartISO } from "../_shared/workouts/calendar.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -25,344 +23,294 @@ const CORS_HEADERS = {
 };
 
 function jsonResponse(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-  });
+  return new Response(JSON.stringify(body), { status, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
 }
 
-function todayISO(timeZone: string): string {
-  const parts = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
-  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
-  return `${get("year")}-${get("month")}-${get("day")}`;
+const REVIEW_COLUMNS = "id, athlete_id, period_start, period_end, revision, status, skip_reason, attempts, error, input, output, output_text, delivery_status, delivery_attempts, locked_until";
+const WORKOUT_COLUMNS = "id, revision, planned_date, slot, discipline, title, objective, duration_min, structure, primary_target, completed_at, workout_sync(provider, remote_event_id)";
+
+// ---------- Database ----------
+class SupabaseStore implements FeedbackStore {
+  constructor(private db: SupabaseClient) {}
+
+  async settings(): Promise<FeedbackSettings | null> {
+    const { data } = await this.db.from("app_settings")
+      .select("claude_api_key, claude_model, weekly_feedback_prompt_template, weekly_feedback_timezone, weekly_feedback_day, weekly_feedback_time, weekly_feedback_email_enabled, feedback_params")
+      .eq("id", 1).maybeSingle();
+    return (data as FeedbackSettings | null) ?? null;
+  }
+
+  async athletesToReview(period: Period): Promise<string[]> {
+    const { data: ws } = await this.db.from("workouts").select("athlete_id").eq("status", "approved").gte("planned_date", period.start).lte("planned_date", period.end);
+    const ids = [...new Set((ws ?? []).map((w: { athlete_id: string }) => w.athlete_id))];
+    if (!ids.length) return [];
+    const { data: rows } = await this.db.from("athletes").select("id, data").in("id", ids);
+    return (rows ?? [])
+      .filter((r: { data: Profile }) => String(r.data?.integrations?.intervals_icu_api_key ?? "").trim())
+      .map((r: { id: string }) => r.id);
+  }
+
+  async claim(athleteId: string, period: Period): Promise<ReviewRow | null> {
+    const { data } = await this.db.from("weekly_reviews")
+      .upsert({ athlete_id: athleteId, period_start: period.start, period_end: period.end, kind: "weekly", revision: 1, status: "pending" }, { onConflict: "athlete_id,period_start,kind,revision", ignoreDuplicates: true })
+      .select(REVIEW_COLUMNS);
+    return ((data ?? [])[0] as ReviewRow | undefined) ?? null;
+  }
+
+  async current(athleteId: string, periodStart: string): Promise<ReviewRow | null> {
+    const { data } = await this.db.from("weekly_reviews").select(REVIEW_COLUMNS).eq("athlete_id", athleteId).eq("period_start", periodStart).neq("status", "superseded").maybeSingle();
+    return (data as ReviewRow | null) ?? null;
+  }
+
+  async get(id: string): Promise<ReviewRow | null> {
+    const { data } = await this.db.from("weekly_reviews").select(REVIEW_COLUMNS).eq("id", id).maybeSingle();
+    return (data as ReviewRow | null) ?? null;
+  }
+
+  async lease(id: string, seconds: number): Promise<ReviewRow | null> {
+    const now = new Date();
+    const { data } = await this.db.from("weekly_reviews")
+      .update({ locked_until: new Date(now.getTime() + seconds * 1000).toISOString() })
+      .eq("id", id).or(`locked_until.is.null,locked_until.lt.${now.toISOString()}`)
+      .select(REVIEW_COLUMNS);
+    return ((data ?? [])[0] as ReviewRow | undefined) ?? null;
+  }
+
+  async update(id: string, expected: ReviewStatus, patch: Record<string, unknown>): Promise<boolean> {
+    const { data } = await this.db.from("weekly_reviews").update({ ...patch, locked_until: null }).eq("id", id).eq("status", expected).select("id");
+    return (data ?? []).length > 0;
+  }
+
+  async release(id: string): Promise<void> {
+    await this.db.from("weekly_reviews").update({ locked_until: null }).eq("id", id);
+  }
+
+  async workQueue(limit: number): Promise<ReviewRow[]> {
+    const { data } = await this.db.from("weekly_reviews").select(REVIEW_COLUMNS)
+      .or(`and(status.in.(pending,analyzed),attempts.lt.${MAX_ATTEMPTS}),and(status.eq.approved,delivery_status.in.(pending,failed),delivery_attempts.lt.${MAX_ATTEMPTS})`)
+      .order("created_at").limit(limit * 2);
+    const now = Date.now();
+    return ((data ?? []) as (ReviewRow & { locked_until: string | null })[])
+      .filter((r) => !r.locked_until || Date.parse(r.locked_until) < now)
+      .slice(0, limit);
+  }
+
+  async athleteProfile(id: string): Promise<Profile | null> {
+    const { data } = await this.db.from("athletes").select("data").eq("id", id).maybeSingle();
+    return (data as { data: Profile } | null)?.data ?? null;
+  }
+
+  async approvedWorkouts(athleteId: string, period: Period): Promise<PlannedWorkout[]> {
+    const { data, error } = await this.db.from("workouts").select(WORKOUT_COLUMNS)
+      .eq("athlete_id", athleteId).eq("status", "approved").gte("planned_date", period.start).lte("planned_date", period.end)
+      .order("planned_date").order("slot");
+    if (error) throw new Error("Lettura delle sedute non riuscita.");
+    type Row = Omit<PlannedWorkout, "remote_event_id"> & { workout_sync?: { provider: string; remote_event_id: number | null }[] };
+    return ((data ?? []) as Row[]).map((w) => {
+      const { workout_sync, ...rest } = w;
+      return { ...rest, remote_event_id: workout_sync?.find((s) => s.provider === "intervals_icu")?.remote_event_id ?? null };
+    });
+  }
+
+  async draftCount(athleteId: string, period: Period): Promise<number> {
+    const { count } = await this.db.from("workouts").select("id", { count: "exact", head: true })
+      .eq("athlete_id", athleteId).eq("status", "draft").gte("planned_date", period.start).lte("planned_date", period.end);
+    return count ?? 0;
+  }
+
+  async coachChanges(athleteId: string, period: Period): Promise<CoachChange[]> {
+    const { data } = await this.db.from("workout_events").select("workout_id, type, at, note, before, after")
+      .eq("athlete_id", athleteId).in("type", ["edited", "moved", "cancelled", "superseded", "restored"])
+      .gte("at", `${period.start}T00:00:00Z`).lt("at", `${addDaysISO(period.end, 1)}T00:00:00Z`).order("at");
+    const events = (data ?? []) as (CoachChange & { before: { planned_date?: string } | null; after: { planned_date?: string } | null })[];
+    if (!events.length) return [];
+    const { data: ws } = await this.db.from("workouts").select("id, planned_date").in("id", [...new Set(events.map((e) => e.workout_id))]);
+    const dateOf = new Map((ws ?? []).map((w: { id: string; planned_date: string }) => [w.id, w.planned_date]));
+    const inPeriod = (d?: string) => !!d && d >= period.start && d <= period.end;
+    return events
+      .filter((e) => inPeriod(e.before?.planned_date) || inPeriod(e.after?.planned_date) || inPeriod(dateOf.get(e.workout_id)))
+      .map((e) => ({ workout_id: e.workout_id, type: e.type, at: e.at, note: e.note }));
+  }
+
+  async plans(athleteId: string, from: string, to: string): Promise<PlanWindow[]> {
+    const { data } = await this.db.from("training_plans").select("id, start_date, end_date, status, weeks_meta")
+      .eq("athlete_id", athleteId).neq("status", "archived").lte("start_date", to).or(`end_date.is.null,end_date.gte.${from}`)
+      .order("start_date");
+    return (data ?? []) as PlanWindow[];
+  }
+
+  async markCompleted(workoutId: string, activityId: string, completedAt: string): Promise<void> {
+    await this.db.from("workouts")
+      .update({ completed_at: completedAt, completed_activity_id: activityId, completion_source: "intervals" })
+      .eq("id", workoutId).is("completed_at", null);
+  }
 }
 
-function addDaysISO(dateStr: string, days: number): string {
-  const d = new Date(dateStr + "T00:00:00Z");
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
+// ---------- Intervals.icu (sola lettura) ----------
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function icuGet<T>(apiKey: string, path: string): Promise<Result<T>> {
+  const auth = "Basic " + btoa("API_KEY:" + apiKey);
+  let lastError = "nessun tentativo";
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15_000);
+    try {
+      const res = await fetch(`https://intervals.icu/api/v1/athlete/0${path}`, { headers: { Authorization: auth }, signal: controller.signal });
+      clearTimeout(timer);
+      if (res.ok) return { ok: true, data: await res.json() as T };
+      if (res.status === 401 || res.status === 403) return { ok: false, error: "chiave non valida" };
+      lastError = `risposta ${res.status}`;
+      if (res.status !== 429 && res.status < 500) return { ok: false, error: lastError };
+    } catch (err) {
+      clearTimeout(timer);
+      lastError = err instanceof DOMException && err.name === "AbortError" ? "nessuna risposta entro 15 s" : "rete non raggiungibile";
+    }
+    if (attempt < 2) await sleep(attempt ? 3000 : 1000);
+  }
+  return { ok: false, error: lastError };
 }
 
-const ENGLISH_TO_DAY_KEY: Record<string, string> = {
-  Sunday: "domenica", Monday: "lunedi", Tuesday: "martedi", Wednesday: "mercoledi",
-  Thursday: "giovedi", Friday: "venerdi", Saturday: "sabato"
+const intervals: IntervalsPort = {
+  activities: (apiKey, oldest, newest) => icuGet<RawActivity[]>(apiKey, `/activities?oldest=${oldest}&newest=${newest}`),
+  wellness: (apiKey, oldest, newest) => icuGet<RawWellness[]>(apiKey, `/wellness?oldest=${oldest}&newest=${newest}`),
 };
 
-function currentDayAndHour(timeZone: string): { day: string; hour: string } {
-  const parts = new Intl.DateTimeFormat("en-US", { timeZone, weekday: "long", hour: "2-digit", hour12: false }).formatToParts(new Date());
-  const weekday = parts.find((p) => p.type === "weekday")?.value ?? "";
-  let hour = parts.find((p) => p.type === "hour")?.value ?? "00";
-  if (hour === "24") hour = "00";
-  return { day: ENGLISH_TO_DAY_KEY[weekday] ?? "", hour: hour.padStart(2, "0") };
+// ---------- Claude ----------
+const llm: LlmPort = {
+  async generate({ apiKey, model, system, user, tool, maxTokens }) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 100_000);
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+        body: JSON.stringify({
+          model, max_tokens: maxTokens, system,
+          messages: [{ role: "user", content: user }],
+          tools: [tool], tool_choice: { type: "tool", name: tool.name },
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        return { ok: false, error: data?.error?.message || `risposta ${res.status}`, transient: res.status === 429 || res.status >= 500 };
+      }
+      const block = (data?.content ?? []).find((b: { type: string }) => b.type === "tool_use");
+      return { ok: true, toolInput: block?.input ?? null, stopReason: data?.stop_reason ?? "", model: data?.model ?? model };
+    } catch (err) {
+      clearTimeout(timer);
+      const timeout = err instanceof DOMException && err.name === "AbortError";
+      return { ok: false, error: timeout ? "nessuna risposta entro 100 s" : "API non raggiungibile", transient: true };
+    }
+  },
+};
+
+function makeDeps(db: SupabaseClient): Deps {
+  const resendKey = Deno.env.get("RESEND_API_KEY");
+  const resendFrom = Deno.env.get("RESEND_FROM_ADDRESS");
+  return {
+    store: new SupabaseStore(db),
+    intervals,
+    llm,
+    mail: resendKey && resendFrom ? new ResendEmailSender(resendKey, resendFrom) : null,
+    now: () => new Date(),
+  };
 }
 
-function fullName(identity: { nome?: string; cognome?: string } | undefined): string {
-  return [identity?.nome, identity?.cognome].filter((p) => p && p.trim()).join(" ");
-}
+// ---------- Azioni del coach ----------
+async function coachAction(db: SupabaseClient, body: Record<string, unknown>) {
+  const deps = makeDeps(db);
+  const store = deps.store;
+  const reviewId = typeof body.review_id === "string" ? body.review_id : "";
 
-function interpolate(template: string, values: Record<string, string>): string {
-  return Object.entries(values).reduce((acc, [key, value]) => acc.replaceAll(`{{${key}}}`, value), template);
-}
-
-function buildFeedbackPrompt(
-  identity: { nome?: string; cognome?: string } | undefined,
-  plannedWeek: unknown[],
-  realWeek: unknown[],
-  template: string
-): string {
-  return interpolate(template, {
-    nome_atleta: fullName(identity),
-    settimana_pianificata_json: JSON.stringify(plannedWeek, null, 2),
-    settimana_reale_json: JSON.stringify(realWeek, null, 2)
-  });
-}
-
-type FetchActivitiesResult = { ok: true; activities: unknown[] } | { ok: false; error: string };
-
-async function fetchLastWeekActivities(apiKey: string, oldest: string, newest: string): Promise<FetchActivitiesResult> {
-  try {
-    const auth = "Basic " + btoa("API_KEY:" + apiKey);
-    const res = await fetch(`https://intervals.icu/api/v1/athlete/0/activities?oldest=${oldest}&newest=${newest}`, { headers: { Authorization: auth } });
-    if (res.status === 401) return { ok: false, error: "API key di Intervals.icu non valida." };
-    if (!res.ok) return { ok: false, error: `Errore Intervals.icu (${res.status}).` };
-    const activities = await res.json();
-    return { ok: true, activities };
-  } catch {
-    return { ok: false, error: "Impossibile contattare Intervals.icu (rete o CORS)." };
+  if (body.action === "create") {
+    const athleteId = typeof body.athlete_id === "string" ? body.athlete_id : "";
+    const weekStart = body.week_start;
+    const settings = await store.settings();
+    const today = todayISO(settings?.weekly_feedback_timezone || "Europe/Rome");
+    if (!athleteId || !isISODate(weekStart) || weekStartISO(weekStart) !== weekStart || weekStart > weekStartISO(today)) {
+      return jsonResponse({ error: "Settimana non valida: scegli un lunedì non futuro." }, 400);
+    }
+    const period = periodOf(weekStart);
+    const row = (await store.claim(athleteId, period)) ?? (await store.current(athleteId, period.start));
+    if (!row) return jsonResponse({ error: "Creazione della valutazione non riuscita." }, 500);
+    const after = await processReview(deps, row.id);
+    return jsonResponse({ id: row.id, status: after?.status ?? row.status });
   }
-}
 
-type WellnessEntry = { id: string; ctl?: number; atl?: number };
-type FetchWellnessResult = { ok: true; wellness: WellnessEntry[] } | { ok: false; error: string };
+  if (!reviewId) return jsonResponse({ error: "Valutazione mancante." }, 400);
+  const row = await store.get(reviewId);
+  if (!row) return jsonResponse({ error: "Valutazione non trovata." }, 404);
 
-async function fetchWellness(apiKey: string, oldest: string, newest: string): Promise<FetchWellnessResult> {
-  try {
-    const auth = "Basic " + btoa("API_KEY:" + apiKey);
-    const res = await fetch(`https://intervals.icu/api/v1/athlete/0/wellness?oldest=${oldest}&newest=${newest}`, { headers: { Authorization: auth } });
-    if (res.status === 401) return { ok: false, error: "API key di Intervals.icu non valida." };
-    if (!res.ok) return { ok: false, error: `Errore Intervals.icu (${res.status}).` };
-    const wellness = await res.json();
-    return { ok: true, wellness };
-  } catch {
-    return { ok: false, error: "Impossibile contattare Intervals.icu (rete o CORS)." };
+  if (body.action === "regenerate") {
+    const { data, error } = await db.rpc("regenerate_weekly_review", { p_id: reviewId });
+    if (error) {
+      const busy = error.message.includes("review_busy");
+      return jsonResponse({ error: busy ? "La valutazione è in elaborazione: riprova tra poco." : "Rigenerazione non riuscita." }, busy ? 409 : 500);
+    }
+    const after = await processReview(deps, data as string);
+    return jsonResponse({ id: data, status: after?.status ?? "pending" });
   }
-}
 
-type LoadMetricsEntry = { date: string; source?: string; ctl?: number; atl?: number; tsb?: number; workouts_count?: number; note?: string };
-
-// Stessa logica di merge di app/src/services/intervals.ts (refreshFromIntervalsIcu): non
-// sovrascrive mai una voce inserita manualmente (source === "manual") per la stessa data.
-function mergeWellnessIntoLog(
-  currentLog: LoadMetricsEntry[],
-  wellness: WellnessEntry[],
-  workoutsByDate: Record<string, number>
-): { log: LoadMetricsEntry[]; updatedCount: number } {
-  const log = [...currentLog];
-  let updatedCount = 0;
-  wellness.forEach((w) => {
-    const date = w.id;
-    if (!date || w.ctl == null || w.atl == null) return;
-    const existingIdx = log.findIndex((e) => e.date === date);
-    if (existingIdx >= 0 && log[existingIdx].source === "manual") return;
-    const entry: LoadMetricsEntry = {
-      date,
-      source: "intervals_icu_sync",
-      ctl: w.ctl,
-      atl: w.atl,
-      tsb: Math.round((w.ctl - w.atl) * 10) / 10,
-      workouts_count: workoutsByDate[date] || 0,
-      note: "Sincronizzato da Intervals.icu"
-    };
-    if (existingIdx >= 0) log[existingIdx] = entry;
-    else log.push(entry);
-    updatedCount++;
-  });
-  log.sort((a, b) => (a.date || "").localeCompare(b.date || ""));
-  return { log, updatedCount };
-}
-
-// Sedute pianificate nella settimana (tabella workouts, ADR 0017): solo quelle attive, nella
-// forma leggibile che il template del feedback passa a Claude.
-async function fetchPlannedWeek(
-  supabaseUrl: string,
-  headers: Record<string, string>,
-  athleteId: string,
-  oldest: string,
-  newest: string
-): Promise<unknown[] | null> {
-  const query = `athlete_id=eq.${encodeURIComponent(athleteId)}&planned_date=gte.${oldest}&planned_date=lte.${newest}` +
-    `&status=in.(draft,approved)&select=planned_date,discipline,title,objective,duration_min,structure,status,completed_at&order=planned_date`;
-  try {
-    const res = await fetch(`${supabaseUrl}/rest/v1/workouts?${query}`, { headers });
-    if (!res.ok) return null;
-    return await res.json();
-  } catch {
-    return null;
+  if (body.action === "retry") {
+    if (row.status === "analysis_failed") await store.update(row.id, "analysis_failed", { status: "pending", attempts: 0, error: null });
+    else if (row.status === "generation_failed") await store.update(row.id, "generation_failed", { status: row.input ? "analyzed" : "pending", attempts: 0, error: null });
+    else if (row.status === "approved" && (row.delivery_status === "failed" || row.delivery_status === "skipped")) {
+      await store.update(row.id, "approved", { delivery_status: "pending", delivery_attempts: 0, delivery_error: null });
+    } else if (row.status === "pending" || row.status === "analyzed") {
+      await store.update(row.id, row.status, { attempts: 0 });
+    } else return jsonResponse({ error: "Niente da riprovare per questa valutazione." }, 400);
+    const after = await processReview(deps, row.id);
+    return jsonResponse({ id: row.id, status: after?.status ?? row.status });
   }
-}
 
-type ClaudeResult = { ok: true; text: string } | { ok: false; error: string };
-
-async function callClaude(prompt: string, maxTokens: number, model: string, apiKey: string): Promise<ClaudeResult> {
-  try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({ model, max_tokens: maxTokens, messages: [{ role: "user", content: prompt }] }),
-    });
-    const data = await res.json();
-    if (!res.ok) return { ok: false, error: data?.error?.message || "Errore dall'API Claude." };
-    const text = (data.content || []).map((b: { type: string; text?: string }) => b.text || "").join("\n");
-    return { ok: true, text };
-  } catch {
-    return { ok: false, error: "Impossibile contattare l'API Claude." };
+  if (body.action === "approve") {
+    const res = await approveReview(deps, row.id, typeof body.text === "string" ? body.text : "");
+    if (!res.ok) return jsonResponse({ error: res.error }, 409);
+    return jsonResponse({ id: row.id, status: res.row?.status ?? "approved", delivery_status: res.row?.delivery_status });
   }
+
+  return jsonResponse({ error: "Azione non valida." }, 400);
 }
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS_HEADERS });
+  if (req.method !== "POST") return jsonResponse({ error: "Metodo non supportato." }, 405);
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!supabaseUrl || !serviceRoleKey) {
-    return jsonResponse({ error: "Configurazione Supabase mancante nella Edge Function." }, 500);
-  }
+  if (!supabaseUrl || !serviceRoleKey) return jsonResponse({ error: "Configurazione Supabase mancante nella Edge Function." }, 500);
+  const bearer = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
 
-  // Verifica del chiamante (Fase 9, §8): il gateway Supabase accetta qualunque JWT valido,
-  // anon key pubblica inclusa. Qui si richiede esplicitamente la service-role key: solo
-  // pg_cron (che la legge da Vault, vedi §6) puo' invocare questa function con successo.
-  const authHeader = req.headers.get("Authorization") || "";
-  const bearer = authHeader.replace(/^Bearer\s+/i, "");
-  if (bearer !== serviceRoleKey) {
-    return jsonResponse({ error: "Non autorizzato." }, 401);
-  }
-
-  const restHeaders = { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}`, "Content-Type": "application/json" };
-
-  // deno-lint-ignore no-explicit-any
-  let settings: any;
   try {
-    const res = await fetch(`${supabaseUrl}/rest/v1/app_settings?id=eq.1&select=*`, { headers: restHeaders });
-    const rows = await res.json();
-    settings = rows?.[0];
-  } catch {
-    return jsonResponse({ error: "Impossibile leggere app_settings da Supabase." }, 500);
-  }
-  if (!settings) return jsonResponse({ error: "app_settings non configurata." }, 500);
-
-  const timezone: string = settings.weekly_feedback_timezone || "Europe/Rome";
-  const configuredDay: string = settings.weekly_feedback_day || "domenica";
-  const configuredTime: string = settings.weekly_feedback_time || "08:00";
-  const configuredHour = configuredTime.slice(0, 2).padStart(2, "0");
-
-  const { day: currentDay, hour: currentHour } = currentDayAndHour(timezone);
-  if (currentDay !== configuredDay || currentHour < configuredHour) {
-    return jsonResponse({ skipped: true, reason: "Fuori dalla finestra schedulata.", currentDay, currentHour, configuredDay, configuredHour });
-  }
-
-  if (!settings.claude_api_key) {
-    return jsonResponse({ error: "Claude API key non configurata in Impostazioni." }, 400);
-  }
-
-  const newest = todayISO(timezone);
-  const oldest = addDaysISO(newest, -7);
-
-  let emailSender: EmailSender | null = null;
-  const resendApiKey = Deno.env.get("RESEND_API_KEY");
-  const resendFrom = Deno.env.get("RESEND_FROM_ADDRESS");
-  if (settings.weekly_feedback_email_enabled && resendApiKey && resendFrom) {
-    emailSender = new ResendEmailSender(resendApiKey, resendFrom);
-  }
-
-  // deno-lint-ignore no-explicit-any
-  let athletes: Array<{ id: string; data: any; updated_at: string }> = [];
-  try {
-    const res = await fetch(`${supabaseUrl}/rest/v1/athletes?select=id,data,updated_at`, { headers: restHeaders });
-    athletes = await res.json();
-  } catch {
-    return jsonResponse({ error: "Impossibile leggere athletes da Supabase." }, 500);
-  }
-
-  const results: Array<{ athleteId: string; status: string; detail?: string }> = [];
-
-  for (const row of athletes) {
-    const athleteId = row.id;
-    try {
-      const profile = row.data;
-      const apiKey = profile?.integrations?.intervals_icu_api_key;
-      if (!apiKey) {
-        results.push({ athleteId, status: "skipped", detail: "Nessuna API key Intervals.icu." });
-        continue;
-      }
-      // Sync CTL/ATL (4° trigger, §7.4/§7.7): stessa logica di refreshFromIntervalsIcu, eseguita
-      // qui prima del confronto piano/reale cosi' il feedback si basa su dati aggiornati.
-      // Non blocca la generazione del feedback in caso di errore o conflitto di concorrenza.
-      const currentLog: LoadMetricsEntry[] = profile?.training_status?.load_metrics_log || [];
-      const syncOldest = currentLog.length > 0 ? addDaysISO(currentLog[currentLog.length - 1].date, 1) : addDaysISO(newest, -30);
-      if (syncOldest <= newest) {
-        const [wellnessRes, activitiesForSyncRes] = await Promise.all([
-          fetchWellness(apiKey, syncOldest, newest),
-          fetchLastWeekActivities(apiKey, syncOldest, newest),
-        ]);
-        if (wellnessRes.ok) {
-          const workoutsByDate: Record<string, number> = {};
-          if (activitiesForSyncRes.ok) {
-            (activitiesForSyncRes.activities as Array<{ start_date_local?: string }>).forEach((a) => {
-              const date = a.start_date_local?.slice(0, 10);
-              if (date) workoutsByDate[date] = (workoutsByDate[date] || 0) + 1;
-            });
-          }
-          const { log: mergedLog, updatedCount } = mergeWellnessIntoLog(currentLog, wellnessRes.wellness, workoutsByDate);
-          if (updatedCount > 0) {
-            const syncedData = { ...profile, training_status: { ...profile.training_status, load_metrics_log: mergedLog } };
-            const syncNowIso = new Date().toISOString();
-            const syncRes = await fetch(
-              `${supabaseUrl}/rest/v1/athletes?id=eq.${encodeURIComponent(athleteId)}&updated_at=eq.${encodeURIComponent(row.updated_at)}`,
-              {
-                method: "PATCH",
-                headers: { ...restHeaders, Prefer: "return=representation" },
-                body: JSON.stringify({ data: syncedData, updated_at: syncNowIso }),
-              }
-            );
-            const syncedRows = await syncRes.json();
-            if (syncRes.ok && Array.isArray(syncedRows) && syncedRows.length > 0) {
-              profile.training_status = syncedData.training_status;
-              row.updated_at = syncNowIso;
-            }
-          }
-        }
-      }
-
-      const plannedWeek = await fetchPlannedWeek(supabaseUrl, restHeaders, athleteId, oldest, newest);
-      if (plannedWeek === null) {
-        results.push({ athleteId, status: "error", detail: "Lettura delle sedute pianificate non riuscita." });
-        continue;
-      }
-      if (!plannedWeek.length) {
-        results.push({ athleteId, status: "skipped", detail: "Nessuna seduta pianificata nella settimana." });
-        continue;
-      }
-      const existingLog: Array<{ date: string }> = profile.weekly_feedback_log || [];
-      if (existingLog.some((e) => e.date === newest)) {
-        results.push({ athleteId, status: "skipped", detail: "Feedback già generato per questa settimana." });
-        continue;
-      }
-
-      const actRes = await fetchLastWeekActivities(apiKey, oldest, newest);
-      if (!actRes.ok) {
-        results.push({ athleteId, status: "error", detail: actRes.error });
-        continue;
-      }
-      const prompt = buildFeedbackPrompt(profile.identity, plannedWeek, actRes.activities, settings.weekly_feedback_prompt_template);
-      const claudeRes = await callClaude(prompt, 1024, settings.claude_model || "claude-sonnet-4-5", settings.claude_api_key);
-      if (!claudeRes.ok) {
-        results.push({ athleteId, status: "error", detail: claudeRes.error });
-        continue;
-      }
-
-      const newLog = [...existingLog, { date: newest, note: claudeRes.text, generated_by: "claude" }];
-      const mergedData = { ...profile, weekly_feedback_log: newLog };
-      const nowIso = new Date().toISOString();
-      const updateRes = await fetch(
-        `${supabaseUrl}/rest/v1/athletes?id=eq.${encodeURIComponent(athleteId)}&updated_at=eq.${encodeURIComponent(row.updated_at)}`,
-        {
-          method: "PATCH",
-          headers: { ...restHeaders, Prefer: "return=representation" },
-          body: JSON.stringify({ data: mergedData, updated_at: nowIso }),
-        }
-      );
-      const updatedRows = await updateRes.json();
-      if (!updateRes.ok || !Array.isArray(updatedRows) || updatedRows.length === 0) {
-        results.push({ athleteId, status: "error", detail: "Conflitto di concorrenza: scheda modificata nel frattempo, feedback non salvato." });
-        continue;
-      }
-
-      let emailStatus = "disabled";
-      const email = profile?.identity?.email;
-      if (settings.weekly_feedback_email_enabled) {
-        if (!emailSender) {
-          emailStatus = "skipped: provider email non configurato";
-        } else if (!email) {
-          emailStatus = "skipped: nessuna email per l'atleta";
-        } else {
-          const sendRes = await emailSender.send({
-            to: email,
-            subject: "Il tuo feedback settimanale",
-            text: claudeRes.text,
-          });
-          emailStatus = sendRes.ok ? "sent" : `error: ${sendRes.error}`;
-        }
-      }
-
-      results.push({ athleteId, status: "ok", detail: `email: ${emailStatus}` });
-    } catch (err) {
-      results.push({ athleteId, status: "error", detail: err instanceof Error ? err.message : "Errore sconosciuto." });
+    // Invocazione schedulata: solo pg_cron conosce la service-role key (letta da Vault).
+    if (bearer === serviceRoleKey) {
+      const db = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
+      const result = await runScheduled(makeDeps(db));
+      return jsonResponse({ ranAt: new Date().toISOString(), ...result });
     }
-  }
 
-  return jsonResponse({ ranAt: new Date().toISOString(), newest, results });
+    // Azione del coach: JWT di sessione, RLS attiva.
+    const anonKey = req.headers.get("apikey") || Deno.env.get("SUPABASE_ANON_KEY");
+    if (!anonKey) return jsonResponse({ error: "Configurazione Supabase mancante nella Edge Function." }, 500);
+    const db = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: `Bearer ${bearer}` } }, auth: { persistSession: false } });
+    const { data: userData, error: userError } = await db.auth.getUser(bearer);
+    if (userError || !userData.user) return jsonResponse({ error: "Non autenticato." }, 401);
+    // Solo il coach legge app_settings (RLS): un utente diverso non ottiene la riga.
+    const { data: own } = await db.from("app_settings").select("id").eq("id", 1).maybeSingle();
+    if (!own) return jsonResponse({ error: "Non autorizzato." }, 403);
+
+    let body: Record<string, unknown>;
+    try {
+      body = await req.json();
+    } catch {
+      return jsonResponse({ error: "Corpo della richiesta non è JSON valido." }, 400);
+    }
+    return await coachAction(db, body);
+  } catch (err) {
+    console.error("weekly-feedback", err instanceof Error ? err.message : "errore");
+    return jsonResponse({ error: "Errore inatteso nel feedback settimanale." }, 500);
+  }
 });

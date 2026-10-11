@@ -38,7 +38,7 @@ function workout(over: Row): Row {
 
 export function createState(): MockState {
   const profile = {
-    schema_version: "1.5.0",
+    schema_version: "1.6.0",
     meta: { athlete_id: ATHLETE_ID, coach_id: "", created_at: "2026-09-01", updated_at: "2026-09-01", data_source: "manual" },
     identity: { nome: "Giulia", cognome: "Ferri", email: "", birth_year: 1990, biological_sex: "unspecified", height_cm: 168, weight_kg: 58 },
     disciplines: ["running", "cycling"].map((sport) => ({
@@ -55,8 +55,7 @@ export function createState(): MockState {
     constraints: { days_available: ["lunedi", "martedi", "mercoledi", "giovedi", "venerdi", "sabato", "domenica"].map((day) => ({ day, active: true, fixed_activity: "" })), sessions_per_week_target: 5 },
     methodology_preferences: { intensity_distribution_model: "polarizzato_80_20", load_deload_pattern: "3:1" },
     notes_free_text: "",
-    integrations: { intervals_icu_api_key: "chiave-di-prova" },
-    weekly_feedback_log: []
+    integrations: { intervals_icu_api_key: "chiave-di-prova" }
   };
   const bikeDraft = workout({
     planned_date: "2026-10-13", discipline: "cycling", title: "VO2max 5 × 4'", status: "draft", primary_target: "power",
@@ -78,7 +77,25 @@ export function createState(): MockState {
         { workout_id: strengthCancelled.id, provider: "intervals_icu", remote_event_id: 502, external_id: `pcoach:${strengthCancelled.id}`, synced_revision: 1, synced_date: "2026-10-16", remote_updated: "t1", state: "synced", pending_delete: true, create_uncertain: false, last_error: null, last_warning: null },
         { workout_id: longRun.id, provider: "intervals_icu", remote_event_id: 503, external_id: `pcoach:${longRun.id}`, synced_revision: 1, synced_date: "2026-10-18", remote_updated: "t1", state: "synced", pending_delete: false, create_uncertain: false, last_error: null, last_warning: null }
       ],
-      workout_events: []
+      workout_events: [],
+      weekly_reviews: [{
+        id: "review-1", athlete_id: ATHLETE_ID, period_start: "2026-10-05", period_end: "2026-10-11", revision: 1, status: "draft",
+        skip_reason: null, model: "claude-sonnet-4-5", error: null, attempts: 0, delivery_status: "not_requested", delivery_error: null,
+        delivered_at: null, approved_at: null, generated_at: "2026-10-12T06:06:00Z", created_at: "2026-10-12T06:05:00Z",
+        output_text: "Ciao Giulia, settimana regolare: tre sedute svolte come previsto.",
+        output: { summary: "Tre sedute su quattro svolte; per una non c'è un'attività registrata.", limitations: ["Mancano dati su RPE e benessere."] },
+        input: {
+          limitations: ["Mancano dati su RPE e benessere."],
+          metrics: {
+            sessions: { assigned: 4, past: 4, pending: 0, completed: 3, partial: 0, moved: 0, substituted: 0, not_recorded: 1, data_unavailable: 0, ambiguous: 0, unknown: 0, extra: 0 },
+            completion_rate: { numerator: 3, denominator: 4, value: 0.75, reportable: true }
+          },
+          sessions: [
+            { workout_id: "x1", date: "2026-10-06", discipline: "running", title: "Corsa facile", outcome: "completed", planned_minutes: 45, done_minutes: 46 },
+            { workout_id: "x2", date: "2026-10-09", discipline: "cycling", title: "Uscita lunga", outcome: "not_recorded", planned_minutes: 120, done_minutes: null }
+          ]
+        }
+      }]
     },
     claudeResponse: null,
     failOnceIds: new Set(),
@@ -239,6 +256,15 @@ export async function installMockBackend(page: Page, state: MockState) {
     if (path.startsWith("/rest/v1/")) return handleRest(state, route, path.split("/").pop()!, url.searchParams);
     if (path === "/functions/v1/claude-proxy") {
       return fulfillJson(route, { text: "```json\n" + JSON.stringify(state.claudeResponse) + "\n```", stop_reason: "end_turn" });
+    }
+    if (path === "/functions/v1/weekly-feedback") {
+      const body = req.postDataJSON() as Row;
+      const review = state.tables.weekly_reviews.find((r) => r.id === body.review_id);
+      if (body.action === "approve" && review && review.status === "draft") {
+        Object.assign(review, { status: "approved", output_text: body.text, approved_at: new Date().toISOString(), delivery_status: "not_requested" });
+        return fulfillJson(route, { id: review.id, status: "approved", delivery_status: "not_requested" });
+      }
+      return fulfillJson(route, { error: "Azione non gestita dal backend finto." }, 400);
     }
     if (path === "/functions/v1/intervals-sync") {
       const body = req.postDataJSON() as Row;

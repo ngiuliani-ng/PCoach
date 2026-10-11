@@ -35,7 +35,16 @@ describe("buildPlanPrompt", () => {
   it("riporta nel calendario numero e fase di ogni settimana", () => {
     const weeks = planWeeks("2026-10-12", 4, parseLoadPattern("3:1"));
     const text = buildPlanPrompt(profile, { weeks: 4, fromDate: "2026-10-12", reason: "", fixed: [], recent: [], planWeeks: weeks }, TRAINING_PLAN_JSON_SHAPE, DEFAULT_PLAN_PROMPT);
-    expect(text).toContain('{"data":"2026-11-02","giorno":"lunedì","disponibile":true,"durata_massima_min":null,"attivita_abituale":"","settimana":4,"fase":"scarico"}');
+    expect(text).toContain(`{"data":"2026-11-02","giorno":"lunedì","disponibile":true,"durata_massima_min":null,"attivita_abituale":"","settimana":4,"fase":"scarico","variazione_carico":"volume −33% rispetto all'ultima settimana di carico"}`);
+    expect(text).toContain('"fase":"carico 2 di 3","variazione_carico":"carico +5-10% rispetto alla settimana precedente"');
     expect(text).toContain("Rispetta la fase di ogni settimana");
+  });
+
+  it("usa le percentuali di carico e scarico della scheda dell'atleta", () => {
+    const custom = { ...profile, methodology_preferences: { ...profile.methodology_preferences, load_increase_min_pct: 3, load_increase_max_pct: 6, deload_decrease_pct: 40 } };
+    const weeks = planWeeks("2026-10-12", 4, parseLoadPattern("3:1"));
+    const text = buildPlanPrompt(custom, { weeks: 4, fromDate: "2026-10-12", reason: "", fixed: [], recent: [], planWeeks: weeks }, TRAINING_PLAN_JSON_SHAPE, DEFAULT_PLAN_PROMPT);
+    expect(text).toContain("carico +3-6% rispetto alla settimana precedente");
+    expect(text).toContain("volume −40% rispetto all'ultima settimana di carico");
   });
 });

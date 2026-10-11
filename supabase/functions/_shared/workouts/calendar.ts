@@ -55,3 +55,10 @@ export type DayKeyName = (typeof DAY_KEYS)[number];
 export function dayKey(date: string): DayKeyName {
   return DAY_KEYS[dayIndex(date)];
 }
+
+const WEEKDAY_NAMES = ["lunedì", "martedì", "mercoledì", "giovedì", "venerdì", "sabato", "domenica"] as const;
+
+/** Giorno della settimana in italiano ("lunedì"...): da calcolare qui, non da far dedurre a Claude. */
+export function weekdayName(date: string): string {
+  return WEEKDAY_NAMES[dayIndex(date)];
+}

@@ -2,12 +2,14 @@
 // approvazione (salvata), esecuzione (derivata), sincronizzazione (workout_sync).
 import { isActiveStatus } from "./regeneration";
 
-export type ExecState = "done" | "missed" | "today" | "planned";
+/** "unrecorded": data passata e nessuna attivita' registrata. Non vuol dire "non svolta": il
+ * sistema sa solo che non c'e' un'attivita' abbinata (dato mancante, non prestazione negativa). */
+export type ExecState = "done" | "unrecorded" | "today" | "planned";
 
 export function execState(w: { status: string; planned_date: string; completed_at: string | null }, today: string): ExecState | null {
   if (!isActiveStatus(w.status)) return null;
   if (w.completed_at) return "done";
-  if (w.planned_date < today) return "missed";
+  if (w.planned_date < today) return "unrecorded";
   if (w.planned_date === today) return "today";
   return "planned";
 }

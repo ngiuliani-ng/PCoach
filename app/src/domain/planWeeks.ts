@@ -5,6 +5,7 @@
 // salvato in weeks_meta), cosi' una generazione successiva o una ripianificazione a meta' ciclo
 // prosegue dalla settimana giusta invece di ripartire da "carico 1".
 import { addDaysISO, dayIndex, daysBetween, weekStartISO } from "@shared/workouts/calendar.ts";
+import type { LoadProgression } from "@shared/feedback/params.ts";
 
 /** Settimane massime per generazione: un ciclo 3:1 intero. Claude scrive circa 25-30 s per
  * settimana di sedute e una chiamata a claude-proxy non puo' superare 150 s. */
@@ -109,6 +110,15 @@ export function continueFromDate(planEnd: string | null | undefined, activeDates
   const tomorrow = addDaysISO(today, 1);
   const next = last ? addDaysISO(last, 1) : tomorrow;
   return next > tomorrow ? next : tomorrow;
+}
+
+/** Variazione di carico attesa in una settimana, con le percentuali scelte per l'atleta. */
+export function loadChangeText(w: PlanWeek, p: LoadProgression): string {
+  if (w.phase === "raccordo") return "settimana leggera";
+  if (w.isDeload) return `volume −${p.deload_decrease_pct}% rispetto all'ultima settimana di carico`;
+  if (w.cycleWeek === 1) return "inizio ciclo: carico simile alla seconda settimana di carico del ciclo precedente, o di partenza se è il primo ciclo";
+  if (w.cycleWeek) return `carico +${p.increase_min_pct}-${p.increase_max_pct}% rispetto alla settimana precedente`;
+  return "";
 }
 
 /** Numero e fase della settimana che contiene la data. */

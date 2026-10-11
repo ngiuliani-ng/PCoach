@@ -6,6 +6,7 @@ import { workoutTotals, zoneLabel, flattenSteps } from "@shared/workouts/structu
 import type { WorkoutContent } from "@shared/workouts/structure.ts";
 import { dayName, planningCalendar } from "../domain/availability";
 import type { PlanWeek } from "../domain/planWeeks";
+import { loadProgressionOf } from "@shared/feedback/params.ts";
 
 /** Seduta esistente come la vede Claude: sintetica, senza identificativi interni. */
 export interface PromptWorkout extends WorkoutContent {
@@ -23,7 +24,7 @@ function summarize(w: PromptWorkout) {
     title: w.title,
     minutes: Math.round(totals.seconds / 60),
     zones,
-    esito: w.completed_at ? "svolta" : w.planned_date < todayISO() ? "non svolta" : "in programma"
+    esito: w.completed_at ? "svolta" : w.planned_date < todayISO() ? "nessuna attività registrata" : "in programma"
   };
 }
 
@@ -87,7 +88,7 @@ export function buildPlanPrompt(profile: AthleteTrainingProfile, input: PlanProm
     data_inizio: input.fromDate,
     data_fine: toDate,
     // Il giorno della settimana di ogni data e' calcolato qui: Claude lo sbaglia.
-    calendario_json: JSON.stringify(planningCalendar(profile.constraints, input.fromDate, toDate, input.planWeeks)),
+    calendario_json: JSON.stringify(planningCalendar(profile.constraints, input.fromDate, toDate, input.planWeeks, loadProgressionOf(profile.methodology_preferences))),
     sedute_fisse_json: JSON.stringify(input.fixed.map(summarize), null, 2),
     motivo: input.reason.trim() || "Nessun motivo indicato."
   };

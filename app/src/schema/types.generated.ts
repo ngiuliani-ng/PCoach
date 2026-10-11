@@ -240,30 +240,24 @@ export interface AthleteTrainingProfile {
      * Formato N:1 (settimane carico : settimane scarico).
      */
     load_deload_pattern: string;
+    /**
+     * Aumento minimo del carico fra due settimane di carico consecutive, in %. Predefinito 5.
+     */
+    load_increase_min_pct?: number;
+    /**
+     * Aumento massimo del carico fra due settimane di carico consecutive, in %. Predefinito 10.
+     */
+    load_increase_max_pct?: number;
+    /**
+     * Calo del volume nella settimana di scarico rispetto all'ultima di carico, in %. Predefinito 33.
+     */
+    deload_decrease_pct?: number;
     [k: string]: unknown;
   };
   /**
    * Qualsiasi informazione utile non modellata sopra.
    */
   notes_free_text?: string;
-  /**
-   * Storico dei feedback generati confrontando le sedute pianificate con gli allenamenti realmente svolti (specifica-tecnica.md §5.4).
-   */
-  weekly_feedback_log?: {
-    /**
-     * Data di fine della settimana confrontata.
-     */
-    date: string;
-    /**
-     * Testo del feedback.
-     */
-    note: string;
-    /**
-     * 'claude' se generato tramite il proxy, 'manual' se scritto/incollato a mano dal coach.
-     */
-    generated_by?: "claude" | "manual";
-    [k: string]: unknown;
-  }[];
   /**
    * Credenziali/config per sincronizzazioni automatiche con servizi esterni, per-atleta.
    */

@@ -33,7 +33,7 @@ const badges = computed<Badge[]>(() => {
   if (s === "unlinked") out.push({ key: "s", text: "Scollegata da Intervals.icu", tone: "plain", icon: CloudOff });
   const e = execState(w, todayISO());
   if (e === "done") out.push({ key: "e", text: "Svolta", tone: "neutral", icon: CircleCheck });
-  if (e === "missed") out.push({ key: "e", text: "Non svolta", tone: "plain", icon: CircleDashed });
+  if (e === "unrecorded") out.push({ key: "e", text: "Non registrata", tone: "plain", icon: CircleDashed });
   return out;
 });
 </script>

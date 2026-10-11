@@ -23,6 +23,7 @@ import MetricLogList from "./MetricLogList.vue";
 import LoadMetricsChart from "./LoadMetricsChart.vue";
 import PlanTab from "./PlanTab.vue";
 import WorkoutRow from "./WorkoutRow.vue";
+import WeeklyReviews from "./WeeklyReviews.vue";
 import PasswordField from "../ui/PasswordField.vue";
 import IconButton from "../ui/IconButton.vue";
 import { Download, Plus, Trash2 } from "lucide-vue-next";
@@ -172,17 +173,6 @@ const thisWeek = computed(() => {
   return workouts.workouts.filter((w) => w.planned_date >= start && w.planned_date <= end && (w.status === "draft" || w.status === "approved"));
 });
 
-// ---------- Feedback ----------
-const feedbackShowAll = ref(false);
-const FEEDBACK_VISIBLE_COUNT = 5;
-const sortedFeedback = computed(() =>
-  [...(profile.value.weekly_feedback_log || [])].sort((a, b) => b.date.localeCompare(a.date))
-);
-const visibleFeedback = computed(() =>
-  feedbackShowAll.value ? sortedFeedback.value : sortedFeedback.value.slice(0, FEEDBACK_VISIBLE_COUNT)
-);
-const hasHiddenFeedback = computed(() => sortedFeedback.value.length > FEEDBACK_VISIBLE_COUNT);
-
 // ---------- Azioni sulla scheda ----------
 async function onSave() {
   if (athletes.currentId === null) keepTabOnNextIdChange = true;
@@ -270,24 +260,7 @@ function onExport() {
         </template>
       </section>
 
-      <section class="block">
-        <h3>Feedback settimanale</h3>
-        <p v-if="!sortedFeedback.length" class="helper-text">
-          Nessun feedback finora. Il confronto tra piano e allenamenti svolti viene generato in automatico ogni settimana, nel giorno e all'ora scelti in Impostazioni.
-        </p>
-        <ul v-else class="feedback-list">
-          <li v-for="f in visibleFeedback" :key="f.date" class="feedback-item">
-            <p class="feedback-head">
-              <time :datetime="f.date">{{ formatDate(f.date) }}</time>
-              <span>{{ f.generated_by === "claude" ? "Generato da Claude" : "Inserito a mano" }}</span>
-            </p>
-            <p class="feedback-note">{{ f.note }}</p>
-          </li>
-        </ul>
-        <button v-if="hasHiddenFeedback" type="button" class="link-btn" @click="feedbackShowAll = !feedbackShowAll">
-          {{ feedbackShowAll ? "Mostra solo i più recenti" : `Mostra tutti (${sortedFeedback.length})` }}
-        </button>
-      </section>
+      <WeeklyReviews v-if="athletes.currentId" :athlete-id="athletes.currentId" />
     </div>
 
     <!-- ===================== Piano ===================== -->
@@ -569,6 +542,21 @@ function onExport() {
           </label>
           <label class="field"><span class="field-label">Schema carico e scarico</span><input type="text" v-model="profile.methodology_preferences.load_deload_pattern" /></label>
         </div>
+        <div class="field-row">
+          <label class="field">
+            <span class="field-label">Aumento fra settimane di carico (% minimo)</span>
+            <input type="number" min="0" max="50" step="1" v-model.number="profile.methodology_preferences.load_increase_min_pct" placeholder="5" />
+          </label>
+          <label class="field">
+            <span class="field-label">Aumento fra settimane di carico (% massimo)</span>
+            <input type="number" min="0" max="50" step="1" v-model.number="profile.methodology_preferences.load_increase_max_pct" placeholder="10" />
+          </label>
+          <label class="field">
+            <span class="field-label">Calo nella settimana di scarico (%)</span>
+            <input type="number" min="5" max="80" step="1" v-model.number="profile.methodology_preferences.deload_decrease_pct" placeholder="33" />
+          </label>
+        </div>
+        <p class="helper-text">Claude le usa per pianificare il ciclo di carico e scarico; il feedback le usa per dire se la variazione di volume fra due settimane era quella prevista. Vuote: 5-10% e 33%.</p>
       </section>
 
       <section class="block">

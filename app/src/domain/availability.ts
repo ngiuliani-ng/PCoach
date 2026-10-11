@@ -2,21 +2,17 @@
 // Claude sbaglia a ricavare il giorno della settimana da una data (verificato il 2026-10-10:
 // piani interi sfalsati di un giorno). Per questo il prompt riceve il calendario gia' calcolato
 // e ogni proposta viene ricontrollata qui, in modo deterministico, contro i vincoli dell'atleta.
-import { addDaysISO, dayIndex, daysBetween, DAY_KEYS, type DayKeyName } from "@shared/workouts/calendar.ts";
+import { addDaysISO, dayIndex, daysBetween, DAY_KEYS, weekdayName, type DayKeyName } from "@shared/workouts/calendar.ts";
 import type { WorkoutContent } from "@shared/workouts/structure.ts";
 import { workoutTotals } from "@shared/workouts/structure.ts";
 import type { AthleteTrainingProfile } from "../schema/types.generated";
-import { weekOf, type PlanWeek } from "./planWeeks";
+import { loadChangeText, weekOf, type PlanWeek } from "./planWeeks";
+import type { LoadProgression } from "@shared/feedback/params.ts";
 
 type Constraints = AthleteTrainingProfile["constraints"] | null | undefined;
 
-const DAY_NAMES: Record<DayKeyName, string> = {
-  lunedi: "lunedì", martedi: "martedì", mercoledi: "mercoledì", giovedi: "giovedì",
-  venerdi: "venerdì", sabato: "sabato", domenica: "domenica"
-};
-
 export function dayName(date: string): string {
-  return DAY_NAMES[DAY_KEYS[dayIndex(date)]];
+  return weekdayName(date);
 }
 
 export function isDayKey(value: unknown): value is DayKeyName {
@@ -54,11 +50,13 @@ export interface CalendarDay {
   /** Settimana del piano e fase del ciclo di carico e scarico, se note. */
   settimana?: number;
   fase?: string;
+  /** Variazione di carico attesa in quella settimana, con le percentuali dell'atleta. */
+  variazione_carico?: string;
 }
 
 /** Calendario del periodo da passare a Claude: ogni data con giorno, vincoli e, se note,
  * settimana del piano e fase del ciclo, gia' risolti. */
-export function planningCalendar(constraints: Constraints, fromDate: string, toDate: string, weeks: PlanWeek[] = []): CalendarDay[] {
+export function planningCalendar(constraints: Constraints, fromDate: string, toDate: string, weeks: PlanWeek[] = [], progression?: LoadProgression): CalendarDay[] {
   const rules = rulesByDay(constraints);
   return Array.from({ length: daysBetween(fromDate, toDate) + 1 }, (_, i) => {
     const date = addDaysISO(fromDate, i);
@@ -70,7 +68,8 @@ export function planningCalendar(constraints: Constraints, fromDate: string, toD
       disponibile: rule ? rule.available : true,
       durata_massima_min: rule?.maxMinutes ?? null,
       attivita_abituale: rule?.usual ?? "",
-      ...(week ? { settimana: week.number, fase: week.phase } : {})
+      ...(week ? { settimana: week.number, fase: week.phase } : {}),
+      ...(week && progression && loadChangeText(week, progression) ? { variazione_carico: loadChangeText(week, progression) } : {})
     };
   });
 }

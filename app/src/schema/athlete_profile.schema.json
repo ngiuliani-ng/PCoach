@@ -10,7 +10,7 @@
     "schema_version": {
       "type": "string",
       "description": "Versione dello schema, per gestire migrazioni future.",
-      "examples": ["1.5.0"]
+      "examples": ["1.6.0"]
     },
 
     "meta": {
@@ -248,6 +248,24 @@
           "type": "string",
           "description": "Formato N:1 (settimane carico : settimane scarico).",
           "examples": ["3:1", "2:1"]
+        },
+        "load_increase_min_pct": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 50,
+          "description": "Aumento minimo del carico fra due settimane di carico consecutive, in %. Predefinito 5."
+        },
+        "load_increase_max_pct": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 50,
+          "description": "Aumento massimo del carico fra due settimane di carico consecutive, in %. Predefinito 10."
+        },
+        "deload_decrease_pct": {
+          "type": "number",
+          "minimum": 5,
+          "maximum": 80,
+          "description": "Calo del volume nella settimana di scarico rispetto all'ultima di carico, in %. Predefinito 33."
         }
       }
     },
@@ -255,24 +273,6 @@
     "notes_free_text": {
       "type": "string",
       "description": "Qualsiasi informazione utile non modellata sopra."
-    },
-
-    "weekly_feedback_log": {
-      "type": "array",
-      "description": "Storico dei feedback generati confrontando le sedute pianificate con gli allenamenti realmente svolti (specifica-tecnica.md §5.4).",
-      "items": {
-        "type": "object",
-        "required": ["date", "note"],
-        "properties": {
-          "date": { "type": "string", "format": "date", "description": "Data di fine della settimana confrontata." },
-          "note": { "type": "string", "description": "Testo del feedback." },
-          "generated_by": {
-            "type": "string",
-            "enum": ["claude", "manual"],
-            "description": "'claude' se generato tramite il proxy, 'manual' se scritto/incollato a mano dal coach."
-          }
-        }
-      }
     },
 
     "integrations": {

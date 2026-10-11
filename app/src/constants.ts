@@ -172,19 +172,15 @@ Regole:
 - L'attività abituale indica cosa l'atleta fa di solito quel giorno: rispettala come disciplina e tipo di seduta, salvo motivo diverso indicato dal coach.
 - Rispetta il numero di sedute a settimana dell'atleta.
 - Rispetta la distribuzione dell'intensità indicata.
-- Rispetta la fase di ogni settimana indicata nel calendario. Nelle settimane di carico di un ciclo il carico cresce di settimana in settimana (circa +5-10% di volume o di lavoro in Z3 e oltre), in ogni disciplina.
-- Nella settimana di scarico il volume cala di circa un terzo rispetto all'ultima di carico, con pochissimo lavoro intenso.
+- Rispetta la fase di ogni settimana e la variazione di carico indicata nel calendario ("fase", "variazione_carico"), in ogni disciplina: le percentuali sono quelle scelte dal coach per questo atleta.
+- Nella settimana di scarico c'è pochissimo lavoro intenso.
 - Un nuovo ciclo riparte da un carico simile alla seconda settimana di carico del ciclo precedente: guarda le sedute recenti.
 - La settimana di raccordo (fase "raccordo"), se presente, è leggera.
-- Tieni conto del carico recente (CTL, ATL, TSB) e delle sedute non svolte.`;
+- Tieni conto del carico recente (CTL, ATL, TSB) e delle sedute senza un'attività registrata.`;
 
-export const DEFAULT_FEEDBACK_PROMPT = `Sei un coach esperto. Confronta la settimana pianificata con quella effettivamente svolta dall'atleta {{nome_atleta}} e scrivi un feedback breve (massimo 200 parole) in italiano: aderenza al piano, scostamenti di carico, suggerimenti per la settimana successiva.
-
-Piano pianificato per questa settimana:
-{{settimana_pianificata_json}}
-
-Allenamenti realmente svolti questa settimana:
-{{settimana_reale_json}}`;
+// Indicazioni del coach su tono e priorita' del feedback settimanale. Le regole su cosa il
+// feedback puo' affermare sono fisse nel codice (_shared/feedback/output.ts, ADR 0019).
+export const DEFAULT_FEEDBACK_PROMPT = `Sei il coach di {{nome_atleta}}, esperto di allenamento endurance (corsa, bici, nuoto, palestra). Tono diretto e incoraggiante, frasi brevi. Metti al primo posto le sedute chiave della settimana e un'indicazione pratica per la prossima, coerente con il piano.`;
 
 // Date come "YYYY-MM-DD" nel calendario locale: implementazione nel modulo condiviso con le
 // Edge Function (aritmetica a mezzogiorno UTC, immune ai fusi orari).
@@ -229,7 +225,7 @@ export function fullName(identity: { nome?: string; cognome?: string } | undefin
 
 export function blankProfile(): AthleteTrainingProfile {
   return {
-    schema_version: "1.5.0",
+    schema_version: "1.6.0",
     meta: { athlete_id: "", coach_id: "", created_at: todayISO(), updated_at: todayISO(), data_source: "manual" },
     identity: { nome: "", cognome: "", email: "", birth_year: undefined, biological_sex: "unspecified", height_cm: undefined, weight_kg: undefined },
     disciplines: [],
@@ -253,9 +249,11 @@ export function blankProfile(): AthleteTrainingProfile {
       days_available: DAY_LABELS.map(([day]) => ({ day, active: true, fixed_activity: "", max_duration_minutes: undefined })),
       sessions_per_week_target: undefined
     },
-    methodology_preferences: { intensity_distribution_model: "polarizzato_80_20", load_deload_pattern: "3:1" },
+    methodology_preferences: {
+      intensity_distribution_model: "polarizzato_80_20", load_deload_pattern: "3:1",
+      load_increase_min_pct: 5, load_increase_max_pct: 10, deload_decrease_pct: 33
+    },
     notes_free_text: "",
-    integrations: { intervals_icu_api_key: "" },
-    weekly_feedback_log: []
+    integrations: { intervals_icu_api_key: "" }
   };
 }
