@@ -78,7 +78,7 @@ Regole per chi modifica il layout:
 - **Sidebar**: "Nuovo atleta" in cima (pulsante tratteggiato in colore accento), poi gli atleti in ordine alfabetico. Ogni atleta è una riga resa come `<button>`: il nome, che va a capo invece di essere troncato, e sotto, su righe proprie, le discipline e l'ultimo TSB (così il TSB è sempre allineato a sinistra, qualunque sia la lunghezza del nome); la riga aperta ha sfondo `--surface-2` e un filetto d'accento a sinistra (`aria-current`). Il pulsante di eliminazione è un fratello del pulsante di selezione (mai annidato) e compare al passaggio del mouse o al focus; sui dispositivi senza hover è sempre visibile.
 - **Header di pagina** (`.page-header`): titolo e azioni principali ("Salva", "Salva impostazioni") con lo stato "Modifiche non salvate". È sticky (`top: --titlebar-h`) in cima alla scheda atleta e alle impostazioni, così il salvataggio è sempre raggiungibile. Sotto l'header, la scheda atleta mostra una riga di riepilogo (discipline, prossimo evento, data di aggiornamento) e, se un'altra sessione ha salvato la scheda, un avviso con "Ricarica i dati più recenti".
 - **Scheda atleta: tre viste** a tab (`role="tablist"`, frecce sinistra/destra per cambiare):
-  - **Panoramica**: carico e forma, la settimana in corso in sola lettura con «Apri il piano», feedback settimanale;
+  - **Panoramica**: carico e forma, la settimana in corso in sola lettura con «Apri il piano», feedback settimanale (vedi [sotto](#feedback-settimanale));
   - **Piano**: vedi [sotto](#tab-piano);
   - **Profilo**: identità, Intervals.icu, discipline, soglie, stato di allenamento, obiettivi, vincoli, metodologia, note, esporta/elimina.
 
@@ -120,7 +120,7 @@ Una sola vista, un pannello e due dialoghi, al posto di schermate separate (moti
   Il piede contiene «Elimina bozza» (solo bozze mai inviate) o «Annulla seduta», poi «Salva modifiche» e, per le bozze, «Salva e approva» / «Approva». Chiudere con modifiche non salvate chiede conferma.
 - **Editor della struttura** (`StepEditor`): ogni step è un'unità con una striscia del colore della zona a sinistra e i campi tipo, durata, unità (min, s, km, m), zona, «fino a…», indicazione per l'atleta. Ha i comandi sposta su/giù e rimuovi. Le ripetute sono un riquadro con nome e numero di ripetizioni che contiene i propri step. L'errore di validazione compare sotto lo step, con il bordo `--danger` sul campo interessato.
 - **Dialoghi** di generazione («Genera il piano», «Prosegui il piano», «Ripianifica da una data») e «Sincronizza settimana»: box centrato di 720px (a schermo intero sotto i 560px), con intestazione, corpo scorrevole e piede con le azioni a destra. Il pulsante di conferma dice cosa succede e quante sedute coinvolge («Applica la nuova programmazione», «Sincronizza 3 sedute, di cui 1 da rimuovere»). Le liste dentro i dialoghi (`.op-list`, `.keep-list`, differenze per giorno) sono unità con righe separate da filetti. Gli esiti per riga usano icona e testo: in corso in `--accent`, riuscita neutra, non riuscita in `--danger` con il motivo.
-- **Storico**: selettore del piano (attivo, chiusi con la data) e filtri a chip con conteggio: tutte, da revisionare, struttura da verificare, approvate, su Intervals.icu, da aggiornare, errori, svolte, non svolte, in programma, annullate o sostituite. Le sedute sono raggruppate per settimana, dalla più recente.
+- **Storico**: selettore del piano (attivo, chiusi con la data) e filtri a chip con conteggio: tutte, da revisionare, struttura da verificare, approvate, su Intervals.icu, da aggiornare, errori, svolte, non registrate, in programma, annullate o sostituite. Le sedute sono raggruppate per settimana, dalla più recente.
 
 ## Stati dei componenti
 
@@ -169,3 +169,25 @@ L'hamburger è fisso in alto a sinistra e sta dentro la fascia dell'header di pa
 Altre compattazioni:
 - sotto `720px`: titolo di pagina a `--fs-xl`; la disponibilità settimanale passa da quattro colonne a due (giorno e "Disponibile", poi durata e attività);
 - sotto `480px`: campi e checkbox su una colonna, pulsanti delle barre d'azione a tutta larghezza, l'etichetta "Modifiche non salvate" è nascosta (lo stato resta leggibile dal pulsante "Salva" attivo).
+
+## Feedback settimanale
+
+Sezione della Panoramica (`WeeklyReviews.vue`):
+- **Testo d'aiuto** che spiega il flusso: ogni lunedì PCoach prepara il feedback e lo si rivede qui; parte solo all'approvazione.
+- **«Prepara il feedback»**, con un selettore delle ultime sei settimane (in corso compresa), per valutare una settimana a richiesta.
+- **Elenco delle settimane**, dalla più recente; ne mostra 4 e il resto con «Mostra tutti». Per ogni settimana:
+  - intervallo di date e badge di stato (`.w-badge`, testo e icona, mai solo colore): «Da rivedere» in avviso, «Approvato», «Inviato all'atleta», «In preparazione», «Nessuna seduta da valutare», «Non riuscito» o «Approvato, email non inviata» in errore;
+  - riga di conteggi senza punti mediani (sedute assegnate, svolte, senza attività registrata, non valutabili, extra, tasso di completamento solo se comunicabile);
+  - «Sedute della settimana» (`<details>`): data, titolo ed esito di ogni seduta. Gli esiti che chiedono attenzione («Nessuna attività registrata», «Dato non disponibile», «Non attribuibile con certezza», «Al suo posto un'altra disciplina», «Molto più breve del previsto») sono in `--warning`;
+  - limitazioni dei dati, in testo secondario;
+  - «Per te:» con la sintesi di Claude per il coach.
+- **Bozza**: testo per l'atleta in un campo modificabile, «Approva e invia» (o «Approva» se l'email è disattivata, con una nota) e «Rigenera».
+- **Approvata**: il testo inviato, la data di invio oppure l'errore con «Riprova l'invio», e «Rigenera».
+- **Non riuscita**: il messaggio d'errore e «Riprova».
+
+In Impostazioni:
+- **«Tono del feedback settimanale»**: il template modificabile;
+- **«Soglie del feedback»**: le soglie principali e, in un `<details>`, quelle sulla qualità dei dati, con validazione per campo e «Ripristina i valori predefiniti».
+
+Nel Profilo, la sezione Metodologia ha i tre campi della progressione del carico.
+

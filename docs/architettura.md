@@ -19,7 +19,7 @@ Applicazione mono-coach, pensata per uso personale con un link non condiviso pub
 - **Seduta** (`workouts`): un singolo allenamento pianificato, con identità stabile, data, disciplina, struttura (step e ripetute) e tre stati separati: approvazione, esecuzione, sincronizzazione — vedi [modello-dati.md](modello-dati.md#sedute-e-piani).
 - **Piano** (`training_plans`): un periodo di programmazione che raggruppa sedute. Un solo piano è attivo per atleta; una rigenerazione chiude il piano attivo e ne apre uno nuovo, senza cancellare nulla.
 - **Generazione** (`plan_generations`): una proposta di sedute prodotta da Claude, salvata prima di essere applicata.
-- **Feedback (settimanale)**: confronto testuale tra quanto pianificato e quanto effettivamente svolto (da Intervals.icu) per una settimana, generato con l'assistenza di Claude.
+- **Feedback (settimanale)**: valutazione di una settimana. PCoach abbina le sedute approvate alle attività di Intervals.icu e calcola esiti e metriche; Claude ne scrive il testo; il coach lo rivede e lo approva prima che arrivi all'atleta.
 - **CTL** (Chronic Training Load): carico di allenamento cronico, media mobile a lungo termine del carico giornaliero.
 - **ATL** (Acute Training Load): carico di allenamento acuto, media mobile a breve termine del carico giornaliero.
 - **TSB** (Training Stress Balance): equilibrio tra forma e affaticamento, calcolato come `round((CTL − ATL) × 10) / 10`.
@@ -43,9 +43,9 @@ app/
       domain/    Componenti specifici del dominio PCoach (scheda atleta, sidebar, grafico carico, ...)
     composables/ Logica riutilizzabile con stato reattivo (toast, dialog di conferma, stato mobile sidebar, ...)
     constants.ts Opzioni condivise tra componenti (discipline, obiettivi, ...), prompt predefiniti e helper di presentazione (formatDate, formatSigned, icone ed etichette delle discipline)
-    domain/      Funzioni pure delle sedute: calendario e vincoli di disponibilità, settimane e ciclo di carico, lettura della proposta di Claude e differenze di una rigenerazione, stati derivati
-    stores/      Pinia: athletes.ts (schede atleti, CRUD, polling), workouts.ts (sedute, piani e stato di sincronizzazione dell'atleta aperto), settings.ts (impostazioni globali del coach), auth.ts (sessione del coach)
-    services/    Accesso a sistemi esterni: supabase.ts, intervals.ts (lettura del carico), intervalsSync.ts (Edge Function intervals-sync), claude.ts, planPrompt.ts
+    domain/      Funzioni pure delle sedute (e test dei moduli condivisi del feedback): calendario e vincoli di disponibilità, settimane e ciclo di carico, lettura della proposta di Claude e differenze di una rigenerazione, stati derivati
+    stores/      Pinia: athletes.ts (schede atleti, CRUD, polling), workouts.ts (sedute, piani e stato di sincronizzazione dell'atleta aperto), reviews.ts (valutazioni settimanali dell'atleta aperto), settings.ts (impostazioni globali del coach), auth.ts (sessione del coach)
+    services/    Accesso a sistemi esterni: supabase.ts, intervals.ts (lettura del carico), intervalsSync.ts (Edge Function intervals-sync), feedback.ts (azioni del coach sulla Edge Function weekly-feedback), claude.ts, planPrompt.ts
     schema/      athlete_profile.schema.json (sorgente di verità, vedi modello-dati.md), types.generated.ts (generato, non modificare a mano)
     styles/      tokens.css (variabili di design), base.css (stili globali)
   public/
@@ -56,15 +56,17 @@ app/
 supabase/
   functions/claude-proxy/     Edge Function: proxy verso l'API Claude
   functions/intervals-sync/   Edge Function: anteprima e invio delle sedute al calendario Intervals.icu
-  functions/weekly-feedback/  Edge Function schedulata: feedback settimanale + email
+  functions/weekly-feedback/  Edge Function del feedback settimanale: schedulata e azioni del coach
   functions/_shared/          EmailSender astratto + implementazione Resend
   functions/_shared/workouts/ Moduli puri condivisi con l'app (alias @shared): calendario, struttura della seduta, conversione per Intervals.icu, classificazione della sincronizzazione
+  functions/_shared/feedback/ Moduli puri del feedback: parametri, periodo, normalizzazione, abbinamento, contratto, output di Claude, pipeline a stati
   migrations/0001_enable_rls.sql  is_coach() + policy RLS su athletes/app_settings
   migrations/0002_move_is_coach_private.sql  sposta is_coach() nello schema private (non esposto)
   migrations/0003_baseline_tables.sql  definizione versionata di athletes e app_settings
   migrations/0004_workouts.sql  tabelle delle sedute, trigger di revisione e cronologia, RLS, apply_plan_generation
   migrations/0005_remove_legacy_import.sql  rimozione dell'import dei piani salvati nella scheda (concluso)
   migrations/0006_generation_kind_continue.sql  tipo di generazione «continue» (prosecuzione del piano)
+  migrations/0007_weekly_reviews.sql  valutazioni settimanali, rigenerazione, soglie del feedback
 .github/workflows/deploy.yml  Build + pubblicazione su GitHub Pages
 ```
 
@@ -84,7 +86,7 @@ App.vue
      │    ├─ Panoramica
      │    │    ├─ domain/LoadMetricsChart.vue   (grafico CTL/ATL/TSB, tooltip, legenda con valori attuali)
      │    │    ├─ questa settimana              (domain/WorkoutRow.vue in sola lettura, collegamento al Piano)
-     │    │    └─ feedback settimanale
+     │    │    └─ domain/WeeklyReviews.vue   (feedback settimanale: esiti, limitazioni, testo da approvare)
      │    ├─ Piano: domain/PlanTab.vue          (settimana o storico filtrabile)
      │    │    ├─ domain/WorkoutRow.vue         (riga di una seduta: StructureBar mini + WorkoutBadges)
      │    │    ├─ domain/WorkoutDrawer.vue      (pannello della seduta: dati, StepEditor, testo per Intervals.icu, cronologia)
@@ -95,7 +97,7 @@ App.vue
      │         ├─ domain/MetricLogList.vue      (rilevazioni delle soglie per corsa/bici/nuoto)
      │         └─ identità, discipline, stato, obiettivi, vincoli, metodologia, note, esporta/elimina
      ├─ stato vuoto (nessun atleta aperto: indica di scegliere o creare un atleta dall'elenco)
-     └─ domain/SettingsPanel.vue  (Impostazioni: Claude, prompt, orario feedback settimanale)
+     └─ domain/SettingsPanel.vue  (Impostazioni: Claude, prompt, tono e soglie del feedback, orario)
   ui/ConfirmDialog.vue + ui/ToastHost.vue  (montati una volta in App.vue, pilotati da composables condivisi)
 ```
 
@@ -157,18 +159,17 @@ PlanTab → SyncWeekDialog → Edge Function intervals-sync (preview): eventi de
 ```
 Dettagli e regole in [integrazioni.md](integrazioni.md#intervalsicu-sincronizzazione-delle-sedute).
 
-**Feedback settimanale** (generato automaticamente da una Edge Function schedulata)
+**Feedback settimanale**
 ```
-pg_cron (ogni ora, legge la service-role key da Vault) → Edge Function weekly-feedback
-  → verifica che il chiamante presenti la service-role key come bearer (altrimenti 401)
-  → se nel resto della giornata configurata (app_settings): per ogni atleta idoneo
-  → sincronizza CTL/ATL da Intervals.icu (stessa logica di services/intervals.ts)
-  → confronto tra le sedute pianificate (tabella workouts) e le attività reali Intervals.icu
-  → prompt di confronto → Claude (stesso pattern di claude-proxy)
-  → risultato aggiunto a weekly_feedback_log nella scheda atleta
-  → invio email opzionale (EmailSender/Resend) se attivo e atleta con email
+pg_cron (ogni ora, service-role da Vault) → Edge Function weekly-feedback
+  → nel giorno e dall'ora configurati: una valutazione «pending» per atleta (settimana che contiene ieri)
+  → coda: analisi deterministica (_shared/feedback: abbinamento, metriche, qualità dei dati)
+  → Claude scrive il testo con uno strumento a schema fisso → validazione → «draft»
+Coach (Panoramica, WeeklyReviews.vue) → rivede esiti e limitazioni, corregge il testo
+  → «Approva» (weekly-feedback, action approve) → email all'atleta se attiva, con nuovi tentativi
+  → oppure «Rigenera» (nuova revisione) / «Prepara il feedback» per un'altra settimana
 ```
-Dettagli completi in [backend.md](backend.md) (contratto della function) e [integrazioni.md](integrazioni.md) (Intervals.icu/Claude/Resend). Motivazioni delle scelte in [decisioni/0008-feedback-automatico-schedulato.md](decisioni/0008-feedback-automatico-schedulato.md).
+Dettagli in [backend.md](backend.md#weekly-feedback-edge-function) e [integrazioni.md](integrazioni.md#claude-feedback-settimanale). Motivazioni in [decisioni/0019](decisioni/0019-feedback-analisi-deterministica-approvazione.md).
 
 ## Convenzioni di codice
 

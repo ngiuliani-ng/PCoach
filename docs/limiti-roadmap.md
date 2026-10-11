@@ -16,7 +16,7 @@ Durante lo sviluppo si osservano in console errori `net::ERR_ABORTED` su richies
 
 ## Sezioni di dati volutamente assenti
 
-Il modello dati ([modello-dati.md](modello-dati.md)) non include deliberatamente: dati sanitari sensibili, storico infortuni dettagliato, dati biometrici continui (es. HRV giornaliero). Scelta di perimetro per un'app di programmazione dell'allenamento, non una lacuna da colmare.
+Il modello dati ([modello-dati.md](modello-dati.md)) non include deliberatamente: dati sanitari sensibili, storico infortuni dettagliato, dati biometrici continui (es. HRV giornaliero). Scelta di perimetro per un'app di programmazione dell'allenamento, non una lacuna da colmare. Il feedback settimanale legge HRV, frequenza a riposo e sonno da Intervals.icu al momento della valutazione e li conserva solo come medie nell'istantanea della valutazione.
 
 ## Struttura delle sedute
 
@@ -26,7 +26,7 @@ La struttura v2 (vedi [modello-dati.md](modello-dati.md#sedute-e-piani)) ha ques
 - **Rampe e cadenza**: non sono modellate.
 - **Palestra**: è testo libero più una durata.
 
-Le zone sono quelle impostate sull'account Intervals.icu dell'atleta, che PCoach non legge né confronta con le soglie della scheda.
+Le zone sono quelle impostate sull'account Intervals.icu dell'atleta. PCoach non le legge; il feedback confronta solo FTP e soglia anaerobica registrati sulle attività con quelli della scheda e segnala una differenza oltre il 3%.
 
 ## Sincronizzazione delle sedute con Intervals.icu
 
@@ -45,3 +45,13 @@ La lettura del carico (wellness e attività) non ha retry/backoff: l'errore comp
 ## Rischio di sovrascrittura su blob `jsonb`
 
 Ogni scheda atleta è un unico blob `jsonb` (`athletes.data`). Il salvataggio scrive l'intero blob, non singoli campi. **Mitigazione**: controllo di concorrenza ottimistico su `updated_at` (vedi [backend.md](backend.md) e [decisioni/0005-concorrenza-ottimistica-sync-mirata.md](decisioni/0005-concorrenza-ottimistica-sync-mirata.md)) — un salvataggio concorrente che trova `updated_at` cambiato viene rifiutato con avviso, invece di sovrascrivere silenziosamente. Resta un rischio se due modifiche avvengono a schermi diversi senza ricaricare: l'ultima a salvare "vince" solo se nessun'altra scrittura è intervenuta nel frattempo. Le sedute non sono in questo blob: hanno tabelle e revisioni proprie (vedi [modello-dati.md](modello-dati.md#sedute-e-piani)).
+
+## Feedback settimanale
+
+Limiti noti dell'analisi ([decisioni/0019](decisioni/0019-feedback-analisi-deterministica-approvazione.md)), con le fasi successive della roadmap dell'audit ([06](audit/2026-10-feedback/06-target-architecture-and-roadmap.md)):
+- **Abbinamenti non correggibili a mano**: un abbinamento sbagliato o ambiguo si vede negli esiti, ma il coach non può ancora confermarlo o correggerlo. Uno spostamento oltre la settimana non viene mai abbinato. Serve una tabella degli abbinamenti (fase 4).
+- **Ripetute non analizzate una per una**: per le sedute di qualità si confronta il tempo totale nelle zone alte, non le singole ripetute (fase 6).
+- **Dati soggettivi del benessere**: fatica, dolore, stress e umore inseriti su Intervals.icu non sono usati, perché la direzione delle loro scale non è stata verificata. Si usano RPE, HRV, frequenza a riposo e sonno.
+- **Attività importate da Strava**: via API arrivano senza dati, quindi le sedute di quei giorni risultano «dato non disponibile».
+- **Soglie operative**: le soglie di classificazione sono regole pratiche modificabili in Impostazioni, non valori fisiologici.
+

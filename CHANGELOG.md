@@ -6,6 +6,52 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
+**2026-10-11 — Feedback settimanale: analisi deterministica, valutazioni con stati e approvazione del coach**
+- **Analisi in PCoach** (`supabase/functions/_shared/feedback/`):
+  - periodo da lunedì a domenica;
+  - solo sedute approvate;
+  - attività normalizzate: disciplina, dati non disponibili via API, doppioni;
+  - abbinamento a regole con confidenza: evento abbinato su Intervals.icu, stesso giorno, ordine, seduta frazionata, spostamento, sostituzione;
+  - esiti «non registrata» e «dato non disponibile» al posto di «non svolta»;
+  - metriche con numeratori e denominatori, distribuzione dell'intensità nella stessa metrica, confronto con la settimana precedente solo se significativo;
+  - RPE, HRV, frequenza a riposo e sonno con la loro copertura;
+  - anomalie e limitazioni.
+- **Claude scrive soltanto**:
+  - riceve il contratto calcolato e risponde con uno strumento a schema fisso;
+  - gli argomenti di interpretazioni e raccomandazioni sono limitati a quelli consentiti per la settimana;
+  - il server valida riferimenti, affermazioni vietate, giorni della settimana e limitazioni;
+  - un output non valido non diventa un feedback.
+- **Tabella `weekly_reviews`** (migrazione `0007`, applicata in produzione):
+  - stati da `pending` a `approved`;
+  - idempotenza con indici unici e blocco a tempo durante l'elaborazione;
+  - rigenerazione come nuova revisione;
+  - istantanea dei dati usati, modello e hash del template;
+  - consegna dell'email con nuovi tentativi.
+
+  `weekly_feedback_log` è stato rimosso dalla scheda (schema 1.6.0): era vuoto per tutti gli atleti.
+- **Approvazione del coach**:
+  - nella Panoramica ci sono esiti delle sedute, limitazioni, sintesi, testo modificabile, «Approva e invia», «Rigenera», «Riprova» e «Prepara il feedback» per una settimana a scelta;
+  - l'email parte solo dopo l'approvazione.
+- **Esecuzione in produzione**: lunedì alle 08:00, sulla settimana appena conclusa. L'email, spenta durante il lavoro, è riattivata.
+- **Soglie del feedback modificabili** in Impostazioni (`app_settings.feedback_params`).
+- **Percentuali di carico e scarico per atleta** nella Metodologia: valgono nel calendario del prompt del piano (`variazione_carico`) e nel confronto fra settimane del feedback.
+- **Altre correzioni**:
+  - le sedute abbinate con certezza risultano svolte anche nel piano;
+  - «Non svolta» diventa «Non registrata»;
+  - il carico si risincronizza sugli ultimi 14 giorni;
+  - `intervals-sync` salva l'orario di svolgimento in UTC.
+- **Test**: 118 unitari e 8 end-to-end.
+- **Prova in produzione**: valutazione della settimana 5-11 ottobre di un atleta, con dati reali, poi eliminata.
+
+*Motivazione*: audit del feedback ([docs/audit/2026-10-feedback/](docs/audit/2026-10-feedback/07-executive-summary.md)) e decisioni del coach:
+- approvazione prima dell'invio;
+- esecuzione il lunedì mattina;
+- soglie modificabili;
+- percentuali di carico per atleta;
+- uso dei dati RPE già presenti su Intervals.icu.
+
+*Docs aggiornati*: [decisioni/0019](docs/decisioni/0019-feedback-analisi-deterministica-approvazione.md) (nuova), [decisioni/0008](docs/decisioni/0008-feedback-automatico-schedulato.md) (superata), [backend.md](docs/backend.md), [integrazioni.md](docs/integrazioni.md), [modello-dati.md](docs/modello-dati.md), [architettura.md](docs/architettura.md), [design-ui.md](docs/design-ui.md), [sicurezza.md](docs/sicurezza.md), [sviluppo-deploy.md](docs/sviluppo-deploy.md), [limiti-roadmap.md](docs/limiti-roadmap.md).
+
 **2026-10-11 — Audit del feedback settimanale**
 - Nuova cartella `docs/audit/2026-10-feedback/` con sette documenti: stato attuale e problemi verificati, modello di dominio del feedback endurance, contratto dati, abbinamento e metriche, strategia di test, architettura raccomandata e piano, sintesi. Nessuna modifica al codice o ai dati.
 

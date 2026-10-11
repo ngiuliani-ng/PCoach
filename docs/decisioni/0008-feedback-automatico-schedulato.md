@@ -2,7 +2,7 @@
 
 **Quando leggerlo**: per capire perché il feedback settimanale è una Edge Function invocata oralmente da `pg_cron` invece di un match esatto sull'orario, perché la logica di sync/confronto è duplicata rispetto al client, e perché lo storico feedback è di sola lettura.
 
-**Stato**: attiva.
+**Stato**: superata da [0019](0019-feedback-analisi-deterministica-approvazione.md). Restano valide la schedulazione oraria con `pg_cron` e la finestra di esecuzione tollerante.
 
 ## Contesto
 

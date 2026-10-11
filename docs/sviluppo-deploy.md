@@ -31,7 +31,7 @@ Rigenera `app/src/schema/types.generated.ts` da `app/src/schema/athlete_profile.
 npm run test
 ```
 
-Esegue Vitest (`vitest run`) sui file `src/**/*.test.ts`. Stato attuale: **72 test** in 9 file:
+Esegue Vitest (`vitest run`) sui file `src/**/*.test.ts`. Stato attuale: **118 test** in 12 file:
 
 | File | Test |
 |---|---|
@@ -39,10 +39,13 @@ Esegue Vitest (`vitest run`) sui file `src/**/*.test.ts`. Stato attuale: **72 te
 | `composables/useConnectionStatus.test.ts` | 4 |
 | `composables/useDirtyState.test.ts` | 9 |
 | `domain/availability.test.ts` | 6 (calendario del periodo, riallineamento al giorno, vincoli di disponibilità e durata) |
+| `domain/feedback.test.ts` | 29 (feedback: periodo, parametri, normalizzazione, abbinamento, metriche, tendenza, risposta dell'atleta, validazione dell'output) |
+| `domain/feedbackPipeline.test.ts` | 13 (pipeline del feedback con porte finte: stati, nuovi tentativi, idempotenza, approvazione e consegna) |
 | `domain/planWeeks.test.ts` | 9 (settimane del piano, fasi del ciclo di carico, ancoraggio al piano attivo, data di prosecuzione) |
 | `domain/regeneration.test.ts` | 6 (lettura della proposta, differenze e payload della rigenerazione) |
 | `domain/shared.test.ts` | 26 (moduli condivisi con le Edge Function: calendario, zone e struttura, conversione per Intervals.icu, classificazione della sincronizzazione) |
-| `services/planPrompt.test.ts` | 3 |
+| `services/intervals.test.ts` | 3 (finestra di sincronizzazione del carico) |
+| `services/planPrompt.test.ts` | 4 |
 | `stores/auth.test.ts` | 5 |
 
 Questo conteggio descrive solo lo stato corrente; l'evoluzione nel tempo è nel [CHANGELOG.md](../CHANGELOG.md), non qui.
@@ -57,21 +60,22 @@ npm run test:e2e
 Playwright (`playwright.config.ts`, cartella `app/e2e/`) avvia Vite sulla porta 5181 con un URL Supabase fittizio. `e2e/mockBackend.ts` intercetta tutte le richieste:
 - una PostgREST minima in memoria;
 - la funzione SQL `apply_plan_generation`;
-- le Edge Function `claude-proxy` e `intervals-sync`;
+- le Edge Function `claude-proxy`, `intervals-sync` e `weekly-feedback` (approvazione);
 - le letture dirette di Intervals.icu.
 
 Nessuna chiamata raggiunge Supabase, Claude o Intervals.icu. La data è fissata al 10 ottobre 2026 con `page.clock`.
 
-Tre flussi, ognuno su un progetto desktop e uno mobile (6 test):
+Quattro flussi, ognuno su un progetto desktop e uno mobile (8 test):
 - modifica e approvazione di una seduta;
 - rigenerazione con anteprima delle differenze;
-- «Sincronizza settimana» con un errore parziale e il nuovo tentativo.
+- «Sincronizza settimana» con un errore parziale e il nuovo tentativo;
+- revisione e approvazione di un feedback settimanale.
 
 Gli esiti finiscono in `test-results/`, non tracciata.
 
 ## Edge Function
 
-Le funzioni in `supabase/functions/` si pubblicano sul progetto Supabase. Il CLI non è nel repository: si usa la dashboard oppure lo strumento di deploy del MCP Supabase. `intervals-sync` importa i moduli di `functions/_shared/workouts/`, che vanno pubblicati insieme alla funzione.
+Le funzioni in `supabase/functions/` si pubblicano sul progetto Supabase. Il CLI non è nel repository: si usa la dashboard oppure lo strumento di deploy del MCP Supabase. `intervals-sync` importa i moduli di `functions/_shared/workouts/`; `weekly-feedback` quelli di `functions/_shared/feedback/` e `functions/_shared/workouts/` (calendario e struttura) e il mittente email. Vanno pubblicati insieme alla funzione, con nomi relativi (`../_shared/...`). Il CLI Deno non è installato: i tipi delle funzioni si controllano con `tsc` usando un'interfaccia minima per `Deno`, e la logica vive nei moduli condivisi, testati con Vitest.
 
 L'ordine conta: prima le migrazioni (`supabase/migrations/`, in ordine numerico), poi le funzioni che leggono le nuove tabelle (`weekly-feedback`, `intervals-sync`).
 

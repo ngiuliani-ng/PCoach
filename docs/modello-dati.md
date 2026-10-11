@@ -10,9 +10,9 @@ Procedura per aggiungere un campo: [architettura.md](architettura.md#come-aggiun
 
 ## `AthleteTrainingProfile`: sezioni principali
 
-- **`schema_version`**: versione dello schema (attuale: `1.5.0`, senza il piano: le sedute sono in tabelle proprie). Tutte le schede salvate sono a questa versione; serve a riconoscere le schede da aggiornare se lo schema cambierà.
+- **`schema_version`**: versione dello schema (attuale: `1.6.0`: senza il piano e senza lo storico dei feedback, che vivono in tabelle proprie). Tutte le schede salvate sono a questa versione; serve a riconoscere le schede da aggiornare se lo schema cambierà.
 - **`meta`**: metadati della scheda stessa (non dell'atleta) — `athlete_id` (generato alla creazione, non derivato dal nome), `coach_id`, `created_at`/`updated_at`, `data_source` (`manual` / `garmin_export` / `intervals_icu_api` / `mixed`).
-- **`identity`**: `nome`, `cognome` (campi separati dallo schema 1.4.0, vedi [decisioni/0006-modello-dati-identita-e-sync-automatica.md](decisioni/0006-modello-dati-identita-e-sync-automatica.md)), `email` (usata per l'invio del feedback settimanale automatico), `birth_year`, `biological_sex` (per formule fisiologiche standard, opzionale), `height_cm`, `weight_kg`.
+- **`identity`**: `nome`, `cognome` (campi separati dallo schema 1.4.0, vedi [decisioni/0006-modello-dati-identita-e-sync-automatica.md](decisioni/0006-modello-dati-identita-e-sync-automatica.md)), `email` (destinataria del feedback settimanale approvato dal coach), `birth_year`, `biological_sex` (per formule fisiologiche standard, opzionale), `height_cm`, `weight_kg`.
 - **`disciplines`**: una voce per sport praticato (`running`/`cycling`/`swimming`/`strength`; il triathlon non è una disciplina a sé, ma tre righe separate), con livello, anni di pratica, volume settimanale attuale e picco volume ultimi 12 mesi.
 - **`physiological_thresholds`**: soglie per sport. `zone_system` è configurazione stabile; `thresholds_log` è uno storico datato (ogni voce con `date`+`source`, vedi `loggedEntryMeta`) — il valore corrente è semplicemente la voce con la data più recente, non un campo separato da tenere sincronizzato.
 - **`training_status`**: fotografia dello stato di allenamento corrente.
@@ -21,9 +21,8 @@ Procedura per aggiungere un campo: [architettura.md](architettura.md#come-aggiun
   - `lifestyle_factors` / `lifestyle_factors_note`: fattori di vita ricorrenti (turni variabili, viaggi frequenti, sonno disturbato, ecc.), non eventi isolati.
 - **`goals`**: `primary_objective`/`secondary_objective` (+ dettaglio libero se `altro`), `periodization_model` (derivato automaticamente da `primary_objective`, non scelto indipendentemente: `race_peak_taper` se `preparazione_gara`, altrimenti `continuous_improvement`), `target_events` (gare con priorità A/B/C).
 - **`constraints`**: `days_available` per giorno della settimana — `active`/`max_duration_minutes` sono il vincolo reale per la programmazione; `fixed_activity` è solo informativo (cosa l'atleta fa oggi), non vincola il piano futuro. Più `sessions_per_week_target`.
-- **`methodology_preferences`**: `intensity_distribution_model` (polarizzato 80/20, piramidale, soglia prevalente, misto) e `load_deload_pattern` (formato `N:1`).
+- **`methodology_preferences`**: `intensity_distribution_model` (polarizzato 80/20, piramidale, soglia prevalente, misto), `load_deload_pattern` (formato `N:1`) e la progressione del carico scelta per l'atleta: `load_increase_min_pct` e `load_increase_max_pct` (aumento fra due settimane di carico, predefiniti 5 e 10) e `deload_decrease_pct` (calo nella settimana di scarico, predefinito 33). Le percentuali entrano nel calendario del prompt del piano e nel confronto fra settimane del feedback (`loadProgressionOf` in `_shared/feedback/params.ts`).
 - **`notes_free_text`**: testo libero per informazioni non modellate altrove.
-- **`weekly_feedback_log`**: storico dei feedback generati confrontando piano e reale, con `generated_by` (`claude`/`manual`). Scritto dalla Edge Function `weekly-feedback` — vedi [backend.md](backend.md).
 - **`integrations`**: `intervals_icu_api_key`, salvata **in chiaro** (compromesso di sicurezza accettato — vedi [sicurezza.md](sicurezza.md)), per-atleta.
 
 ## Sedute e piani
@@ -66,8 +65,8 @@ Le sedute vivono in tabelle Postgres proprie, separate dalla scheda (definizione
   - Una seduta approvata e poi modificata resta approvata.
   - Approvare non invia nulla a Intervals.icu.
 - **Esecuzione** (derivata, non salvata come stato):
-  - svolta se `completed_at` è valorizzato (da un'attività Intervals.icu abbinata, `completion_source: intervals`, oppure a mano, `manual`);
-  - non svolta se la data è passata senza esecuzione;
+  - svolta se `completed_at` è valorizzato: da un'attività Intervals.icu abbinata (`completion_source: intervals`, registrata dall'anteprima di «Sincronizza settimana» o dall'analisi del feedback) oppure a mano (`manual`);
+  - non registrata se la data è passata senza esecuzione: PCoach sa solo che non c'è un'attività abbinata, non che l'allenamento non sia stato fatto;
   - altrimenti in programma.
 - **Sincronizzazione** (da `workout_sync`): non inviata, su Intervals.icu, da aggiornare (revisione o data cambiate dopo l'invio), invio non riuscito, da rimuovere, rimossa, scollegata. La logica è in `localSyncState` (`_shared/workouts/sync.ts`).
 
@@ -77,6 +76,33 @@ Le sedute vivono in tabelle Postgres proprie, separate dalla scheda (definizione
 - Eliminare l'atleta elimina a cascata piani, generazioni, sedute e cronologia.
 
 **Date e settimane**: date come `YYYY-MM-DD` nel calendario locale. «Oggi» si calcola nel fuso del dispositivo per l'app e in `weekly_feedback_timezone` lato server. La settimana va da lunedì a domenica. L'aritmetica sulle date (`_shared/workouts/calendar.ts`) lavora a mezzogiorno UTC, così nessun fuso orario può spostare il giorno.
+
+## Valutazioni settimanali
+
+Tabella `weekly_reviews` (migrazione `0007_weekly_reviews.sql`, motivazioni in [decisioni/0019](decisioni/0019-feedback-analisi-deterministica-approvazione.md)). Una riga è il feedback di una settimana di un atleta.
+
+| Campo | Significato |
+|---|---|
+| `athlete_id`, `period_start`, `period_end` | Atleta e settimana valutata: da lunedì a domenica (vincolo sul giorno ISO e sulla durata). |
+| `kind`, `revision` | Oggi solo `weekly`. Ogni rigenerazione crea la revisione successiva. |
+| `status` | Vedi sotto. |
+| `skip_reason` | Perché la valutazione è `skipped` (`no_assigned_workouts`). |
+| `plan_id`, `analysis_version`, `input`, `metrics` | Piano di riferimento, versione dell'analisi e contratto `feedback_input` usato (con le metriche anche a parte, per le query). |
+| `model`, `prompt_template_hash`, `output`, `output_text` | Modello che ha scritto, hash del template di tono, risposta strutturata di Claude, testo per l'atleta (modificabile dal coach fino all'approvazione). |
+| `error`, `attempts`, `locked_until` | Ultimo errore, tentativi del passo in corso, blocco durante l'elaborazione. |
+| `delivery_status`, `delivery_attempts`, `delivery_error`, `delivered_at` | Consegna dell'email: `not_requested`, `pending`, `sent`, `failed`, `skipped`. |
+| `created_at`, `analyzed_at`, `generated_at`, `approved_at`, `updated_at` | Tempi dei passi. |
+
+**Stati**:
+- `pending`: da analizzare;
+- `analyzed`: analisi salvata, testo da scrivere;
+- `draft`: da rivedere;
+- `approved`: approvata dal coach; da qui, e solo da qui, parte l'email;
+- `skipped`: nessuna seduta approvata;
+- `analysis_failed` o `generation_failed`: errore dopo i tentativi;
+- `superseded`: sostituita da una revisione successiva.
+
+**Vincoli**: una revisione per numero (`athlete_id`, `period_start`, `kind`, `revision`) e una sola valutazione non sostituita per settimana. Cancellare l'atleta cancella le valutazioni; cancellare un piano lascia la valutazione con `plan_id` vuoto.
 
 ## Note di modellazione
 

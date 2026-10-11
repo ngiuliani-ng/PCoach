@@ -7,18 +7,19 @@
 Ogni atleta può avere una `integrations.intervals_icu_api_key` personale (vedi [modello-dati.md](modello-dati.md)), salvata in chiaro (vedi [sicurezza.md](sicurezza.md)). Autenticazione verso l'API con **Basic auth**, username letterale `API_KEY` e password la chiave dell'atleta.
 
 Due endpoint usati, entrambi su `https://intervals.icu/api/v1/athlete/0/...`:
-- `wellness?oldest=&newest=`: restituisce CTL/ATL giornalieri (`id` = data).
-- `activities?oldest=&newest=`: restituisce le attività svolte, usate per contare gli allenamenti al giorno (`workouts_count`).
+- `wellness?oldest=&newest=`: restituisce i dati giornalieri (`id` = data). Il carico usa CTL e ATL; il feedback anche HRV, frequenza a riposo e sonno.
+- `activities?oldest=&newest=`: restituisce le attività svolte. Il carico le usa per contare gli allenamenti al giorno (`workouts_count`), il feedback per l'abbinamento con le sedute.
 
-**Logica di merge** (`refreshFromIntervalsIcu` in `services/intervals.ts`, duplicata in `weekly-feedback` — vedi [backend.md](backend.md)): per ogni voce wellness con `ctl`/`atl` validi, se esiste già una voce nel log per quella data con `source: "manual"` viene **lasciata intatta** (non sovrascritta); altrimenti viene scritta/aggiornata con `source: "intervals_icu_sync"`, `tsb` ricalcolato (`round((ctl − atl) × 10) / 10`) e `workouts_count` dal conteggio attività dello stesso giorno.
+**Logica di merge** (`refreshFromIntervalsIcu` in `services/intervals.ts`): per ogni voce wellness con `ctl`/`atl` validi, se esiste già una voce nel log per quella data con `source: "manual"` viene **lasciata intatta** (non sovrascritta); altrimenti viene scritta/aggiornata con `source: "intervals_icu_sync"`, `tsb` ricalcolato (`round((ctl − atl) × 10) / 10`) e `workouts_count` dal conteggio attività dello stesso giorno.
 
-**Finestra di sincronizzazione**: da un giorno dopo l'ultima voce nel log (o 30 giorni fa se il log è vuoto) fino ad oggi. Se la finestra risulta vuota (`oldest > newest`, già sincronizzato oggi), la funzione restituisce `upToDate: true` **senza effettuare alcuna chiamata di rete** verso Intervals.icu.
+**Finestra di sincronizzazione**: gli ultimi 14 giorni fino a oggi (`RESYNC_DAYS`), oppure dal giorno dopo l'ultima voce se il log è più vecchio, oppure 30 giorni se è vuoto (`syncWindowStart`). Gli ultimi giorni si rileggono sempre perché un'attività caricata in ritardo cambia il carico dei giorni già salvati. Se nessuna voce cambia, la funzione restituisce `upToDate: true` e la scheda non viene riscritta.
 
-**Quattro trigger di sincronizzazione del carico** (coordinati da `composables/useIntervalsSync.ts`: niente chiamate concorrenti sullo stesso atleta):
+**Tre trigger di sincronizzazione del carico** (coordinati da `composables/useIntervalsSync.ts`: niente chiamate concorrenti sullo stesso atleta):
 1. Apertura della scheda atleta: `watch` in `AthleteEditor.vue` (non lo store) — vedi [architettura.md](architettura.md).
 2. Inserimento o modifica della chiave Intervals.icu nel Profilo, dopo 1,5 s dall'ultima digitazione.
 3. Avvio di una generazione o rigenerazione delle sedute (`RegenerateDialog.vue`), così Claude riceve il carico aggiornato.
-4. Lato server, dentro la Edge Function `weekly-feedback`, prima di generare il confronto piano/reale — vedi [backend.md](backend.md).
+
+Il feedback settimanale non usa il log della scheda: legge carico e benessere direttamente da Intervals.icu al momento della valutazione.
 
 Errori gestiti esplicitamente: chiave non valida (401), altri errori HTTP, errori di rete/CORS. L'esito compare come stato accanto al campo della chiave nel Profilo («Chiave valida.», «Chiave non valida…», «Non verificabile ora…»), senza bloccare il resto dell'interfaccia.
 
@@ -107,8 +108,50 @@ Il coach la vede come anteprima delle differenze prima di applicarla (vedi [arch
 
 ## Claude (feedback settimanale)
 
-Stesso pattern di chiamata (stesso endpoint Anthropic, stessa forma di richiesta/risposta), ma invocato interamente lato server dentro `weekly-feedback` con `max_tokens` **fisso a 1024** — vedi [backend.md](backend.md). Placeholder del template: `{{nome_atleta}}`, `{{settimana_pianificata_json}}`, `{{settimana_reale_json}}`.
+Chiamata lato server dentro `weekly-feedback` (contratto in [backend.md](backend.md#weekly-feedback-edge-function)), con le regole in [decisioni/0019](decisioni/0019-feedback-analisi-deterministica-approvazione.md). Moduli in `supabase/functions/_shared/feedback/`.
+
+**Cosa calcola PCoach prima di chiamare Claude** (contratto `feedback_input`, salvato in `weekly_reviews.input`):
+- **Periodo**: la settimana di calendario, da lunedì a domenica, con i giorni della settimana già calcolati.
+- **Sedute assegnate**: solo quelle approvate, con revisione. Le bozze sono solo contate.
+- **Attività normalizzate** (`normalize.ts`):
+  - il tipo di Intervals.icu diventa una disciplina;
+  - le attività senza dati via API (ad esempio importate da Strava) sono «non disponibili»;
+  - due attività della stessa disciplina iniziate entro 5 minuti e con durate entro il 10% sono un doppione: resta quella con più sensori.
+- **Abbinamento** (`match.ts`), in ordine di priorità:
+  - **R1** evento abbinato su Intervals.icu (`paired_event_id` = `workout_sync.remote_event_id`), confidenza `confirmed`;
+  - **R2** stesso giorno e stessa disciplina, coppia unica, `high`;
+  - **R3** più sedute e attività nello stesso giorno, abbinate per ordine se le durate sono compatibili, `medium`, altrimenti «ambiguo»;
+  - **R4** seduta frazionata in più attività, `medium`;
+  - **R5** spostamento entro 2 giorni nella stessa settimana, `low`;
+  - **R6** sostituzione con un'altra disciplina nello stesso giorno, che non conta come svolta;
+  - **R7** senza attività: «in programma», «dato non disponibile» o «non registrata», mai «non svolta».
+- **Esito per seduta**: dal rapporto fra svolto e prescritto, con le soglie di `feedback_params`.
+- **Metriche**:
+  - conteggi e tasso di completamento con numeratore, denominatore e flag di comunicabilità;
+  - volume e carico per disciplina;
+  - distribuzione dell'intensità in 3 domini, con la stessa metrica della prescrizione;
+  - lavoro nelle zone alte per le sedute di qualità;
+  - confronto con la settimana precedente, confrontabile solo se entrambe le settimane sono concluse e dentro un piano, con la variazione attesa ricavata dalle percentuali dell'atleta;
+  - CTL e ATL;
+  - RPE, HRV, frequenza a riposo e sonno con la loro copertura.
+- **Qualità**: anomalie, limitazioni, argomenti consentiti, affermazioni vietate.
+- **Testo non attendibile**: i nomi delle attività vanno in un blocco separato, presentato a Claude come testo da non eseguire.
+
+**Chiamata**:
+- prompt di sistema con le regole fisse (`FEEDBACK_RULES`) più il tono scelto dal coach (`weekly_feedback_prompt_template`, segnaposto `{{nome_atleta}}`);
+- messaggio con il contratto;
+- strumento obbligatorio `submit_weekly_feedback`;
+- `max_tokens` 3000.
+
+**Validazione** (`validateFeedbackOutput`):
+- schema dello strumento rispettato e `stop_reason` uguale a `tool_use`;
+- ogni affermazione con riferimenti esistenti nel contratto;
+- argomenti di interpretazioni e raccomandazioni dentro quelli consentiti;
+- nessuna espressione vietata (sovrallenamento, rischio di infortunio, «hai saltato», giudizi su fatica o recupero);
+- giorni della settimana corretti accanto alle date;
+- limitazioni presenti quando i dati sono incompleti;
+- nessuna percentuale di aderenza quando non è comunicabile.
 
 ## Resend (email)
 
-Invio tramite l'interfaccia astratta `EmailSender` (`supabase/functions/_shared/emailSender.ts`), con unica implementazione `ResendEmailSender`. Attivo solo se `app_settings.weekly_feedback_email_enabled` è vero **e** sono presenti sia `RESEND_API_KEY` sia `RESEND_FROM_ADDRESS` nelle env della Edge Function — altrimenti l'invio viene saltato (non è un errore bloccante per il feedback). Motivazione della scelta di un'interfaccia astratta in [decisioni/0002-email-feedback-via-resend.md](decisioni/0002-email-feedback-via-resend.md).
+Invio tramite l'interfaccia astratta `EmailSender` (`supabase/functions/_shared/emailSender.ts`), con unica implementazione `ResendEmailSender`. Parte solo quando il coach approva un feedback, e solo se `app_settings.weekly_feedback_email_enabled` è vero e nelle env della Edge Function ci sono sia `RESEND_API_KEY` sia `RESEND_FROM_ADDRESS`. Senza provider o senza l'indirizzo dell'atleta la consegna risulta «saltata» sulla valutazione; un errore di invio resta registrato e viene ritentato. Motivazione della scelta di un'interfaccia astratta in [decisioni/0002-email-feedback-via-resend.md](decisioni/0002-email-feedback-via-resend.md).

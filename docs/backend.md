@@ -9,11 +9,17 @@ Lo schema è versionato in `supabase/migrations/`, da eseguire in ordine numeric
 - `0003`: definizione di `athletes` e `app_settings`, create in origine dalla dashboard;
 - `0004`: tabelle delle sedute, trigger e funzioni SQL;
 - `0005`: rimozione dell'import una tantum dei piani salvati nella scheda, concluso;
-- `0006`: tipo di generazione `continue` in `plan_generations.kind`.
+- `0006`: tipo di generazione `continue` in `plan_generations.kind`;
+- `0007`: tabella `weekly_reviews`, funzione `regenerate_weekly_review`, colonna `app_settings.feedback_params`.
 
 - **`athletes`**: `id` (text, chiave primaria: l'identificativo di 8 caratteri generato dall'app), `data` (jsonb, l'intero `AthleteTrainingProfile` — vedi [modello-dati.md](modello-dati.md)), `updated_at` (timestamptz, usato per il controllo di concorrenza ottimistico).
-- **`app_settings`**: riga singola (`id = 1`), contiene configurazione globale del coach: `claude_api_key`, `claude_model`, template dei prompt, `weekly_feedback_*` (timezone, giorno, ora, `email_enabled`).
+- **`app_settings`**: riga singola (`id = 1`), contiene configurazione globale del coach: `claude_api_key`, `claude_model`, template dei prompt, `weekly_feedback_*` (timezone, giorno, ora, `email_enabled`), `feedback_params` (soglie dell'analisi del feedback, jsonb; i valori assenti prendono i predefiniti di `_shared/feedback/params.ts`).
 - **`training_plans`, `plan_generations`, `workouts`, `workout_sync`, `workout_events`**: le sedute e ciò che le riguarda. Colonne, vincoli e stati in [modello-dati.md § Sedute e piani](modello-dati.md#sedute-e-piani).
+- **`weekly_reviews`**: le valutazioni settimanali. Colonne e stati in [modello-dati.md § Valutazioni settimanali](modello-dati.md#valutazioni-settimanali).
+
+## Funzioni SQL del feedback
+
+- `regenerate_weekly_review(p_id)`: nella stessa transazione rende `superseded` la valutazione e ne crea una `pending` con `revision + 1`. Rifiuta (`review_busy`) se la riga è bloccata da un'elaborazione in corso. `security invoker`, eseguibile da `authenticated` e `service_role`.
 
 ## Trigger delle sedute
 
@@ -58,7 +64,7 @@ Supabase Auth a singolo utente coach (vedi [sicurezza.md](sicurezza.md) per setu
 
 - `private.is_coach()`: funzione SQL `security definer` con `search_path` vuoto, che confronta `auth.uid()` con l'UUID letterale dell'utente coach (incollato in `0001` al posto del placeholder `INCOLLA-QUI-UUID-UTENTE-COACH`). Vive nello schema `private`, che non è esposto da PostgREST: non esiste un endpoint `/rest/v1/rpc/is_coach` e nessun client può chiamarla direttamente. `EXECUTE` è revocato a `public` e `anon` e concesso solo ad `authenticated` (con `USAGE` sullo schema `private`), perché le policy RLS sono valutate con i privilegi del chiamante. Motivazione in [decisioni/0012-is-coach-schema-privato.md](decisioni/0012-is-coach-schema-privato.md).
 - RLS abilitata su `athletes` e `app_settings`, con 4 policy ciascuna (select/insert/update/delete, tutte `to authenticated using/with check (private.is_coach())`).
-- RLS abilitata anche sulle tabelle delle sedute. `training_plans`, `plan_generations`, `workouts` e `workout_sync` hanno una policy `for all` con `private.is_coach()`. `workout_events` ha solo select e insert: la cronologia non si modifica né si cancella, se non a cascata con la seduta. Nessuna policy per il ruolo `anon`: con RLS abilitata, Postgres nega di default ogni richiesta priva di policy applicabile.
+- RLS abilitata anche sulle tabelle delle sedute e su `weekly_reviews`. `training_plans`, `plan_generations`, `workouts`, `workout_sync` e `weekly_reviews` hanno una policy `for all` con `private.is_coach()`. `workout_events` ha solo select e insert: la cronologia non si modifica né si cancella, se non a cascata con la seduta. Nessuna policy per il ruolo `anon`: con RLS abilitata, Postgres nega di default ogni richiesta priva di policy applicabile.
 - Il JWT del coach autenticato è allegato automaticamente dal client `supabase-js`: nessuna modifica è stata necessaria alle query esistenti per abilitare RLS (vedi [decisioni/0010-autenticazione-coach-rls-reale.md](decisioni/0010-autenticazione-coach-rls-reale.md)).
 
 ## Concorrenza ottimistica: `syncLoadMetrics`
@@ -70,8 +76,6 @@ Scrittura mirata usata per aggiornare `training_status.load_metrics_log` senza r
 3. Scrive con `PATCH .../athletes?id=eq.<id>&updated_at=eq.<updated_at noto>`: se nel frattempo la riga è stata modificata altrove, la condizione sull'`updated_at` noto non trova righe da aggiornare e la risposta è vuota (nessuna sovrascrittura silenziosa).
 4. Se la risposta contiene la riga aggiornata, aggiorna `updated_at` locale.
 5. Aggiorna anche la mappa in memoria `athletes[id]` nello store Pinia, cosi la UI riflette subito il nuovo log senza un refetch.
-
-Questo stesso pattern (lettura → merge → PATCH condizionato su `updated_at`) è duplicato nella Edge Function `weekly-feedback` (vedi sotto), perché le Edge Function Deno non possono importare moduli TypeScript da `app/src`.
 
 ## `claude-proxy` (Edge Function)
 
@@ -101,20 +105,43 @@ Scrive le sedute sul calendario Intervals.icu dell'atleta. Regole di sincronizza
   Risponde `{ ok, outcome, warning }` oppure `{ ok: false, error }`.
 - **Trasporto**: timeout di 10 s e fino a 2 nuovi tentativi su 429, 5xx ed errori di rete (attesa di 1 s, poi 3 s, oppure `Retry-After`, al massimo 10 s). I messaggi d'errore sono riformulati senza header né chiavi.
 
-## `weekly-feedback` (Edge Function schedulata)
+## `weekly-feedback` (Edge Function)
 
-Pensata per essere invocata **ogni ora** da `pg_cron` (non a un orario esatto): internamente verifica se il giorno corrente corrisponde a `weekly_feedback_day` e se l'ora corrente ha **raggiunto o superato** `weekly_feedback_time` ("finestra resto della giornata"), così un'invocazione oraria mancata non blocca l'esecuzione fino alla settimana successiva, e le impostazioni modificabili da UI restano effettive senza dover toccare la configurazione del cron.
+Adattatore della pipeline in `supabase/functions/_shared/feedback/pipeline.ts`, che contiene tutta la logica (stati, nuovi tentativi, abbinamento, metriche, validazione) ed è testata con Vitest. La funzione fornisce solo il database (supabase-js), Intervals.icu, Claude e Resend. Motivazioni in [decisioni/0019](decisioni/0019-feedback-analisi-deterministica-approvazione.md).
 
-- **Autenticazione del chiamante**: accetta solo richieste il cui bearer è **esattamente** la service-role key (confronto diretto, non a tempo costante — nota informativa, non uno scenario di attacco pratico dato che la key non è mai esposta al client). Il gateway JWT di Supabase da solo accetterebbe anche la anon key pubblica, che qui non deve poter invocare la function.
-- Per ogni atleta con una `intervals_icu_api_key` configurata:
-  1. Sincronizza CTL/ATL da Intervals.icu (stessa logica di merge di `services/intervals.ts`: mai sovrascrive voci `source: "manual"`), scrivendo con lo stesso pattern PATCH-condizionato-su-`updated_at` di `syncLoadMetrics`. Un fallimento qui non blocca la generazione del feedback.
-  2. Legge le sedute attive degli ultimi 7 giorni dalla tabella `workouts`. Salta l'atleta se la settimana non ha sedute, o se esiste già una voce in `weekly_feedback_log` per la data odierna (idempotenza: un solo feedback a settimana per atleta).
-  3. Recupera le attività Intervals.icu degli ultimi 7 giorni, confronta con le sessioni pianificate nello stesso intervallo, costruisce il prompt dal template in `app_settings` e chiama Claude con **`max_tokens` fisso a 1024** (non scalato, a differenza della generazione piano).
-  4. Salva l'esito in `weekly_feedback_log` (`generated_by: "claude"`) con lo stesso PATCH condizionato.
-  5. Se `weekly_feedback_email_enabled` e sono presenti sia `RESEND_API_KEY`/`RESEND_FROM_ADDRESS` (env) sia un'email dell'atleta, invia l'email via Resend. **Un fallimento dell'invio email non porta lo status dell'atleta a `error`**: l'esito per l'atleta resta `"ok"` con il dettaglio dell'errore email riportato a parte (`email: error: ...`); solo errori di sincronizzazione/Claude/salvataggio producono status `"error"`.
-- **Risposta**: `{ ranAt, newest, results: [{ athleteId, status, detail? }] }`, oppure `{ skipped: true, reason, ... }` se fuori dalla finestra schedulata, oppure `{ error }` per problemi di configurazione/autenticazione.
+**Due chiamanti**:
+- **`pg_cron`, ogni ora**, con un bearer che deve essere **esattamente** la service-role key (letta da Vault). Il gateway JWT da solo accetterebbe anche la chiave pubblica.
+  1. Nella finestra configurata (dal giorno e dall'ora di `app_settings` fino alla fine di quel giorno, nel fuso `weekly_feedback_timezone`) crea una valutazione `pending` per la settimana che contiene il giorno prima, per ogni atleta con chiave Intervals.icu e almeno una seduta approvata in quella settimana. La creazione è un `upsert … ignoreDuplicates` sull'indice unico della revisione: due esecuzioni non creano due righe.
+  2. Elabora la coda (al massimo 20 righe, entro 100 s): righe `pending` o `analyzed` con meno di 3 tentativi, e righe `approved` con consegna `pending` o `failed` e meno di 3 tentativi. Ogni riga viene prima bloccata per 180 s (`locked_until`).
+- **Il coach**, con il JWT di sessione: il database è letto e scritto con RLS. Dopo l'autenticazione la funzione verifica che il chiamante possa leggere `app_settings`, cioè che sia il coach. Azioni `POST { action, … }`:
+  - `create` (`athlete_id`, `week_start`: un lunedì non futuro): crea o riprende la valutazione corrente della settimana e la elabora subito;
+  - `regenerate` (`review_id`): `regenerate_weekly_review`, poi elaborazione;
+  - `retry` (`review_id`): riparte da `analysis_failed`, `generation_failed` o da una consegna fallita o saltata;
+  - `approve` (`review_id`, `text`): da `draft` ad `approved` con il testo del coach; se l'email è attiva, consegna subito.
 
-Configurazione di `pg_cron`/Vault e motivazioni della schedulazione oraria in [decisioni/0008-feedback-automatico-schedulato.md](decisioni/0008-feedback-automatico-schedulato.md); dettagli Intervals.icu/Claude/Resend in [integrazioni.md](integrazioni.md).
+  Risposta `{ id, status, delivery_status? }` oppure `{ error }`.
+
+**Passi di una valutazione**:
+1. **Analisi** (`pending` → `analyzed`):
+   - legge le sedute approvate della settimana con il legame all'evento Intervals.icu, il numero di bozze, le modifiche del coach (`workout_events`) e i piani;
+   - legge le attività dal lunedì precedente alla domenica e il benessere dei 35 giorni precedenti;
+   - costruisce il contratto `feedback_input` ([integrazioni.md § Claude (feedback settimanale)](integrazioni.md#claude-feedback-settimanale));
+   - segna come svolte le sedute abbinate con confidenza `confirmed` o `high`;
+   - senza sedute approvate la valutazione diventa `skipped`;
+   - un errore di Intervals.icu lascia la riga `pending` con il tentativo contato, e dopo 3 tentativi la porta in `analysis_failed`.
+2. **Testo** (`analyzed` → `draft`):
+   - chiamata a Claude con lo strumento `submit_weekly_feedback` e `max_tokens` 3000;
+   - un output non valido viene ritentato una volta con l'elenco degli errori, poi diventa `generation_failed`;
+   - un errore transitorio (rete, 429, 5xx, nessuna risposta in 100 s) lascia la riga `analyzed` per il giro successivo.
+3. **Consegna** (solo da `approved`): email all'indirizzo della scheda. Il fallimento è salvato in `delivery_status = failed` con l'errore e ritentato fino a 3 volte; la valutazione resta valida. Senza provider o senza indirizzo, `delivery_status = skipped`.
+
+**Trasporto**:
+- letture di Intervals.icu con timeout di 15 s e fino a 2 nuovi tentativi su 429, 5xx ed errori di rete;
+- Claude con timeout di 100 s.
+
+**Risposta all'invocazione schedulata**: `{ ranAt, planned, processed: [{ id, status }] }`.
+
+Configurazione di `pg_cron` e Vault in [decisioni/0008](decisioni/0008-feedback-automatico-schedulato.md).
 
 ## `EmailSender`
 
