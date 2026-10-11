@@ -1,13 +1,12 @@
 <script setup lang="ts">
-// Shell principale: sidebar + area di lavoro (placeholder / impostazioni / scheda atleta).
-import { onMounted, ref, watch } from "vue";
+// Shell principale: sidebar + area di lavoro, scelta dalla rotta (vedi router.ts).
+import { onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { useRoute } from "vue-router";
 import { useAthletesStore } from "./stores/athletes";
 import { useSettingsStore } from "./stores/settings";
 import { useAuthStore } from "./stores/auth";
 import { useMobileSidebar } from "./composables/useMobileSidebar";
 import AthleteSidebar from "./components/domain/AthleteSidebar.vue";
-import AthleteEditor from "./components/domain/AthleteEditor.vue";
-import SettingsPanel from "./components/domain/SettingsPanel.vue";
 import LoginView from "./components/domain/LoginView.vue";
 import ToastHost from "./components/ui/ToastHost.vue";
 import ConfirmDialog from "./components/ui/ConfirmDialog.vue";
@@ -16,7 +15,7 @@ import { Menu } from "lucide-vue-next";
 const athletes = useAthletesStore();
 const settings = useSettingsStore();
 const auth = useAuthStore();
-const showSettings = ref(false);
+const route = useRoute();
 const sidebarToggleEl = ref<HTMLElement | null>(null);
 const {
   open: mobileSidebarOpen,
@@ -24,9 +23,17 @@ const {
   closeSidebar: closeMobileSidebar,
 } = useMobileSidebar({ sidebarId: "athlete-sidebar", toggleEl: sidebarToggleEl });
 
+// Chiudere o ricaricare la pagina con modifiche non salvate: avviso del browser (decisione D-UX-1).
+function onBeforeUnload(event: BeforeUnloadEvent) {
+  if (!athletes.isDirty && !settings.isDirty) return;
+  event.preventDefault();
+  event.returnValue = "";
+}
 onMounted(() => {
   auth.init();
+  window.addEventListener("beforeunload", onBeforeUnload);
 });
+onBeforeUnmount(() => window.removeEventListener("beforeunload", onBeforeUnload));
 
 watch(
   () => auth.isAuthenticated,
@@ -39,17 +46,8 @@ watch(
   { immediate: true }
 );
 
-function openSettings() {
-  showSettings.value = true;
-  closeMobileSidebar();
-}
-watch(
-  () => athletes.currentProfile,
-  (profile) => {
-    if (profile) showSettings.value = false;
-    closeMobileSidebar();
-  }
-);
+// Su mobile ogni cambio di pagina chiude l'elenco degli atleti.
+watch(() => route.path, () => closeMobileSidebar());
 </script>
 
 <template>
@@ -71,20 +69,9 @@ watch(
     <Transition name="backdrop-fade">
       <div v-if="mobileSidebarOpen" class="sidebar-backdrop" aria-hidden="true" @click="closeMobileSidebar"></div>
     </Transition>
-    <AthleteSidebar :class="{ open: mobileSidebarOpen }" @open-settings="openSettings" />
+    <AthleteSidebar :class="{ open: mobileSidebarOpen }" @close="closeMobileSidebar" />
     <main class="main">
-      <SettingsPanel v-if="showSettings" />
-      <AthleteEditor v-else-if="athletes.currentProfile" />
-      <div v-else class="placeholder">
-        <template v-if="athletes.sortedList.length">
-          <h2>Scegli un atleta</h2>
-          <p>Apri una scheda dall'elenco per vedere carico, piano e feedback.</p>
-        </template>
-        <template v-else>
-          <h2>Nessun atleta</h2>
-          <p>Crea la prima scheda con «Nuovo atleta» nell'elenco: nome, discipline e obiettivi bastano per generare un piano.</p>
-        </template>
-      </div>
+      <RouterView />
     </main>
     <ToastHost />
     <ConfirmDialog />

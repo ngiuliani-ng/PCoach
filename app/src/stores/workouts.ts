@@ -68,7 +68,8 @@ export interface GenerationRecord {
   created_at: string;
 }
 
-export type Result<T = undefined> = { ok: true; value: T; message?: string } | { ok: false; message: string };
+/** `conflict`: la riga e' cambiata altrove (revisione superata), i dati sono stati ricaricati. */
+export type Result<T = undefined> = { ok: true; value: T; message?: string } | { ok: false; message: string; conflict?: boolean };
 
 const WORKOUT_COLUMNS =
   "id, athlete_id, plan_id, generation_id, planned_date, slot, discipline, title, objective, notes_for_athlete, duration_min, structure, primary_target, status, superseded_by, locked, needs_review, completed_at, completed_activity_id, completion_source, completion_outcome, completion_ratio, activity_minutes, activity_meters, activity_load, activity_rpe, revision, created_at, updated_at";
@@ -200,7 +201,7 @@ export const useWorkoutsStore = defineStore("workouts", {
       }
       if (!data || !data.length) {
         await this.reload();
-        return { ok: false, message: CONFLICT_MESSAGE };
+        return { ok: false, message: CONFLICT_MESSAGE, conflict: true };
       }
       const updated = normalize(data[0] as Record<string, unknown>);
       this.workouts = this.workouts.map((w) => (w.id === id ? updated : w));

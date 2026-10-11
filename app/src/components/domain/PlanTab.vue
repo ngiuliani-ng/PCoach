@@ -10,6 +10,7 @@ import { useWorkoutsStore, type GenerationKind, type WorkoutRecord } from "../..
 import { useAthletesStore } from "../../stores/athletes";
 import { showToast } from "../../composables/useToast";
 import { DAY_LABELS, formatDate, todayISO } from "../../constants";
+import { useQueryLayer } from "../../composables/useQueryLayer";
 import { execState, formatMinutes, isPartlyDone } from "../../domain/workoutState";
 import { isActiveStatus } from "../../domain/regeneration";
 import WorkoutRow from "./WorkoutRow.vue";
@@ -26,12 +27,17 @@ const athletes = useAthletesStore();
 const today = todayISO();
 const mode = ref<"week" | "history">("week");
 const weekStart = ref(weekStartISO(today));
-const openId = ref<string | null>(null);
-const dialog = ref<"regen" | "sync" | null>(null);
-const genKind = ref<GenerationKind>("initial");
+// Pannello della seduta e dialoghi nell'URL (?seduta=…, ?dialogo=…): «indietro» li chiude.
+const workoutLayer = useQueryLayer("seduta");
+const dialogLayer = useQueryLayer("dialogo");
+const openId = computed(() => (workoutLayer.value.value && store.byId(workoutLayer.value.value) ? workoutLayer.value.value : null));
+const DIALOG_KINDS: Record<string, GenerationKind> = { genera: "initial", prosegui: "continue", ripianifica: "regenerate" };
+const genKind = computed<GenerationKind>(() => DIALOG_KINDS[dialogLayer.value.value ?? ""] ?? "initial");
+const dialog = computed<"regen" | "sync" | null>(() =>
+  dialogLayer.value.value === "sincronizza" ? "sync" : dialogLayer.value.value && dialogLayer.value.value in DIALOG_KINDS ? "regen" : null
+);
 function openGeneration(kind: GenerationKind) {
-  genKind.value = kind;
-  dialog.value = "regen";
+  dialogLayer.open(Object.keys(DIALOG_KINDS).find((k) => DIALOG_KINDS[k] === kind)!);
 }
 
 const weekEnd = computed(() => addDaysISO(weekStart.value, 6));
@@ -78,7 +84,7 @@ async function approveWeek() {
   showToast(r.ok ? `${r.value === 1 ? "Una seduta approvata" : r.value + " sedute approvate"}.` : r.message, r.ok ? "info" : "error");
 }
 function onApplied(fromDate: string) {
-  dialog.value = null;
+  dialogLayer.close();
   mode.value = "week";
   weekStart.value = weekStartISO(fromDate);
 }
@@ -143,7 +149,7 @@ function rangeText(ws: string) {
           <button type="button" class="secondary" @click="openGeneration('regenerate')"><CalendarSync :size="16" aria-hidden="true" />Ripianifica da…</button>
         </template>
         <button v-else type="button" class="secondary" @click="openGeneration('initial')"><Sparkles :size="16" aria-hidden="true" />Genera il piano</button>
-        <button v-if="mode === 'week'" type="button" class="primary" :disabled="!hasKey || !inWeek.length" @click="dialog = 'sync'">
+        <button v-if="mode === 'week'" type="button" class="primary" :disabled="!hasKey || !inWeek.length" @click="dialogLayer.open('sincronizza')">
           <CloudUpload :size="16" aria-hidden="true" />Sincronizza settimana
         </button>
       </div>
@@ -182,7 +188,7 @@ function rangeText(ws: string) {
           </div>
           <div class="week-day-items">
             <p v-if="!d.items.length" class="rest">Riposo</p>
-            <WorkoutRow v-for="w in d.items" :key="w.id" :workout="w" :sync="store.syncRows[w.id]" @open="openId = $event" @approve="approve" />
+            <WorkoutRow v-for="w in d.items" :key="w.id" :workout="w" :sync="store.syncRows[w.id]" @open="workoutLayer.open($event)" @approve="approve" />
           </div>
         </div>
       </div>
@@ -207,13 +213,13 @@ function rangeText(ws: string) {
       <div v-for="[ws, items] in historyGroups" :key="ws" class="history-week">
         <h4>{{ rangeText(ws) }}</h4>
         <div class="week-unit">
-          <WorkoutRow v-for="w in items" :key="w.id" :workout="w" :sync="store.syncRows[w.id]" show-date @open="openId = $event" @approve="approve" />
+          <WorkoutRow v-for="w in items" :key="w.id" :workout="w" :sync="store.syncRows[w.id]" show-date @open="workoutLayer.open($event)" @approve="approve" />
         </div>
       </div>
     </template>
 
-    <WorkoutDrawer v-if="openId" :key="openId" :workout-id="openId" @close="openId = null" @open="openId = $event" />
-    <RegenerateDialog v-if="dialog === 'regen'" :kind="genKind" @close="dialog = null" @applied="onApplied" />
-    <SyncWeekDialog v-if="dialog === 'sync'" :week-start="weekStart" @close="dialog = null" />
+    <WorkoutDrawer v-if="openId" :key="openId" :workout-id="openId" @close="workoutLayer.close()" @open="workoutLayer.open($event)" />
+    <RegenerateDialog v-if="dialog === 'regen'" :key="genKind" :kind="genKind" @close="dialogLayer.close()" @applied="onApplied" />
+    <SyncWeekDialog v-if="dialog === 'sync'" :week-start="weekStart" @close="dialogLayer.close()" />
   </div>
 </template>

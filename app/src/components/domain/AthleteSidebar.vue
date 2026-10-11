@@ -1,25 +1,30 @@
 <script setup lang="ts">
-// Sidebar definitiva (Fase 2, §5 del documento di migrazione): card "Nuovo atleta" fissa in
-// cima, bozza inline selezionata, impostazioni, stato app con pallino a 4 stati.
-// Ogni card e' un <button> (selezione da tastiera); l'eliminazione e' un pulsante fratello,
-// non annidato, perche' un button non puo' contenerne un altro.
+// Elenco degli atleti: "Nuovo atleta" in cima, la bozza non salvata, gli atleti, lo stato della
+// connessione, Impostazioni ed Esci. Ogni voce e' un <button> che naviga (router.ts): le conferme
+// per le modifiche non salvate le chiedono le guardie di navigazione, non questo componente.
+// L'eliminazione e' un pulsante fratello, non annidato, perche' un button non puo' contenerne un altro.
 import { computed } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { useAthletesStore } from "../../stores/athletes";
 import { useAuthStore } from "../../stores/auth";
 import { confirmDialog } from "../../composables/useConfirmDialog";
 import { showResultToast } from "../../composables/useToast";
 import { CONNECTION_STATUS_LABELS, useConnectionStatus } from "../../composables/useConnectionStatus";
 import { disciplineLabel, fullName, formatSigned } from "../../constants";
+import { confirmLeaveProfile, confirmLeaveSettings } from "../../router";
 import IconButton from "../ui/IconButton.vue";
 import { Settings, LogOut, X, UserPlus } from "lucide-vue-next";
 
 const athletes = useAthletesStore();
 const auth = useAuthStore();
+const route = useRoute();
+const router = useRouter();
 const { status } = useConnectionStatus();
 
-const emit = defineEmits<{ (e: "open-settings"): void }>();
+const emit = defineEmits<{ (e: "close"): void }>();
 
-const isDraftOpen = computed(() => athletes.currentId === null && athletes.currentProfile !== null);
+const isDraftOpen = computed(() => route.name === "new-athlete");
+const openId = computed(() => (route.name === "athlete" ? String(route.params.id) : null));
 const draftName = computed(() => fullName(athletes.currentProfile?.identity) || "Bozza senza nome");
 const statusLabel = computed(() => CONNECTION_STATUS_LABELS[status.value]);
 
@@ -37,37 +42,10 @@ const items = computed(() =>
   })
 );
 
-// Se c'e' una bozza di nuovo atleta non salvata, chiede conferma prima di scartarla
-// (solo se contiene dati: una bozza intonsa viene scartata in silenzio).
-async function guardDraftDiscard(): Promise<boolean> {
-  if (!isDraftOpen.value) return true;
-  if (!athletes.isDirty) {
-    athletes.closeEditor();
-    return true;
-  }
-  const confirmed = await confirmDialog("C'è una bozza di nuovo atleta non salvata. Chiuderla senza salvare?", {
-    confirmLabel: "Chiudi senza salvare",
-    cancelLabel: "Continua a modificare",
-  });
-  if (confirmed) athletes.closeEditor();
-  return confirmed;
-}
-
-async function onNew() {
-  if (isDraftOpen.value) return;
-  if (!(await guardDraftDiscard())) return;
-  athletes.newAthlete();
-}
-
-async function onSelect(id: string) {
-  if (athletes.currentId === id) return;
-  if (!(await guardDraftDiscard())) return;
-  athletes.openAthlete(id);
-}
-
-async function onOpenSettings() {
-  if (!(await guardDraftDiscard())) return;
-  emit("open-settings");
+// Una voce gia' aperta chiude solo l'elenco su mobile; le altre navigano.
+function go(location: Parameters<typeof router.push>[0], alreadyThere: boolean) {
+  if (alreadyThere) emit("close");
+  else void router.push(location);
 }
 
 async function onDelete(id: string, name: string) {
@@ -75,7 +53,14 @@ async function onDelete(id: string, name: string) {
     confirmLabel: "Elimina scheda",
   });
   if (!confirmed) return;
-  showResultToast(await athletes.deleteAthlete(id));
+  const result = await athletes.deleteAthlete(id);
+  showResultToast(result);
+  if (result.ok && openId.value === id) void router.replace({ name: "home" });
+}
+
+async function onSignOut() {
+  if (!(await confirmLeaveProfile()) || !(await confirmLeaveSettings())) return;
+  await auth.signOut();
 }
 </script>
 
@@ -89,7 +74,7 @@ async function onDelete(id: string, name: string) {
     <div class="sidebar-separator"></div>
     <ul class="athlete-list">
       <li class="athlete-item new-athlete-card" :class="{ active: isDraftOpen }">
-        <button type="button" class="athlete-select" :aria-pressed="isDraftOpen" @click="onNew">
+        <button type="button" class="athlete-select" :aria-pressed="isDraftOpen" @click="go({ name: 'new-athlete' }, isDraftOpen)">
           <UserPlus :size="16" aria-hidden="true" />Nuovo atleta
         </button>
       </li>
@@ -108,13 +93,13 @@ async function onDelete(id: string, name: string) {
         v-for="a in items"
         :key="a.id"
         class="athlete-item"
-        :class="{ active: athletes.currentId === a.id }"
+        :class="{ active: openId === a.id }"
       >
         <button
           type="button"
           class="athlete-select"
-          :aria-current="athletes.currentId === a.id ? 'true' : undefined"
-          @click="onSelect(a.id)"
+          :aria-current="openId === a.id ? 'page' : undefined"
+          @click="go({ name: 'athlete', params: { id: a.id } }, openId === a.id)"
         >
           <span class="meta">
             <span class="name">{{ a.name }}</span>
@@ -134,10 +119,10 @@ async function onDelete(id: string, name: string) {
         <span>{{ statusLabel }}</span>
       </div>
       <div class="sidebar-footer-icons">
-        <IconButton label="Impostazioni" @click="onOpenSettings">
+        <IconButton label="Impostazioni" @click="go({ name: 'settings' }, route.name === 'settings')">
           <Settings :size="18" aria-hidden="true" />
         </IconButton>
-        <IconButton label="Esci" @click="auth.signOut()">
+        <IconButton label="Esci" @click="onSignOut">
           <LogOut :size="18" aria-hidden="true" />
         </IconButton>
       </div>

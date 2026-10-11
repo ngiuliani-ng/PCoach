@@ -45,7 +45,8 @@ async function onSave() {
     <header class="page-header">
       <h2>Impostazioni</h2>
       <div class="page-header-actions">
-        <button type="button" class="primary" @click="onSave">Salva impostazioni</button>
+        <span v-if="settings.isDirty" class="unsaved-badge">Modifiche non salvate</span>
+        <button type="button" class="primary" :disabled="!settings.isDirty" @click="onSave">Salva impostazioni</button>
       </div>
     </header>
     <section class="block">

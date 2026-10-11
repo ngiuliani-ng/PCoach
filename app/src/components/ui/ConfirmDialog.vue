@@ -5,7 +5,7 @@
 import { nextTick, ref, watch } from "vue";
 import { useConfirmDialog } from "../../composables/useConfirmDialog";
 
-const { message, visible, confirmLabel, cancelLabel, resolve } = useConfirmDialog();
+const { message, visible, choices, cancelLabel, resolve } = useConfirmDialog();
 const boxEl = ref<HTMLElement | null>(null);
 const cancelEl = ref<HTMLButtonElement | null>(null);
 let returnFocusEl: HTMLElement | null = null;
@@ -24,7 +24,7 @@ watch(visible, async (isVisible) => {
 function onKeydown(event: KeyboardEvent) {
   if (event.key === "Escape") {
     event.preventDefault();
-    resolve(false);
+    resolve(null);
     return;
   }
   if (event.key !== "Tab" || !boxEl.value) return;
@@ -42,7 +42,7 @@ function onKeydown(event: KeyboardEvent) {
 </script>
 
 <template>
-  <div class="confirm-overlay" v-if="visible" @click.self="resolve(false)">
+  <div class="confirm-overlay" v-if="visible" @click.self="resolve(null)">
     <div
       ref="boxEl"
       class="confirm-box"
@@ -53,8 +53,8 @@ function onKeydown(event: KeyboardEvent) {
     >
       <p id="confirm-message">{{ message }}</p>
       <div class="confirm-actions">
-        <button ref="cancelEl" type="button" class="secondary" @click="resolve(false)">{{ cancelLabel }}</button>
-        <button type="button" class="danger" @click="resolve(true)">{{ confirmLabel }}</button>
+        <button ref="cancelEl" type="button" class="secondary" @click="resolve(null)">{{ cancelLabel }}</button>
+        <button v-for="c in choices" :key="c.value" type="button" :class="c.tone" @click="resolve(c.value)">{{ c.label }}</button>
       </div>
     </div>
   </div>

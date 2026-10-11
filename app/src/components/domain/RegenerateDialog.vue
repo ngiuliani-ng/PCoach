@@ -6,6 +6,7 @@
 // 3. anteprima delle differenze e applicazione in un'unica transazione (apply_plan_generation).
 // Nulla cambia finche' il coach non applica la proposta.
 import { computed, onMounted, ref } from "vue";
+import { onBeforeRouteLeave, onBeforeRouteUpdate } from "vue-router";
 import { useWorkoutsStore, type GenerationKind, type GenerationRecord } from "../../stores/workouts";
 import { useAthletesStore } from "../../stores/athletes";
 import { useSettingsStore } from "../../stores/settings";
@@ -33,6 +34,10 @@ const athletes = useAthletesStore();
 const settings = useSettingsStore();
 const root = ref<HTMLElement | null>(null);
 useModalFocus(root, () => { if (step.value !== "generating" && !applying.value) emit("close"); });
+// Durante la chiamata a Claude o l'applicazione il dialogo non si chiude, nemmeno con «indietro».
+const busy = () => step.value === "generating" || applying.value;
+onBeforeRouteUpdate((to) => to.query.dialogo !== undefined || !busy());
+onBeforeRouteLeave(() => !busy());
 
 const athleteId = computed(() => athletes.currentId!);
 // Il profilo aperto (con eventuali modifiche non ancora salvate), come per la generazione precedente.

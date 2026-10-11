@@ -5,7 +5,9 @@
 // - Profilo: i dati dell'atleta che si compilano di rado (identita', discipline, soglie,
 //   stato, obiettivi, vincoli, metodologia, note) e la gestione della scheda.
 // L'header con nome, stato di salvataggio e "Salva" resta sticky in entrambe le viste.
+// Atleta e vista vengono dalla rotta (router.ts): /atleta/:id/:tab, oppure /atleta/nuovo per la bozza.
 import { computed, nextTick, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { useAthletesStore } from "../../stores/athletes";
 import { useWorkoutsStore } from "../../stores/workouts";
 import { useSettingsStore } from "../../stores/settings";
@@ -27,32 +29,51 @@ import PlanTab from "./PlanTab.vue";
 import WorkoutRow from "./WorkoutRow.vue";
 import WeeklyReviews from "./WeeklyReviews.vue";
 import PasswordField from "../ui/PasswordField.vue";
+import type { AthleteTab } from "../../router";
 import IconButton from "../ui/IconButton.vue";
 import { Download, Plus, Trash2 } from "lucide-vue-next";
 
 const athletes = useAthletesStore();
 const workouts = useWorkoutsStore();
+const route = useRoute();
+const router = useRouter();
 
-const profile = computed(() => athletes.currentProfile!);
-
-// ---------- Viste (Panoramica / Piano / Profilo) ----------
-type Tab = "overview" | "plan" | "profile";
-const TABS: [Tab, string][] = [["overview", "Panoramica"], ["plan", "Piano"], ["profile", "Profilo"]];
-const tab = ref<Tab>("overview");
-// Il primo salvataggio di una bozza assegna un id: non deve far cambiare vista.
-let keepTabOnNextIdChange = false;
+// ---------- Scheda indicata dalla rotta ----------
+const isNewRoute = computed(() => route.name === "new-athlete");
+const routeId = computed(() => (isNewRoute.value ? null : String(route.params.id)));
 watch(
-  () => athletes.currentId,
-  (id) => {
-    if (keepTabOnNextIdChange) {
-      keepTabOnNextIdChange = false;
+  [routeId, isNewRoute, () => athletes.loaded, () => !!(routeId.value && athletes.athletes[routeId.value])],
+  () => {
+    if (isNewRoute.value) {
+      if (!(athletes.currentId === null && athletes.currentProfile)) athletes.newAthlete();
       return;
     }
-    // Una bozza non ha ancora dati da consultare: si parte dal Profilo.
-    tab.value = id ? "overview" : "profile";
+    const id = routeId.value!;
+    if (athletes.currentId === id && athletes.currentProfile) return;
+    if (athletes.athletes[id]) athletes.openAthlete(id);
+    else if (athletes.loaded) {
+      showToast("Questa scheda non esiste più.");
+      void router.replace({ name: "home" });
+    }
   },
   { immediate: true }
 );
+// La scheda in memoria e' quella della rotta: durante il caricamento non se ne mostra un'altra.
+const ready = computed(() => !!athletes.currentProfile && (isNewRoute.value ? athletes.currentId === null : athletes.currentId === routeId.value));
+const profile = computed(() => athletes.currentProfile!);
+
+// ---------- Viste (Panoramica / Piano / Profilo) ----------
+type Tab = AthleteTab;
+const TABS: [Tab, string][] = [["panoramica", "Panoramica"], ["piano", "Piano"], ["profilo", "Profilo"]];
+// Una bozza non ha ancora dati da consultare: si parte dal Profilo.
+const draftTab = ref<Tab>("profilo");
+const tab = computed<Tab>({
+  get: () => (isNewRoute.value ? draftTab.value : ((route.params.tab as Tab) || "panoramica")),
+  set: (value) => {
+    if (isNewRoute.value) draftTab.value = value;
+    else void router.replace({ name: "athlete", params: { id: routeId.value, tab: value } });
+  }
+});
 function onTabKeydown(event: KeyboardEvent) {
   if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
   event.preventDefault();
@@ -61,7 +82,7 @@ function onTabKeydown(event: KeyboardEvent) {
   nextTick(() => document.getElementById(`tab-${tab.value}`)?.focus());
 }
 async function goToSection(sectionId: string) {
-  tab.value = "profile";
+  tab.value = "profilo";
   await nextTick();
   document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
@@ -78,10 +99,11 @@ const nextEvent = computed(() => {
 });
 
 // ---------- Obiettivi ----------
+// Solo una scelta del coach sulla stessa scheda, non l'apertura di una scheda diversa.
 watch(
-  () => profile.value.goals.primary_objective,
-  (newVal) => {
-    if (!profile.value) return;
+  () => [athletes.currentProfile, athletes.currentProfile?.goals.primary_objective] as const,
+  ([current, newVal], [previous]) => {
+    if (!current || current !== previous) return;
     profile.value.goals.periodization_model = newVal === "preparazione_gara" ? "race_peak_taper" : "continuous_improvement";
     if (newVal === "preparazione_gara" && (!profile.value.goals.target_events || profile.value.goals.target_events.length === 0)) {
       profile.value.goals.target_events = [{ name: "", date: "", discipline: "running", distance_or_duration: "", priority: "A", target_result: "" }];
@@ -144,7 +166,7 @@ const intervalsStatusText = computed(() => {
 });
 
 watch(
-  () => profile.value.integrations?.intervals_icu_api_key,
+  () => athletes.currentProfile?.integrations?.intervals_icu_api_key,
   (apiKey) => intervalsSync.syncDebounced(athletes.currentId, apiKey)
 );
 
@@ -189,10 +211,13 @@ const thisWeek = computed(() => {
 
 // ---------- Azioni sulla scheda ----------
 async function onSave() {
-  if (athletes.currentId === null) keepTabOnNextIdChange = true;
+  const wasNew = athletes.currentId === null;
   const result = await athletes.saveCurrent();
-  if (!result.ok && athletes.currentId === null) keepTabOnNextIdChange = false;
   showResultToast(result);
+  // Il primo salvataggio assegna l'id: la bozza diventa la scheda dell'atleta, nella stessa vista.
+  if (result.ok && wasNew && athletes.currentId) {
+    void router.replace({ name: "athlete", params: { id: athletes.currentId, tab: draftTab.value } });
+  }
 }
 async function onDelete() {
   if (!athletes.currentId) return;
@@ -201,7 +226,9 @@ async function onDelete() {
     { confirmLabel: "Elimina scheda" }
   );
   if (!confirmed) return;
-  showResultToast(await athletes.deleteAthlete(athletes.currentId));
+  const result = await athletes.deleteAthlete(athletes.currentId);
+  showResultToast(result);
+  if (result.ok) void router.replace({ name: "home" });
 }
 function onExport() {
   athletes.exportCurrent();
@@ -209,7 +236,8 @@ function onExport() {
 </script>
 
 <template>
-  <div class="form-wrap" v-if="profile">
+  <div v-if="!ready" class="placeholder"><p>Caricamento…</p></div>
+  <div class="form-wrap" v-else>
     <header class="page-header">
       <h2>{{ fullName(profile.identity) || "Nuovo atleta" }}</h2>
       <div class="page-header-actions">
@@ -244,7 +272,7 @@ function onExport() {
     </div>
 
     <!-- ===================== Panoramica ===================== -->
-    <div v-show="tab === 'overview'" id="panel-overview" role="tabpanel" aria-labelledby="tab-overview">
+    <div v-show="tab === 'panoramica'" id="panel-panoramica" role="tabpanel" aria-labelledby="tab-panoramica">
       <section class="block">
         <h3>Carico e forma</h3>
         <LoadMetricsChart :log="profile.training_status!.load_metrics_log as never">
@@ -264,13 +292,13 @@ function onExport() {
         <p v-if="!athletes.currentId" class="helper-text">Salva la scheda per pianificare le sedute.</p>
         <p v-else-if="!thisWeek.length" class="helper-text">
           Nessuna seduta in programma questa settimana.
-          <button type="button" class="link-btn" @click="tab = 'plan'">Apri il piano</button>
+          <button type="button" class="link-btn" @click="tab = 'piano'">Apri il piano</button>
         </p>
         <template v-else>
           <div class="week-unit">
-            <WorkoutRow v-for="w in thisWeek" :key="w.id" :workout="w" :sync="workouts.syncRows[w.id]" show-date readonly @open="tab = 'plan'" />
+            <WorkoutRow v-for="w in thisWeek" :key="w.id" :workout="w" :sync="workouts.syncRows[w.id]" show-date readonly @open="tab = 'piano'" />
           </div>
-          <button type="button" class="link-btn overview-plan-link" @click="tab = 'plan'">Apri il piano</button>
+          <button type="button" class="link-btn overview-plan-link" @click="tab = 'piano'">Apri il piano</button>
         </template>
       </section>
 
@@ -278,13 +306,13 @@ function onExport() {
     </div>
 
     <!-- ===================== Piano ===================== -->
-    <div v-if="tab === 'plan'" id="panel-plan" role="tabpanel" aria-labelledby="tab-plan">
+    <div v-if="tab === 'piano'" id="panel-piano" role="tabpanel" aria-labelledby="tab-piano">
       <PlanTab v-if="athletes.currentId" @go-profile="goToSection" />
       <p v-else class="helper-text">Salva la scheda per pianificare le sedute.</p>
     </div>
 
     <!-- ===================== Profilo ===================== -->
-    <div v-show="tab === 'profile'" id="panel-profile" role="tabpanel" aria-labelledby="tab-profile">
+    <div v-show="tab === 'profilo'" id="panel-profilo" role="tabpanel" aria-labelledby="tab-profilo">
       <section class="block">
         <h3>Identità</h3>
         <div class="field-row">

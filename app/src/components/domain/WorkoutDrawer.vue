@@ -3,6 +3,7 @@
 // anteprima del testo per Intervals.icu e cronologia. Si lavora su una bozza locale; il
 // salvataggio e' condizionato alla revisione (vedi stores/workouts.ts).
 import { computed, onMounted, reactive, ref } from "vue";
+import { onBeforeRouteLeave, onBeforeRouteUpdate, type RouteLocationNormalized } from "vue-router";
 import type { Discipline, WorkoutContent } from "@shared/workouts/structure.ts";
 import { DISCIPLINES, contentOf, defaultTargetMetric, validateWorkout, workoutTotals } from "@shared/workouts/structure.ts";
 import { intervalsDescription } from "@shared/workouts/intervals.ts";
@@ -31,7 +32,7 @@ const store = useWorkoutsStore();
 const athletes = useAthletesStore();
 const root = ref<HTMLElement | null>(null);
 const titleInput = ref<HTMLInputElement | null>(null);
-useModalFocus(root, () => void requestClose(), titleInput);
+useModalFocus(root, () => requestClose(), titleInput);
 
 const original = computed(() => store.byId(props.workoutId)!);
 const draft = reactive<WorkoutContent & { locked: boolean }>({ ...clone(contentOf(original.value)), locked: original.value.locked });
@@ -91,7 +92,12 @@ async function save(approve: boolean) {
   saving.value = false;
   if (!result.ok) {
     showToast(result.message, "error");
-    emit("close");
+    // Su un conflitto la seduta e' stata ricaricata: si riapre e si riapplicano le modifiche. Su un
+    // errore di rete il pannello resta aperto con le modifiche, per riprovare.
+    if (result.conflict) {
+      leaveWithoutAsking = true;
+      emit("close");
+    }
     return;
   }
   const outdated = localSyncState(result.value, store.syncRows[props.workoutId]) === "outdated";
@@ -99,13 +105,19 @@ async function save(approve: boolean) {
   emit("close");
 }
 
-async function requestClose() {
-  if (changed.value && editable.value) {
-    const ok = await confirmDialog("Chiudere la seduta senza salvare le modifiche?", { confirmLabel: "Chiudi senza salvare", cancelLabel: "Continua a modificare" });
-    if (!ok) return;
-  }
+// La chiusura passa dalla rotta (?seduta=…): la conferma per le modifiche non salvate la chiedono
+// le guardie qui sotto, sia per «Chiudi» ed Esc sia per «indietro».
+function requestClose() {
   emit("close");
 }
+let leaveWithoutAsking = false;
+async function confirmLeave(to: RouteLocationNormalized): Promise<boolean> {
+  if (to.query.seduta === props.workoutId || leaveWithoutAsking) return true;
+  if (!(changed.value && editable.value)) return true;
+  return confirmDialog("Chiudere la seduta senza salvare le modifiche?", { confirmLabel: "Chiudi senza salvare", cancelLabel: "Continua a modificare" });
+}
+onBeforeRouteUpdate(confirmLeave);
+onBeforeRouteLeave(confirmLeave);
 
 async function onCancelWorkout() {
   const remote = syncRow.value?.remote_event_id != null && !original.value.completed_at;

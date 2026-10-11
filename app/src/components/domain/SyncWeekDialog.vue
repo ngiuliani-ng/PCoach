@@ -3,6 +3,7 @@
 // conflitti e rimozioni, esecuzione una seduta alla volta con esito per riga, nuovo tentativo
 // solo sulle non riuscite. Nulla parte verso Intervals.icu finche' il coach non conferma.
 import { computed, onMounted, ref } from "vue";
+import { onBeforeRouteLeave, onBeforeRouteUpdate } from "vue-router";
 import type { RemoteSnapshot, SyncOp, SyncOpKind } from "@shared/workouts/sync.ts";
 import { classifyWeek, isRunnable } from "@shared/workouts/sync.ts";
 import { addDaysISO } from "@shared/workouts/calendar.ts";
@@ -20,6 +21,9 @@ const store = useWorkoutsStore();
 const athletes = useAthletesStore();
 const root = ref<HTMLElement | null>(null);
 useModalFocus(root, () => { if (phase.value !== "running") emit("close"); });
+// Durante l'invio a Intervals.icu il dialogo non si chiude, nemmeno con «indietro».
+onBeforeRouteUpdate((to) => to.query.dialogo !== undefined || phase.value !== "running");
+onBeforeRouteLeave(() => phase.value !== "running");
 
 type Phase = "loading" | "error" | "preview" | "running" | "done";
 type Outcome = { state: "run" | "ok" | "ko"; text: string; warning?: string | null };

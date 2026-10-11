@@ -51,9 +51,18 @@ export const useSettingsStore = defineStore("settings", {
     /** La chiave di Claude e' salvata nel database. */
     hasClaudeKey: false,
     /** Impostazioni lette dal database: senza, il salvataggio sovrascriverebbe i valori reali con i predefiniti. */
-    loaded: false
+    loaded: false,
+    /** Ultima versione letta o salvata, per riconoscere le modifiche non salvate. */
+    baseline: JSON.stringify(defaults())
   }),
+  getters: {
+    isDirty: (s) => JSON.stringify(s.settings) !== s.baseline
+  },
   actions: {
+    /** Scarta le modifiche non salvate: tornano i valori letti o salvati per ultimi. */
+    discardChanges() {
+      this.settings = JSON.parse(this.baseline);
+    },
     async load() {
       if (!configured || !supabase) return;
       const [{ data, error }, key] = await Promise.all([
@@ -77,6 +86,7 @@ export const useSettingsStore = defineStore("settings", {
         feedback_params: resolveFeedbackParams(row.feedback_params)
       };
       this.hasClaudeKey = key.data === true;
+      this.baseline = JSON.stringify(this.settings);
       this.loaded = true;
     },
     async save(): Promise<{ ok: boolean; message: string }> {
@@ -106,6 +116,7 @@ export const useSettingsStore = defineStore("settings", {
         this.hasClaudeKey = true;
         this.settings.claude_api_key = "";
       }
+      this.baseline = JSON.stringify(this.settings);
       return { ok: true, message: "Impostazioni salvate." };
     }
   }
