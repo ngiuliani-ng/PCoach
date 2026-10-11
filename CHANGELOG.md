@@ -6,6 +6,14 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
+**2026-10-11 — Sistema di zone dell'atleta effettivo, dati personali ridotti verso Claude**
+- Il sistema di zone di corsa e bici (3, 5 o 7) entra nel prompt (`zone_per_disciplina`, con una regola fissa), nei controlli della proposta (sedute oltre il limite da verificare), nell'editor della struttura (solo quelle zone) e nel ricontrollo al salvataggio della seduta. Il nuoto usa 7 zone.
+- A Claude vanno solo il nome di battesimo e l'età, non più cognome e anno di nascita (prompt 2.3.0).
+- Test: 147 unitari, 38 end-to-end.
+
+*Motivazione*: decisioni D-UX-3 e D-UX-7 del coach e problemi U-10, U-13 dell'[audit UI/UX](docs/audit/2026-10-ux-e-usabilita/PCOACH_UX_AUDIT.md).
+*Docs aggiornati*: [decisioni/0025](docs/decisioni/0025-sistema-di-zone-e-dati-personali-a-claude.md), [integrazioni.md](docs/integrazioni.md), [modello-dati.md](docs/modello-dati.md), [design-ui.md](docs/design-ui.md), [sviluppo-deploy.md](docs/sviluppo-deploy.md); corretta la §15 dell'audit.
+
 **2026-10-11 — Interfaccia coerente con i dati usati**
 - Schema di carico e scarico con due selettori (settimane di carico 1-8, di scarico 1-4); un valore salvato non riconosciuto è segnalato nel Profilo e prima di generare.
 - La generazione usa la scheda salvata: con modifiche non salvate chiede «Salva e genera» o «Genera con i dati salvati».

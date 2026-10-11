@@ -415,4 +415,6 @@ Le altre scelte di §11 (16 px sui campi, 44 px su touch, contrasti, selettore d
 Scelte tecniche conseguenti (mie, da confermare):
 - la navigazione con `vue-router` passa nella fase 1, perché la protezione delle modifiche non salvate si appoggia alle sue guardie;
 - cronologia con hash (`createWebHashHistory`), perché GitHub Pages non riscrive i percorsi e un ricaricamento su `/PCoach/atleta/...` darebbe 404;
-- la riduzione dei dati personali (D-UX-7) vale anche per il feedback settimanale, che oggi invia a Claude nome e cognome.
+- la riduzione dei dati personali (D-UX-7) riguarda la generazione: il feedback settimanale invia già solo il nome di battesimo (`display_name` da `identity.nome`, `pipeline.ts`), come verificato durante l'implementazione; una prima stesura di questa riga diceva il contrario;
+- il nuoto, che non ha un `zone_system`, resta a 7 zone;
+- le soglie del feedback «Intensità bassa fino alla zona» e «Intensità media fino alla zona» restano globali e non seguono il sistema di zone dell'atleta: è un punto aperto, da decidere.

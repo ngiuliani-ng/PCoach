@@ -31,7 +31,7 @@ Rigenera `app/src/schema/types.generated.ts` da `app/src/schema/athlete_profile.
 npm run test
 ```
 
-Esegue Vitest (`vitest run`) sui file `src/**/*.test.ts`. Stato attuale: **145 test** in 14 file:
+Esegue Vitest (`vitest run`) sui file `src/**/*.test.ts`. Stato attuale: **147 test** in 14 file:
 
 | File | Test |
 |---|---|
@@ -43,11 +43,11 @@ Esegue Vitest (`vitest run`) sui file `src/**/*.test.ts`. Stato attuale: **145 t
 | `domain/feedbackPipeline.test.ts` | 17 (pipeline del feedback con porte finte: stati, fuso non valido, nuovi tentativi, idempotenza, sostituzione della valutazione anticipata, approvazione con o senza invio, consegna) |
 | `domain/planChecks.test.ts` | 3 (sedute a settimana, variazione di volume rispetto alla fase, struttura incompleta) |
 | `domain/planWeeks.test.ts` | 14 (settimane del piano, fasi del ciclo di carico, ancoraggio al piano attivo, data di prosecuzione, gare e tapering) |
-| `domain/regeneration.test.ts` | 6 (lettura della proposta, differenze e payload della rigenerazione) |
+| `domain/regeneration.test.ts` | 7 (lettura della proposta, zone oltre il sistema dell'atleta, differenze e payload della rigenerazione) |
 | `domain/shared.test.ts` | 26 (moduli condivisi con le Edge Function: calendario, zone e struttura, conversione per Intervals.icu, classificazione della sincronizzazione) |
 | `services/claude.test.ts` | 3 (lettura del JSON nella risposta di Claude) |
 | `services/intervals.test.ts` | 3 (finestra di sincronizzazione del carico) |
-| `services/planPrompt.test.ts` | 10 (istruzioni fisse e preferenze del coach, messaggio, calendario, percentuali, dati esclusi dal contesto, sedute recenti con RPE e valutazioni recenti, segnaposto nei dati, testo per l'invio manuale) |
+| `services/planPrompt.test.ts` | 11 (istruzioni fisse e preferenze del coach, messaggio, calendario, percentuali, dati esclusi dal contesto e identità ridotta, zone per disciplina, sedute recenti con RPE e valutazioni recenti, segnaposto nei dati, testo per l'invio manuale) |
 | `stores/auth.test.ts` | 5 |
 
 Questo conteggio descrive solo lo stato corrente; l'evoluzione nel tempo è nel [CHANGELOG.md](../CHANGELOG.md), non qui.
@@ -67,7 +67,7 @@ Playwright (`playwright.config.ts`, cartella `app/e2e/`) avvia Vite sulla porta 
 
 Nessuna chiamata raggiunge Supabase, Claude o Intervals.icu. La data è fissata al 10 ottobre 2026 con `page.clock`.
 
-Diciotto flussi, ognuno su un progetto desktop e uno mobile (36 test):
+Diciannove flussi, ognuno su un progetto desktop e uno mobile (38 test):
 - modifica e approvazione di una seduta;
 - rigenerazione con anteprima delle differenze;
 - «Sincronizza settimana» con un errore parziale e il nuovo tentativo;
@@ -84,7 +84,8 @@ Diciotto flussi, ognuno su un progetto desktop e uno mobile (36 test):
   - generazione con modifiche non salvate, in entrambe le scelte;
   - feedback per un atleta senza email;
   - fuso orario non valido;
-  - valutazione in preparazione aggiornata senza ricaricare.
+  - valutazione in preparazione aggiornata senza ricaricare;
+  - sistema di zone dell'atleta nell'editor e nell'approvazione.
 
 Gli esiti finiscono in `test-results/`, non tracciata.
 
