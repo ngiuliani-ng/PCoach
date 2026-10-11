@@ -5,7 +5,7 @@ import { computed } from "vue";
 import { useSettingsStore } from "../../stores/settings";
 import { DEFAULT_FEEDBACK_PARAMS, validateFeedbackParams, type FeedbackParams } from "@shared/feedback/params.ts";
 import { showResultToast } from "../../composables/useToast";
-import { DAY_LABELS, DEFAULT_PLAN_PREFERENCES } from "../../constants";
+import { DEFAULT_PLAN_PREFERENCES } from "../../constants";
 import { SUPPORTED_MODELS } from "@shared/claude/models.ts";
 import PasswordField from "../ui/PasswordField.vue";
 
@@ -28,6 +28,9 @@ const DATA_PARAMS: ParamField[] = [
   ["low_zone_max", "Intensità bassa fino alla zona", "Z"],
   ["moderate_zone_max", "Intensità media fino alla zona", "Z"]
 ];
+// Il feedback parte sempre il lunedi', per la settimana appena conclusa (decisione D-11): si sceglie solo l'ora.
+const HOURS = Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, "0")}:00`);
+
 function resetParams() {
   settings.settings.feedback_params = { ...DEFAULT_FEEDBACK_PARAMS };
 }
@@ -99,14 +102,10 @@ async function onSave() {
       <h3>Feedback settimanale automatico</h3>
       <div class="field-row">
         <label class="field">
-          <span class="field-label">Giorno</span>
-          <select v-model="settings.settings.weekly_feedback_day">
-            <option v-for="[v, l] in DAY_LABELS" :key="v" :value="v">{{ l }}</option>
+          <span class="field-label">Ora del lunedì</span>
+          <select v-model="settings.settings.weekly_feedback_time">
+            <option v-for="h in HOURS" :key="h" :value="h">{{ h }}</option>
           </select>
-        </label>
-        <label class="field">
-          <span class="field-label">Ora</span>
-          <input type="time" v-model="settings.settings.weekly_feedback_time" />
         </label>
         <label class="field">
           <span class="field-label">Fuso orario</span>
@@ -117,7 +116,7 @@ async function onSave() {
         <input type="checkbox" v-model="settings.settings.weekly_feedback_email_enabled" />
         Invia via email all'atleta il feedback che approvi
       </label>
-      <p class="helper-text">Nel giorno e all'ora indicati il server prepara il feedback della settimana appena conclusa (da lunedì a domenica). Lo trovi da rivedere nella Panoramica di ogni atleta: niente parte senza la tua approvazione.</p>
+      <p class="helper-text">Ogni lunedì, dall'ora indicata, il server prepara il feedback della settimana appena conclusa (da lunedì a domenica). Lo trovi da rivedere nella Panoramica di ogni atleta: niente parte senza la tua approvazione.</p>
     </section>
   </div>
 </template>

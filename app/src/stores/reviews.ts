@@ -79,10 +79,10 @@ export const useReviewsStore = defineStore("reviews", {
     retry(reviewId: string) {
       return this.run(reviewId, () => api.retryReview(reviewId), statusMessage);
     },
-    approve(reviewId: string, text: string) {
-      return this.run(reviewId, () => api.approveReview(reviewId, text), (_s, delivery) =>
+    approve(reviewId: string, text: string, send = true) {
+      return this.run(reviewId, () => api.approveReview(reviewId, text, send), (_s, delivery) =>
         delivery === "sent" ? "Feedback approvato e inviato all'atleta." :
-        delivery === "not_requested" ? "Feedback approvato. L'invio via email è disattivato in Impostazioni." :
+        delivery === "not_requested" ? (send ? "Feedback approvato. L'invio via email è disattivato in Impostazioni." : "Feedback approvato, senza un nuovo invio all'atleta.") :
         delivery === "failed" ? "Feedback approvato, ma l'email non è partita: verrà ritentata." :
         "Feedback approvato.");
     }

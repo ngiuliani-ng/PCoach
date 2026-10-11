@@ -70,7 +70,8 @@ export const useSettingsStore = defineStore("settings", {
         plan_generation_prompt_template: planPrefs && !isLegacyPlanTemplate(planPrefs) ? planPrefs : DEFAULT_PLAN_PREFERENCES,
         weekly_feedback_prompt_template: row.weekly_feedback_prompt_template ?? DEFAULT_FEEDBACK_PROMPT,
         weekly_feedback_day: row.weekly_feedback_day ?? fallback.weekly_feedback_day,
-        weekly_feedback_time: row.weekly_feedback_time ?? fallback.weekly_feedback_time,
+        // Conta solo l'ora: i minuti non sono mai stati usati dall'esecuzione oraria.
+        weekly_feedback_time: `${(row.weekly_feedback_time ?? fallback.weekly_feedback_time).slice(0, 2)}:00`,
         weekly_feedback_timezone: row.weekly_feedback_timezone ?? fallback.weekly_feedback_timezone,
         weekly_feedback_email_enabled: row.weekly_feedback_email_enabled ?? fallback.weekly_feedback_email_enabled,
         feedback_params: resolveFeedbackParams(row.feedback_params)
@@ -93,6 +94,8 @@ export const useSettingsStore = defineStore("settings", {
       const row: Record<string, unknown> = {
         id: 1,
         ...rest,
+        // Il giorno non si sceglie piu' (decisione D-11): resta il lunedi' anche nel database.
+        weekly_feedback_day: "lunedi",
         plan_generation_prompt_template: unlessDefault(rest.plan_generation_prompt_template, DEFAULT_PLAN_PREFERENCES),
         weekly_feedback_prompt_template: unlessDefault(rest.weekly_feedback_prompt_template, DEFAULT_FEEDBACK_PROMPT)
       };

@@ -21,6 +21,9 @@ import type { CoachChange, Period, PlannedWorkout, PlanWindow, RawActivity, RawW
 export type ReviewStatus = "pending" | "analyzed" | "draft" | "approved" | "skipped" | "analysis_failed" | "generation_failed" | "superseded";
 export type DeliveryStatus = "not_requested" | "pending" | "sent" | "failed" | "skipped";
 
+/** Giorno dell'esecuzione automatica: si valuta sempre l'ultima settimana conclusa (decisione D-11). */
+export const FEEDBACK_DAY = "lunedi";
+
 /** Tentativi automatici per passo prima di fermarsi in uno stato di errore. */
 export const MAX_ATTEMPTS = 3;
 /** Durata del blocco di una riga mentre una invocazione la elabora. */
@@ -41,6 +44,7 @@ export interface ReviewRow {
   output_text: string | null;
   delivery_status: DeliveryStatus;
   delivery_attempts: number;
+  created_at: string;
 }
 
 export interface FeedbackSettings {
@@ -66,6 +70,8 @@ export interface FeedbackStore {
   athletesToReview(period: Period): Promise<string[]>;
   /** Crea la revisione 1 se non esiste una valutazione corrente; null se esiste gia'. */
   claim(athleteId: string, period: Period): Promise<ReviewRow | null>;
+  /** Nuova revisione "pending" al posto della valutazione (regenerate_weekly_review); null se bloccata. */
+  regenerate(id: string): Promise<string | null>;
   current(athleteId: string, periodStart: string): Promise<ReviewRow | null>;
   get(id: string): Promise<ReviewRow | null>;
   /** Blocca la riga se libera (o con blocco scaduto); null se la sta elaborando un altro. */
@@ -291,10 +297,18 @@ export async function runScheduled(deps: Deps, budgetMs = 100_000): Promise<{ pl
   let planned = 0;
   const now = deps.now();
   const tz = settings.weekly_feedback_timezone || "Europe/Rome";
-  if (inScheduleWindow(now, tz, settings.weekly_feedback_day, settings.weekly_feedback_time)) {
+  if (inScheduleWindow(now, tz, FEEDBACK_DAY, settings.weekly_feedback_time)) {
     const period = reviewPeriod(localDayHour(now, tz).date);
     for (const athleteId of await deps.store.athletesToReview(period)) {
-      if (await deps.store.claim(athleteId, period)) planned++;
+      if (await deps.store.claim(athleteId, period)) {
+        planned++;
+        continue;
+      }
+      // Una valutazione preparata a settimana in corso, non ancora approvata, lascia il posto a
+      // quella della settimana conclusa (decisione D-08). Quella del lunedi' nasce dopo la fine
+      // del periodo, quindi non viene sostituita di nuovo alle esecuzioni successive.
+      const current = await deps.store.current(athleteId, period.start);
+      if (current && isEarly(current, period, tz) && (await deps.store.regenerate(current.id))) planned++;
     }
   }
   const processed: { id: string; status: string }[] = [];
@@ -306,14 +320,24 @@ export async function runScheduled(deps: Deps, budgetMs = 100_000): Promise<{ pl
   return { planned, processed };
 }
 
-/** Approvazione del coach: il testo approvato e' quello che riceve l'atleta, se l'email e' attiva. */
-export async function approveReview(deps: Deps, id: string, text: string): Promise<{ ok: boolean; error?: string; row?: ReviewRow | null }> {
+/** Valutazione creata prima della fine del periodo (nel fuso del coach) e non ancora approvata. */
+export function isEarly(row: ReviewRow, period: Period, timeZone: string): boolean {
+  if (row.status === "approved" || row.status === "superseded") return false;
+  return localDayHour(new Date(row.created_at), timeZone).date <= period.end;
+}
+
+/**
+ * Approvazione del coach: il testo approvato e' quello che riceve l'atleta, se l'email e' attiva e
+ * il coach non ha scelto di non inviarlo (`send = false`, ad esempio per la revisione di una
+ * settimana gia' inviata: decisione D-07).
+ */
+export async function approveReview(deps: Deps, id: string, text: string, send = true): Promise<{ ok: boolean; error?: string; row?: ReviewRow | null }> {
   const settings = await deps.store.settings();
   const clean = text.trim();
   if (!clean) return { ok: false, error: "Il testo del feedback è vuoto." };
   const ok = await deps.store.update(id, "draft", {
     status: "approved", output_text: clean, approved_at: deps.now().toISOString(),
-    delivery_status: settings?.weekly_feedback_email_enabled ? "pending" : "not_requested", delivery_attempts: 0, delivery_error: null
+    delivery_status: settings?.weekly_feedback_email_enabled && send ? "pending" : "not_requested", delivery_attempts: 0, delivery_error: null
   });
   if (!ok) return { ok: false, error: "La valutazione non è più in bozza: ricarica." };
   return { ok: true, row: await processReview(deps, id) };

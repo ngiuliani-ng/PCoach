@@ -26,4 +26,4 @@ async function call(body: Record<string, unknown>): Promise<Response<Outcome>> {
 export const createReview = (athleteId: string, weekStart: string) => call({ action: "create", athlete_id: athleteId, week_start: weekStart });
 export const regenerateReview = (reviewId: string) => call({ action: "regenerate", review_id: reviewId });
 export const retryReview = (reviewId: string) => call({ action: "retry", review_id: reviewId });
-export const approveReview = (reviewId: string, text: string) => call({ action: "approve", review_id: reviewId, text });
+export const approveReview = (reviewId: string, text: string, send = true) => call({ action: "approve", review_id: reviewId, text, send });

@@ -26,7 +26,7 @@ function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
 }
 
-const REVIEW_COLUMNS = "id, athlete_id, period_start, period_end, revision, status, skip_reason, attempts, error, input, output, output_text, delivery_status, delivery_attempts, locked_until";
+const REVIEW_COLUMNS = "id, athlete_id, period_start, period_end, revision, status, skip_reason, attempts, error, input, output, output_text, delivery_status, delivery_attempts, locked_until, created_at";
 const WORKOUT_COLUMNS = "id, revision, planned_date, slot, discipline, title, objective, duration_min, structure, primary_target, completed_at, workout_sync(provider, remote_event_id)";
 
 // ---------- Database ----------
@@ -55,6 +55,11 @@ class SupabaseStore implements FeedbackStore {
       .upsert({ athlete_id: athleteId, period_start: period.start, period_end: period.end, kind: "weekly", revision: 1, status: "pending" }, { onConflict: "athlete_id,period_start,kind,revision", ignoreDuplicates: true })
       .select(REVIEW_COLUMNS);
     return ((data ?? [])[0] as ReviewRow | undefined) ?? null;
+  }
+
+  async regenerate(id: string): Promise<string | null> {
+    const { data, error } = await this.db.rpc("regenerate_weekly_review", { p_id: id });
+    return error ? null : (data as string);
   }
 
   async current(athleteId: string, periodStart: string): Promise<ReviewRow | null> {
@@ -267,7 +272,7 @@ async function coachAction(db: SupabaseClient, body: Record<string, unknown>) {
   }
 
   if (body.action === "approve") {
-    const res = await approveReview(deps, row.id, typeof body.text === "string" ? body.text : "");
+    const res = await approveReview(deps, row.id, typeof body.text === "string" ? body.text : "", body.send !== false);
     if (!res.ok) return jsonResponse({ error: res.error }, 409);
     return jsonResponse({ id: row.id, status: res.row?.status ?? "approved", delivery_status: res.row?.delivery_status });
   }

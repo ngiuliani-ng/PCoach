@@ -6,6 +6,7 @@ import { computed, reactive, ref, watch } from "vue";
 import { useReviewsStore, type ReviewRecord } from "../../stores/reviews";
 import { useSettingsStore } from "../../stores/settings";
 import { showResultToast } from "../../composables/useToast";
+import { confirmDialog } from "../../composables/useConfirmDialog";
 import { disciplineLabel, formatDate, todayISO } from "../../constants";
 import { addDaysISO, weekStartISO } from "@shared/workouts/calendar.ts";
 import type { SessionOutcome } from "@shared/feedback/types.ts";
@@ -92,10 +93,27 @@ const busy = (id: string) => reviews.busy === id;
 async function onCreate() {
   showResultToast(await reviews.create(chosenWeek.value));
 }
+// Revisione precedente della stessa settimana gia' arrivata all'atleta (decisione D-07): si chiede
+// ogni volta se inviare anche la nuova, con una scelta esplicita invece di un invio automatico.
+function sentBefore(r: ReviewRecord): ReviewRecord | undefined {
+  return reviews.reviews.find((x) => x.period_start === r.period_start && x.id !== r.id && x.delivery_status === "sent");
+}
+const resend = reactive<Record<string, boolean>>({});
+/** Scelta del coach: inviare questa versione (se l'email e' attiva). */
+const wantsSend = (r: ReviewRecord) => !sentBefore(r) || !!resend[r.id];
+const willSend = (r: ReviewRecord) => emailOn.value && wantsSend(r);
+
 async function onApprove(r: ReviewRecord) {
-  showResultToast(await reviews.approve(r.id, drafts[r.id] ?? r.output_text ?? ""));
+  showResultToast(await reviews.approve(r.id, drafts[r.id] ?? r.output_text ?? "", wantsSend(r)));
 }
 async function onRegenerate(r: ReviewRecord) {
+  if (r.delivery_status === "sent") {
+    const ok = await confirmDialog(
+      `L'atleta ha già ricevuto questo feedback${r.delivered_at ? ` il ${formatDate(r.delivered_at.slice(0, 10))}` : ""}. Rigenerandolo prepari una nuova versione da rivedere: all'approvazione sceglierai se inviarla.`,
+      { confirmLabel: "Rigenera", cancelLabel: "Annulla" }
+    );
+    if (!ok) return;
+  }
   delete drafts[r.id];
   showResultToast(await reviews.regenerate(r.id));
 }
@@ -163,12 +181,16 @@ async function onRetry(r: ReviewRecord) {
           </label>
           <div class="review-actions">
             <button type="button" class="primary" :disabled="reviews.busy !== null || !drafts[r.id]?.trim()" @click="onApprove(r)">
-              <LoaderCircle v-if="busy(r.id)" :size="16" class="spin" aria-hidden="true" />{{ emailOn ? "Approva e invia" : "Approva" }}
+              <LoaderCircle v-if="busy(r.id)" :size="16" class="spin" aria-hidden="true" />{{ willSend(r) ? "Approva e invia" : "Approva" }}
             </button>
             <button type="button" class="secondary" :disabled="reviews.busy !== null" @click="onRegenerate(r)">
               <RefreshCw :size="16" aria-hidden="true" />Rigenera
             </button>
           </div>
+          <label v-if="emailOn && sentBefore(r)" class="checkbox-line">
+            <input type="checkbox" v-model="resend[r.id]" />
+            Invia anche questa versione: l'atleta ha già ricevuto la revisione {{ sentBefore(r)!.revision }}{{ sentBefore(r)!.delivered_at ? ` il ${formatDate(sentBefore(r)!.delivered_at!.slice(0, 10))}` : "" }}
+          </label>
           <p v-if="!emailOn" class="helper-text">L'invio via email è disattivato in Impostazioni: approvando, il feedback resta solo qui.</p>
         </template>
 

@@ -33,11 +33,22 @@ class MemoryStore implements FeedbackStore {
     return { claude_api_key: "c", claude_model: "m", weekly_feedback_prompt_template: "", weekly_feedback_timezone: "Europe/Rome", weekly_feedback_day: "lunedi", weekly_feedback_time: "08:00", weekly_feedback_email_enabled: true, feedback_params: {}, ...this.cfg };
   }
   async athletesToReview() { return ["A1"]; }
+  /** Istante di creazione delle nuove righe (di default: lunedi' 08:05). */
+  createdAt = MONDAY_0805.toISOString();
+  private newRow(athleteId: string, period: Period, revision: number) {
+    const row = { id: `r${this.rows.length + 1}`, athlete_id: athleteId, period_start: period.start, period_end: period.end, revision, status: "pending" as ReviewStatus, skip_reason: null, attempts: 0, error: null, input: null, output: null, output_text: null, delivery_status: "not_requested" as const, delivery_attempts: 0, created_at: this.createdAt };
+    this.rows.push(row);
+    return row;
+  }
   async claim(athleteId: string, period: Period) {
     if (this.rows.some((r) => r.athlete_id === athleteId && r.period_start === period.start && r.status !== "superseded")) return null;
-    const row = { id: `r${this.rows.length + 1}`, athlete_id: athleteId, period_start: period.start, period_end: period.end, revision: 1, status: "pending" as ReviewStatus, skip_reason: null, attempts: 0, error: null, input: null, output: null, output_text: null, delivery_status: "not_requested" as const, delivery_attempts: 0 };
-    this.rows.push(row);
-    return { ...row };
+    return { ...this.newRow(athleteId, period, 1) };
+  }
+  async regenerate(id: string) {
+    const r = this.rows.find((x) => x.id === id);
+    if (!r || r.status === "superseded" || this.locks.has(id)) return null;
+    r.status = "superseded";
+    return this.newRow(r.athlete_id, { start: r.period_start, end: r.period_end }, r.revision + 1).id;
   }
   async current(athleteId: string, start: string) { return this.rows.find((r) => r.athlete_id === athleteId && r.period_start === start && r.status !== "superseded") ?? null; }
   async get(id: string) { const r = this.rows.find((x) => x.id === id); return r ? { ...r } : null; }
@@ -104,10 +115,33 @@ describe("pipeline del feedback", () => {
     expect(store.rows).toHaveLength(1);
   });
 
-  it("fuori dalla finestra non crea nulla", async () => {
-    const store = new MemoryStore({ weekly_feedback_day: "domenica" });
+  it("fuori dalla finestra non crea nulla; il giorno e' sempre il lunedi' (D-11)", async () => {
+    expect((await runScheduled(deps(new MemoryStore({ weekly_feedback_time: "09:00" })).d)).planned).toBe(0);
+    // Un giorno diverso salvato in passato non conta piu'.
+    expect((await runScheduled(deps(new MemoryStore({ weekly_feedback_day: "domenica" })).d)).planned).toBe(1);
+  });
+
+  it("D-08: la valutazione preparata a settimana in corso e non approvata viene sostituita il lunedi'", async () => {
+    const store = new MemoryStore();
+    store.createdAt = "2026-10-16T10:00:00Z"; // venerdi': settimana in corso
+    await store.claim("A1", PERIOD);
+    store.createdAt = MONDAY_0805.toISOString();
+    const { d } = deps(store);
+    expect((await runScheduled(d)).planned).toBe(1);
+    expect(store.rows.map((r) => [r.revision, r.status])).toEqual([[1, "superseded"], [2, "draft"]]);
+    // All'esecuzione successiva la valutazione del lunedi' resta.
+    await runScheduled(d);
+    expect(store.rows).toHaveLength(2);
+  });
+
+  it("D-08: una valutazione anticipata gia' approvata resta", async () => {
+    const store = new MemoryStore();
+    store.createdAt = "2026-10-16T10:00:00Z";
+    await store.claim("A1", PERIOD);
+    store.rows[0].status = "approved";
     const { d } = deps(store);
     expect((await runScheduled(d)).planned).toBe(0);
+    expect(store.rows).toHaveLength(1);
   });
 
   it("16. Intervals.icu non risponde: nuovi tentativi, poi analysis_failed", async () => {
@@ -166,6 +200,15 @@ describe("pipeline del feedback", () => {
     expect(store.rows[0]).toMatchObject({ status: "approved", output_text: "Testo rivisto dal coach.", delivery_status: "sent", delivery_attempts: 1 });
     expect(sent).toEqual(["elia@example.com"]);
     expect((await approveReview(d, "r1", "di nuovo")).ok).toBe(false);
+  });
+
+  it("D-07: il coach puo' approvare senza inviare (revisione di una settimana gia' inviata)", async () => {
+    const store = new MemoryStore();
+    const { d, sent } = deps(store);
+    await runScheduled(d);
+    await approveReview(d, "r1", "Ok.", false);
+    expect(store.rows[0]).toMatchObject({ status: "approved", delivery_status: "not_requested" });
+    expect(sent).toEqual([]);
   });
 
   it("email disattivata: approvata senza invio", async () => {
