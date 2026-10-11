@@ -17,6 +17,25 @@ export function isMonday(date: string): boolean {
   return dayIndex(date) === 0;
 }
 
+/** Fuso usato quando quello delle impostazioni manca o non e' valido. */
+export const DEFAULT_TIME_ZONE = "Europe/Rome";
+
+export function isValidTimeZone(tz: string | null | undefined): boolean {
+  if (!tz) return false;
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Fuso delle impostazioni se valido, altrimenti quello predefinito: un valore sbagliato non deve
+ * fermare il feedback automatico (Intl lancia un'eccezione con un fuso sconosciuto). */
+export function safeTimeZone(tz: string | null | undefined): string {
+  return isValidTimeZone(tz) ? tz! : DEFAULT_TIME_ZONE;
+}
+
 const DAY_KEYS_BY_EN: Record<string, string> = {
   Monday: "lunedi", Tuesday: "martedi", Wednesday: "mercoledi", Thursday: "giovedi",
   Friday: "venerdi", Saturday: "sabato", Sunday: "domenica"

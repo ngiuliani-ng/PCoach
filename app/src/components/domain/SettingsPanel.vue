@@ -7,6 +7,7 @@ import { DEFAULT_FEEDBACK_PARAMS, validateFeedbackParams, type FeedbackParams } 
 import { showResultToast } from "../../composables/useToast";
 import { DEFAULT_PLAN_PREFERENCES } from "../../constants";
 import { SUPPORTED_MODELS } from "@shared/claude/models.ts";
+import { isValidTimeZone } from "@shared/feedback/period.ts";
 import PasswordField from "../ui/PasswordField.vue";
 
 const settings = useSettingsStore();
@@ -30,6 +31,11 @@ const DATA_PARAMS: ParamField[] = [
 ];
 // Il feedback parte sempre il lunedi', per la settimana appena conclusa (decisione D-11): si sceglie solo l'ora.
 const HOURS = Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, "0")}:00`);
+// Fusi riconosciuti dal browser (gli stessi di Intl sul server): un valore scritto a mano e sbagliato
+// fermerebbe il feedback automatico. Un valore salvato non valido resta visibile, segnalato.
+const ZONES: string[] = (Intl as unknown as { supportedValuesOf?: (key: string) => string[] }).supportedValuesOf?.("timeZone") ?? ["Europe/Rome"];
+const tzValid = computed(() => isValidTimeZone(settings.settings.weekly_feedback_timezone));
+const tzOptions = computed(() => (ZONES.includes(settings.settings.weekly_feedback_timezone) ? ZONES : [settings.settings.weekly_feedback_timezone, ...ZONES]));
 
 function resetParams() {
   settings.settings.feedback_params = { ...DEFAULT_FEEDBACK_PARAMS };
@@ -110,7 +116,10 @@ async function onSave() {
         </label>
         <label class="field">
           <span class="field-label">Fuso orario</span>
-          <input type="text" v-model="settings.settings.weekly_feedback_timezone" class="mono-input" />
+          <select v-model="settings.settings.weekly_feedback_timezone" :aria-invalid="!tzValid">
+            <option v-for="z in tzOptions" :key="z" :value="z">{{ z }}</option>
+          </select>
+          <span v-if="!tzValid" class="error-text helper-text">Fuso non riconosciuto: il feedback usa Europe/Rome finché non ne scegli uno dall'elenco.</span>
         </label>
       </div>
       <label class="checkbox-line">

@@ -248,7 +248,7 @@
         },
         "load_deload_pattern": {
           "type": "string",
-          "description": "Formato N:1 (settimane carico : settimane scarico).",
+          "description": "Formato N:M (settimane di carico : settimane di scarico), N da 1 a 8 e M da 1 a 4. Un valore in un altro formato non dà fasi al piano.",
           "examples": ["3:1", "2:1"]
         },
         "load_increase_min_pct": {

@@ -245,7 +245,7 @@ export interface AthleteTrainingProfile {
   methodology_preferences: {
     intensity_distribution_model: "polarizzato_80_20" | "piramidale" | "soglia_prevalente" | "misto";
     /**
-     * Formato N:1 (settimane carico : settimane scarico).
+     * Formato N:M (settimane di carico : settimane di scarico), N da 1 a 8 e M da 1 a 4. Un valore in un altro formato non dà fasi al piano.
      */
     load_deload_pattern: string;
     /**

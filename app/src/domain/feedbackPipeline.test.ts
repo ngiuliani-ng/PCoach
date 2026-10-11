@@ -121,6 +121,10 @@ describe("pipeline del feedback", () => {
     expect((await runScheduled(deps(new MemoryStore({ weekly_feedback_day: "domenica" })).d)).planned).toBe(1);
   });
 
+  it("un fuso orario non valido nelle impostazioni non ferma il feedback: vale Europe/Rome", async () => {
+    expect((await runScheduled(deps(new MemoryStore({ weekly_feedback_timezone: "Roma" })).d)).planned).toBe(1);
+  });
+
   it("D-08: la valutazione preparata a settimana in corso e non approvata viene sostituita il lunedi'", async () => {
     const store = new MemoryStore();
     store.createdAt = "2026-10-16T10:00:00Z"; // venerdi': settimana in corso

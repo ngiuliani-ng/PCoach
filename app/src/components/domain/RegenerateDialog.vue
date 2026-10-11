@@ -33,15 +33,18 @@ const store = useWorkoutsStore();
 const athletes = useAthletesStore();
 const settings = useSettingsStore();
 const root = ref<HTMLElement | null>(null);
-useModalFocus(root, () => { if (step.value !== "generating" && !applying.value) emit("close"); });
+useModalFocus(root, () => { if (!busy()) emit("close"); });
 // Durante la chiamata a Claude o l'applicazione il dialogo non si chiude, nemmeno con «indietro».
-const busy = () => step.value === "generating" || applying.value;
+const busy = () => starting.value || step.value === "generating" || applying.value;
 onBeforeRouteUpdate((to) => to.query.dialogo !== undefined || !busy());
 onBeforeRouteLeave(() => !busy());
 
 const athleteId = computed(() => athletes.currentId!);
-// Il profilo aperto (con eventuali modifiche non ancora salvate), come per la generazione precedente.
-const profile = computed(() => athletes.currentProfile!);
+// La scheda salvata, non quella in modifica (decisione D-UX-4): Claude riceve cio' che resta tracciato.
+// Con modifiche non salvate, PlanTab chiede prima se salvarle.
+const profile = computed(() => athletes.athletes[athleteId.value]);
+// Uno schema di carico non riconosciuto toglie le fasi del ciclo: va detto prima di generare.
+const patternMissing = computed(() => !parseLoadPattern(profile.value.methodology_preferences?.load_deload_pattern));
 // Una proposta in sospeso riapre il dialogo nel modo in cui era stata chiesta.
 const kind = ref<GenerationKind>(props.kind);
 const replan = computed(() => kind.value === "regenerate");
@@ -60,6 +63,9 @@ const proposal = ref<Proposal | null>(null);
 const pastedText = ref("");
 const promptText = ref("");
 const applying = ref(false);
+// Dal clic su «Genera la proposta» alla chiamata a Claude (sincronizzazione del carico, registrazione):
+// il pulsante resta disattivato, un secondo clic non crea un'altra generazione.
+const starting = ref(false);
 const resumed = ref<GenerationRecord | null>(null);
 
 const candidates = computed(() => regenerationCandidates(store.workouts, fromDate.value));
@@ -132,6 +138,16 @@ function candidateReason(w: (typeof candidates.value)[number]): string {
 }
 
 async function generate() {
+  if (starting.value) return;
+  starting.value = true;
+  try {
+    await startGeneration();
+  } finally {
+    starting.value = false;
+  }
+}
+
+async function startGeneration() {
   const w = Math.max(1, Math.min(MAX_PLAN_WEEKS, Math.round(weeks.value || 1)));
   weeks.value = w;
   // Carico aggiornato prima di chiedere il piano (trigger di sincronizzazione "generazione").
@@ -241,7 +257,7 @@ function dayLabel(date: string) {
 </script>
 
 <template>
-  <div class="sheet-backdrop" @click="step === 'params' && emit('close')"></div>
+  <div class="sheet-backdrop" @click="step === 'params' && !starting && emit('close')"></div>
   <div class="dialog-wrap">
     <div ref="root" class="dialog-box" role="dialog" aria-modal="true" aria-labelledby="regen-title">
       <header class="dialog-head">
@@ -249,7 +265,7 @@ function dayLabel(date: string) {
           <h3 id="regen-title">{{ TITLES[kind] }}</h3>
           <p>{{ step === "preview" ? "Controlla cosa cambia prima di applicare." : replan ? "Scegli da quando ripartire e cosa tenere." : kind === "continue" ? "Le nuove settimane si aggiungono dopo il piano attivo, senza cambiarlo." : "Scegli da quando partire e per quante settimane." }}</p>
         </div>
-        <button v-if="step !== 'generating'" type="button" class="icon-btn" aria-label="Chiudi" @click="emit('close')"><X :size="18" aria-hidden="true" /></button>
+        <button v-if="!busy()" type="button" class="icon-btn" aria-label="Chiudi" @click="emit('close')"><X :size="18" aria-hidden="true" /></button>
       </header>
 
       <div class="dialog-body">
@@ -258,6 +274,9 @@ function dayLabel(date: string) {
             <label class="field"><span class="field-label">{{ replan ? "Ripianifica da" : "Primo giorno" }}</span>
               <input type="date" :min="todayISO()" :value="fromDate" @change="onFromDateChange(($event.target as HTMLInputElement).value)" /></label>
             <label class="field"><span class="field-label">Settimane da generare</span><input type="number" min="1" :max="MAX_PLAN_WEEKS" v-model.number="weeks" /></label>
+          </div>
+          <div v-if="patternMissing" class="drawer-note warn" role="note">
+            Lo schema di carico e scarico dell'atleta non è riconosciuto: le settimane non avranno una fase e Claude deciderà da solo carichi e scarichi. Sceglilo nel Profilo, sezione Metodologia.
           </div>
           <p class="helper-text">Al massimo {{ MAX_PLAN_WEEKS }} settimane per volta. Quando stanno per finire, usa «Prosegui il piano»: Claude parte da come sono andate le ultime settimane e il ciclo di carico e scarico continua da dove era rimasto.</p>
           <label class="field"><span class="field-label">{{ replan ? "Cosa è cambiato" : "Indicazioni per Claude (facoltative)" }}</span>
@@ -288,7 +307,12 @@ function dayLabel(date: string) {
         <template v-else-if="proposal">
           <p v-if="resumed" class="helper-text">Proposta del {{ formatDate(resumed.created_at.slice(0, 10)) }}, non ancora applicata.</p>
           <p class="summary-line">{{ counts.keep }} mantenute, {{ counts.replace }} sostituite, {{ counts.add }} aggiunte, {{ counts.remove }} tolte</p>
-          <p v-for="w in proposal.warnings" :key="w" class="helper-text">{{ w }}</p>
+          <div v-if="proposal.warnings.length" class="drawer-note warn proposal-warnings" role="note">
+            <strong>{{ proposal.warnings.length === 1 ? "Un punto da controllare" : `${proposal.warnings.length} punti da controllare` }}</strong>
+            <ul>
+              <li v-for="w in proposal.warnings" :key="w">{{ w }}</li>
+            </ul>
+          </div>
           <div v-if="remoteRemovals" class="drawer-note warn">
             {{ remoteRemovals === 1 ? "Una seduta sostituita o tolta è" : `${remoteRemovals} sedute sostituite o tolte sono` }} già su Intervals.icu.
             Applicando la proposta {{ remoteRemovals === 1 ? "verrà segnata" : "verranno segnate" }} «Da rimuovere»: la rimozione avviene solo quando confermi «Sincronizza settimana».
@@ -314,8 +338,10 @@ function dayLabel(date: string) {
 
       <footer class="dialog-foot">
         <template v-if="step === 'params'">
-          <button type="button" class="secondary" @click="emit('close')">Annulla</button>
-          <button type="button" class="primary" @click="generate"><Sparkles :size="16" aria-hidden="true" />Genera la proposta</button>
+          <button type="button" class="secondary" :disabled="starting" @click="emit('close')">Annulla</button>
+          <button type="button" class="primary" :disabled="starting" @click="generate">
+            <LoaderCircle v-if="starting" :size="16" class="spin" aria-hidden="true" /><Sparkles v-else :size="16" aria-hidden="true" />{{ starting ? "Preparo la richiesta…" : "Genera la proposta" }}
+          </button>
         </template>
         <template v-else-if="step === 'paste'">
           <button type="button" class="secondary" @click="step = 'params'">Indietro</button>

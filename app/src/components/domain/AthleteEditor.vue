@@ -18,7 +18,7 @@ import {
   PERIODIZATION_LABELS,
   fullName, formatDate, disciplineIcon, disciplineLabel, todayISO, numOrNull
 } from "../../constants";
-import { DEFAULT_TAPER_WEEKS } from "../../domain/planWeeks";
+import { DEFAULT_TAPER_WEEKS, parseLoadPattern } from "../../domain/planWeeks";
 import { addDaysISO, weekStartISO } from "@shared/workouts/calendar.ts";
 import { showToast, showResultToast } from "../../composables/useToast";
 import { confirmDialog } from "../../composables/useConfirmDialog";
@@ -142,6 +142,18 @@ function toggleLifestyleFactor(value: string) {
   if (idx >= 0) list.splice(idx, 1);
   else list.push(value as never);
   if (profile.value.training_status) profile.value.training_status.lifestyle_factors = list;
+}
+
+// ---------- Schema di carico e scarico ----------
+// Due selettori al posto del testo libero (decisione D-UX-2): il valore resta la stringa "N:M" letta
+// da parseLoadPattern; un valore salvato non riconosciuto e' segnalato invece di essere ignorato.
+const LOAD_WEEKS = [1, 2, 3, 4, 5, 6, 7, 8];
+const DELOAD_WEEKS = [1, 2, 3, 4];
+const loadPattern = computed(() => parseLoadPattern(profile.value.methodology_preferences.load_deload_pattern));
+function setLoadPattern(part: "load" | "deload", raw: string) {
+  const current = loadPattern.value ?? { load: 3, deload: 1 };
+  const next = { ...current, [part]: Number(raw) };
+  profile.value.methodology_preferences.load_deload_pattern = `${next.load}:${next.deload}`;
 }
 
 // ---------- Soglie: una sezione, una disciplina alla volta ----------
@@ -595,8 +607,27 @@ function onExport() {
               <option value="misto">Misto</option>
             </select>
           </label>
-          <label class="field"><span class="field-label">Schema carico e scarico</span><input type="text" v-model="profile.methodology_preferences.load_deload_pattern" /></label>
         </div>
+        <div class="field-row">
+          <label class="field">
+            <span class="field-label">Settimane di carico</span>
+            <select :value="loadPattern?.load ?? ''" @change="setLoadPattern('load', ($event.target as HTMLSelectElement).value)">
+              <option v-if="!loadPattern" value="" disabled>Da scegliere</option>
+              <option v-for="n in LOAD_WEEKS" :key="n" :value="n">{{ n }}</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="field-label">Settimane di scarico</span>
+            <select :value="loadPattern?.deload ?? ''" @change="setLoadPattern('deload', ($event.target as HTMLSelectElement).value)">
+              <option v-if="!loadPattern" value="" disabled>Da scegliere</option>
+              <option v-for="n in DELOAD_WEEKS" :key="n" :value="n">{{ n }}</option>
+            </select>
+          </label>
+        </div>
+        <p v-if="!loadPattern" class="helper-text error-text">
+          Lo schema salvato «{{ profile.methodology_preferences.load_deload_pattern || "vuoto" }}» non è riconosciuto: finché non scegli le settimane, il piano non avrà fasi di carico e scarico.
+        </p>
+        <p class="helper-text">Il ciclo di carico e scarico: ad esempio 3 settimane di carico e 1 di scarico. PCoach calcola da qui la fase di ogni settimana del piano e la passa a Claude.</p>
         <div class="field-row">
           <label class="field">
             <span class="field-label">Aumento fra settimane di carico (% minimo)</span>

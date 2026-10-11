@@ -59,6 +59,14 @@ export const useReviewsStore = defineStore("reviews", {
       if (this.athleteId === athleteId) this.reviews = (data ?? []) as ReviewRecord[];
       this.loading = false;
     },
+    /** Rilegge le valutazioni senza svuotare l'elenco (aggiornamento in background). */
+    async refresh() {
+      if (!this.athleteId || !supabase) return;
+      const id = this.athleteId;
+      const { data, error } = await supabase.from("weekly_reviews").select(COLUMNS).eq("athlete_id", id)
+        .order("period_start", { ascending: false }).order("revision", { ascending: false }).limit(60);
+      if (!error && this.athleteId === id) this.reviews = (data ?? []) as ReviewRecord[];
+    },
     async run(key: string, action: () => ReturnType<typeof api.createReview>, success: (status: string, delivery?: string) => string): Promise<ActionResult> {
       this.busy = key;
       try {

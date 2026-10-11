@@ -8,7 +8,8 @@ import { localSyncState } from "@shared/workouts/sync.ts";
 import { validateWorkout, workoutTotals } from "@shared/workouts/structure.ts";
 import { useWorkoutsStore, type GenerationKind, type WorkoutRecord } from "../../stores/workouts";
 import { useAthletesStore } from "../../stores/athletes";
-import { showToast } from "../../composables/useToast";
+import { showResultToast, showToast } from "../../composables/useToast";
+import { choiceDialog } from "../../composables/useConfirmDialog";
 import { DAY_LABELS, formatDate, todayISO } from "../../constants";
 import { useQueryLayer } from "../../composables/useQueryLayer";
 import { execState, formatMinutes, isPartlyDone } from "../../domain/workoutState";
@@ -36,7 +37,23 @@ const genKind = computed<GenerationKind>(() => DIALOG_KINDS[dialogLayer.value.va
 const dialog = computed<"regen" | "sync" | null>(() =>
   dialogLayer.value.value === "sincronizza" ? "sync" : dialogLayer.value.value && dialogLayer.value.value in DIALOG_KINDS ? "regen" : null
 );
-function openGeneration(kind: GenerationKind) {
+// Claude riceve la scheda salvata (decisione D-UX-4): con modifiche non salvate si sceglie prima se salvarle.
+async function openGeneration(kind: GenerationKind) {
+  if (athletes.isDirty) {
+    const choice = await choiceDialog(
+      "La scheda dell'atleta ha modifiche non salvate. Claude riceve la scheda salvata: vuoi salvarle prima di generare?",
+      [
+        { value: "saved", label: "Genera con i dati salvati", tone: "secondary" },
+        { value: "save", label: "Salva e genera", tone: "primary" }
+      ]
+    );
+    if (!choice) return;
+    if (choice === "save") {
+      const result = await athletes.saveCurrent();
+      showResultToast(result);
+      if (!result.ok) return;
+    }
+  }
   dialogLayer.open(Object.keys(DIALOG_KINDS).find((k) => DIALOG_KINDS[k] === kind)!);
 }
 
@@ -94,7 +111,7 @@ type Filter = { key: string; label: string; test: (w: WorkoutRecord) => boolean 
 const FILTERS: Filter[] = [
   { key: "all", label: "Tutte", test: () => true },
   { key: "review", label: "Da revisionare", test: (w) => w.status === "draft" },
-  { key: "needs_review", label: "Struttura da verificare", test: (w) => !!w.needs_review && isActiveStatus(w.status) },
+  { key: "needs_review", label: "Da verificare", test: (w) => !!w.needs_review && isActiveStatus(w.status) },
   { key: "approved", label: "Approvate", test: (w) => w.status === "approved" },
   { key: "synced", label: "Su Intervals.icu", test: (w) => localSyncState(w, store.syncRows[w.id]) === "synced" },
   { key: "outdated", label: "Da aggiornare", test: (w) => localSyncState(w, store.syncRows[w.id]) === "outdated" },

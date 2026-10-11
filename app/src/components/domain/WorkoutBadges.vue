@@ -21,7 +21,7 @@ const badges = computed<Badge[]>(() => {
   if (w.status === "approved") out.push({ key: "approved", text: "Approvata", tone: "neutral", icon: Check });
   if (w.status === "cancelled") out.push({ key: "cancelled", text: "Annullata", tone: "plain", icon: Ban });
   if (w.status === "superseded") out.push({ key: "superseded", text: "Sostituita", tone: "plain", icon: Replace });
-  if (w.needs_review && (w.status === "draft" || w.status === "approved")) out.push({ key: "review", text: "Struttura da verificare", tone: "warn", icon: TriangleAlert });
+  if (w.needs_review && (w.status === "draft" || w.status === "approved")) out.push({ key: "review", text: "Da verificare", tone: "warn", icon: TriangleAlert });
   if (w.locked) out.push({ key: "locked", text: "Bloccata", tone: "plain", icon: Lock });
   const s = localSyncState(w, props.sync);
   if (s === "none" && w.status === "approved") out.push({ key: "s", text: "Non su Intervals.icu", tone: "plain", icon: CloudOff });

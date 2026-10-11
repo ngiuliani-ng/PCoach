@@ -12,7 +12,7 @@ import {
   approveReview, type Deps, type FeedbackSettings, type FeedbackStore, type LlmPort, MAX_ATTEMPTS, type IntervalsPort,
   processReview, type Profile, type Result, type ReviewRow, type ReviewStatus, runScheduled
 } from "../_shared/feedback/pipeline.ts";
-import { periodOf } from "../_shared/feedback/period.ts";
+import { periodOf, safeTimeZone } from "../_shared/feedback/period.ts";
 import { type Completion, completionColumns } from "../_shared/feedback/completion.ts";
 import type { CoachChange, Period, PlannedWorkout, PlanWindow, RawActivity, RawWellness } from "../_shared/feedback/types.ts";
 import { addDaysISO, isISODate, todayISO, weekStartISO } from "../_shared/workouts/calendar.ts";
@@ -233,7 +233,7 @@ async function coachAction(db: SupabaseClient, body: Record<string, unknown>) {
     const athleteId = typeof body.athlete_id === "string" ? body.athlete_id : "";
     const weekStart = body.week_start;
     const settings = await store.settings();
-    const today = todayISO(settings?.weekly_feedback_timezone || "Europe/Rome");
+    const today = todayISO(safeTimeZone(settings?.weekly_feedback_timezone));
     if (!athleteId || !isISODate(weekStart) || weekStartISO(weekStart) !== weekStart || weekStart > weekStartISO(today)) {
       return jsonResponse({ error: "Settimana non valida: scegli un lunedì non futuro." }, 400);
     }

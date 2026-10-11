@@ -8,6 +8,7 @@ import { supabase, configured } from "../services/supabase";
 import { DEFAULT_PLAN_PREFERENCES, DEFAULT_FEEDBACK_PROMPT, isLegacyPlanTemplate, type DayKey } from "../constants";
 import { DEFAULT_FEEDBACK_PARAMS, resolveFeedbackParams, validateFeedbackParams, type FeedbackParams } from "@shared/feedback/params.ts";
 import { resolveModel } from "@shared/claude/models.ts";
+import { isValidTimeZone } from "@shared/feedback/period.ts";
 
 export interface AppSettings {
   /** Nuova chiave inserita dal coach in questa sessione; vuota = invariata. */
@@ -98,6 +99,9 @@ export const useSettingsStore = defineStore("settings", {
       }
       if (Object.keys(validateFeedbackParams(this.settings.feedback_params)).length) {
         return { ok: false, message: "Correggi le soglie del feedback prima di salvare." };
+      }
+      if (!isValidTimeZone(this.settings.weekly_feedback_timezone)) {
+        return { ok: false, message: "Scegli un fuso orario dall'elenco prima di salvare." };
       }
       const { claude_api_key, ...rest } = this.settings;
       const newKey = claude_api_key.trim();

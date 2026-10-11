@@ -2,9 +2,10 @@
 // Feedback settimanale dell'atleta (ADR 0019): per ogni settimana l'esito delle sedute calcolato
 // da PCoach, le limitazioni dei dati e il testo scritto da Claude, che il coach rivede e approva.
 // Solo l'approvazione invia l'email all'atleta (se attiva in Impostazioni).
-import { computed, reactive, ref, watch } from "vue";
+import { computed, onBeforeUnmount, reactive, ref, watch } from "vue";
 import { useReviewsStore, type ReviewRecord } from "../../stores/reviews";
 import { useSettingsStore } from "../../stores/settings";
+import { useAthletesStore } from "../../stores/athletes";
 import { showResultToast } from "../../composables/useToast";
 import { confirmDialog } from "../../composables/useConfirmDialog";
 import { disciplineLabel, formatDate, todayISO } from "../../constants";
@@ -17,6 +18,16 @@ const reviews = useReviewsStore();
 const settings = useSettingsStore();
 
 watch(() => props.athleteId, (id) => void reviews.load(id), { immediate: true });
+
+// Valutazioni in preparazione sul server: si rileggono da sole ogni 30 secondi finche' ce n'e' una.
+const REFRESH_MS = 30_000;
+const preparing = computed(() => reviews.current.some((r) => r.status === "pending" || r.status === "analyzed"));
+let timer: ReturnType<typeof setInterval> | null = null;
+watch(preparing, (on) => {
+  if (timer) clearInterval(timer);
+  timer = on ? setInterval(() => void reviews.refresh(), REFRESH_MS) : null;
+}, { immediate: true });
+onBeforeUnmount(() => { if (timer) clearInterval(timer); });
 
 const VISIBLE = 4;
 const showAll = ref(false);
@@ -88,6 +99,9 @@ function limitations(r: ReviewRecord): string[] {
 }
 
 const emailOn = computed(() => settings.settings.weekly_feedback_email_enabled);
+// Senza indirizzo dell'atleta il server non invia (delivery «skipped»): il pulsante non deve promettere l'invio.
+const athletes = useAthletesStore();
+const hasEmail = computed(() => !!athletes.athletes[props.athleteId ?? ""]?.identity?.email?.trim());
 const busy = (id: string) => reviews.busy === id;
 
 async function onCreate() {
@@ -101,7 +115,7 @@ function sentBefore(r: ReviewRecord): ReviewRecord | undefined {
 const resend = reactive<Record<string, boolean>>({});
 /** Scelta del coach: inviare questa versione (se l'email e' attiva). */
 const wantsSend = (r: ReviewRecord) => !sentBefore(r) || !!resend[r.id];
-const willSend = (r: ReviewRecord) => emailOn.value && wantsSend(r);
+const willSend = (r: ReviewRecord) => emailOn.value && hasEmail.value && wantsSend(r);
 
 async function onApprove(r: ReviewRecord) {
   showResultToast(await reviews.approve(r.id, drafts[r.id] ?? r.output_text ?? "", wantsSend(r)));
@@ -187,11 +201,12 @@ async function onRetry(r: ReviewRecord) {
               <RefreshCw :size="16" aria-hidden="true" />Rigenera
             </button>
           </div>
-          <label v-if="emailOn && sentBefore(r)" class="checkbox-line">
+          <label v-if="emailOn && hasEmail && sentBefore(r)" class="checkbox-line">
             <input type="checkbox" v-model="resend[r.id]" />
             Invia anche questa versione: l'atleta ha già ricevuto la revisione {{ sentBefore(r)!.revision }}{{ sentBefore(r)!.delivered_at ? ` il ${formatDate(sentBefore(r)!.delivered_at!.slice(0, 10))}` : "" }}
           </label>
           <p v-if="!emailOn" class="helper-text">L'invio via email è disattivato in Impostazioni: approvando, il feedback resta solo qui.</p>
+          <p v-else-if="!hasEmail" class="helper-text">L'atleta non ha un indirizzo email: approvando, il feedback resta solo qui. Puoi aggiungerlo nel Profilo, sezione Identità.</p>
         </template>
 
         <template v-else-if="r.status === 'approved'">
@@ -199,7 +214,8 @@ async function onRetry(r: ReviewRecord) {
           <p v-if="r.delivery_status === 'sent' && r.delivered_at" class="helper-text">Inviato il {{ formatDate(r.delivered_at.slice(0, 10)) }}.</p>
           <p v-else-if="r.delivery_status === 'failed' || r.delivery_status === 'skipped'" class="error-text">
             Email non inviata: {{ r.delivery_error || "motivo sconosciuto" }}
-            <button type="button" class="link-btn" :disabled="reviews.busy !== null" @click="onRetry(r)">Riprova l'invio</button>
+            <button v-if="hasEmail" type="button" class="link-btn" :disabled="reviews.busy !== null" @click="onRetry(r)">Riprova l'invio</button>
+            <template v-else> Aggiungi l'indirizzo nel Profilo, sezione Identità, poi riprova.</template>
           </p>
           <div class="review-actions">
             <button type="button" class="secondary" :disabled="reviews.busy !== null" @click="onRegenerate(r)"><RefreshCw :size="16" aria-hidden="true" />Rigenera</button>
@@ -216,7 +232,10 @@ async function onRetry(r: ReviewRecord) {
         </template>
 
         <p v-else-if="r.status === 'skipped'" class="helper-text">In quella settimana non c'erano sedute approvate.</p>
-        <p v-else class="helper-text">PCoach sta preparando il feedback: ricarica tra qualche minuto.</p>
+        <p v-else class="helper-text">
+          PCoach sta preparando il feedback: questa sezione si aggiorna da sola.
+          <button type="button" class="link-btn" @click="reviews.refresh()">Aggiorna ora</button>
+        </p>
       </li>
     </ul>
     <button v-if="reviews.current.length > VISIBLE" type="button" class="link-btn" @click="showAll = !showAll">

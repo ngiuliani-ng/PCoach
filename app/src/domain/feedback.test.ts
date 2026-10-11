@@ -7,7 +7,7 @@ import { normalizeActivities } from "@shared/feedback/normalize.ts";
 import { completionColumns, recentCompletions, snapshotRefreshes } from "@shared/feedback/completion.ts";
 import { buildFeedbackTool, validateFeedbackOutput, buildFeedbackPrompt } from "@shared/feedback/output.ts";
 import { DEFAULT_FEEDBACK_PARAMS, loadProgressionOf, resolveFeedbackParams, validateFeedbackParams } from "@shared/feedback/params.ts";
-import { inScheduleWindow, localDayHour, reviewPeriod } from "@shared/feedback/period.ts";
+import { inScheduleWindow, isValidTimeZone, localDayHour, reviewPeriod, safeTimeZone } from "@shared/feedback/period.ts";
 import type { PlannedWorkout, PlanWindow, RawActivity } from "@shared/feedback/types.ts";
 import type { Discipline, TargetMetric, WorkoutBlock, WorkoutStep } from "@shared/workouts/structure.ts";
 
@@ -63,6 +63,14 @@ describe("periodo e finestra", () => {
     expect(reviewPeriod("2026-10-26")).toEqual({ start: "2026-10-19", end: "2026-10-25" });
     expect(inScheduleWindow(new Date("2026-10-19T06:05:00Z"), "Europe/Rome", "lunedi", "08:00")).toBe(true);
     expect(inScheduleWindow(new Date("2026-10-19T05:05:00Z"), "Europe/Rome", "lunedi", "08:00")).toBe(false);
+  });
+
+  it("riconosce i fusi non validi e ripiega su Europe/Rome", () => {
+    expect(isValidTimeZone("Europe/London")).toBe(true);
+    expect(isValidTimeZone("Roma")).toBe(false);
+    expect(safeTimeZone("Roma")).toBe("Europe/Rome");
+    expect(safeTimeZone("")).toBe("Europe/Rome");
+    expect(safeTimeZone("America/New_York")).toBe("America/New_York");
   });
 });
 

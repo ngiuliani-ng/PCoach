@@ -15,7 +15,7 @@ import { type Completion, completionsFrom } from "./completion.ts";
 import { buildFeedbackInput, type FeedbackInput } from "./contract.ts";
 import { buildFeedbackPrompt, buildFeedbackTool, DEFAULT_FEEDBACK_STYLE, type FeedbackOutput, type FeedbackTool, validateFeedbackOutput } from "./output.ts";
 import { loadProgressionOf, resolveFeedbackParams } from "./params.ts";
-import { inScheduleWindow, localDayHour, reviewPeriod } from "./period.ts";
+import { inScheduleWindow, localDayHour, reviewPeriod, safeTimeZone } from "./period.ts";
 import type { CoachChange, Period, PlannedWorkout, PlanWindow, RawActivity, RawWellness } from "./types.ts";
 
 export type ReviewStatus = "pending" | "analyzed" | "draft" | "approved" | "skipped" | "analysis_failed" | "generation_failed" | "superseded";
@@ -162,7 +162,7 @@ export async function analyze(deps: Deps, row: ReviewRow, settings: FeedbackSett
     store.plans(row.athlete_id, prevStart, period.end)
   ]);
   const now = deps.now();
-  const tz = settings.weekly_feedback_timezone || "Europe/Rome";
+  const tz = safeTimeZone(settings.weekly_feedback_timezone);
   const input = buildFeedbackInput({
     athlete: {
       id: row.athlete_id,
@@ -297,7 +297,7 @@ export async function runScheduled(deps: Deps, budgetMs = 100_000): Promise<{ pl
   if (!settings) return { planned: 0, processed: [] };
   let planned = 0;
   const now = deps.now();
-  const tz = settings.weekly_feedback_timezone || "Europe/Rome";
+  const tz = safeTimeZone(settings.weekly_feedback_timezone);
   if (inScheduleWindow(now, tz, FEEDBACK_DAY, settings.weekly_feedback_time)) {
     const period = reviewPeriod(localDayHour(now, tz).date);
     for (const athleteId of await deps.store.athletesToReview(period)) {
