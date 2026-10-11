@@ -167,11 +167,13 @@ Dettagli e regole in [integrazioni.md](integrazioni.md#intervalsicu-sincronizzaz
 **Feedback settimanale**
 ```
 pg_cron (ogni ora, service-role da Vault) → Edge Function weekly-feedback
-  → nel giorno e dall'ora configurati: una valutazione «pending» per atleta (settimana che contiene ieri)
+  → il lunedì dall'ora configurata: una valutazione «pending» per atleta (settimana appena conclusa),
+    al posto di quella anticipata non ancora approvata
   → coda: analisi deterministica (_shared/feedback: abbinamento, metriche, qualità dei dati)
   → Claude scrive il testo con uno strumento a schema fisso → validazione → «draft»
 Coach (Panoramica, WeeklyReviews.vue) → rivede esiti e limitazioni, corregge il testo
   → «Approva» (weekly-feedback, action approve) → email all'atleta se attiva, con nuovi tentativi
+    (se la settimana è già stata inviata, solo se il coach sceglie di inviare anche questa versione)
   → oppure «Rigenera» (nuova revisione) / «Prepara il feedback» per un'altra settimana
 ```
 Dettagli in [backend.md](backend.md#weekly-feedback-edge-function) e [integrazioni.md](integrazioni.md#claude-feedback-settimanale). Motivazioni in [decisioni/0019](decisioni/0019-feedback-analisi-deterministica-approvazione.md).

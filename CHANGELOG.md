@@ -6,6 +6,15 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
+**2026-10-11 — Feedback: sempre il lunedì, valutazione anticipata sostituita, reinvio a scelta**
+- Il feedback automatico parte sempre il lunedì per la settimana appena conclusa; in Impostazioni si sceglie solo l'ora.
+- Una valutazione preparata durante la settimana e non ancora approvata viene sostituita da quella del lunedì (nuova revisione).
+- «Rigenera» su un feedback già inviato chiede conferma; all'approvazione della nuova versione il coach sceglie se inviarla (azione `approve` con `send`).
+- Test: 132 unitari, 8 end-to-end.
+
+*Motivazione*: decisioni D-07, D-08 e D-11 del coach e problemi E-10, E-11, E-25 dell'[audit](docs/audit/2026-10-generazione-e-feedback/PCOACH_GENERATION_AND_FEEDBACK_AUDIT.md).
+*Docs aggiornati*: [decisioni/0019](docs/decisioni/0019-feedback-analisi-deterministica-approvazione.md), [backend.md](docs/backend.md), [architettura.md](docs/architettura.md), [sviluppo-deploy.md](docs/sviluppo-deploy.md).
+
 **2026-10-11 — Generazione: regole nel codice, preferenze del coach, prompt salvato e modelli ammessi**
 - Il prompt della generazione è diviso in istruzioni di sistema (regole fisse e formato nel codice, poi le preferenze metodologiche del coach) e messaggio con i dati dell'atleta, il calendario, il motivo e le sedute fisse, sempre presenti. In Impostazioni si modificano solo le preferenze, con un pulsante per ripristinarle.
 - Preferenze e tono del feedback uguali al predefinito si salvano vuoti; il salvataggio delle impostazioni è bloccato se il caricamento non è riuscito.

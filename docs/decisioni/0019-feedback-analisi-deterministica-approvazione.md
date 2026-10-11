@@ -41,6 +41,13 @@ L'audit di ottobre 2026 ([docs/audit/2026-10-feedback/](../audit/2026-10-feedbac
    - le percentuali di carico e scarico sono per atleta (`methodology_preferences`) e servono sia al prompt del piano sia al confronto fra settimane.
 7. **Esecuzione registrata**: le sedute abbinate con certezza (evento abbinato su Intervals.icu, oppure stesso giorno e stessa disciplina) risultano svolte anche nel piano. Succede all'analisi del feedback e all'apertura della scheda dell'atleta (ultimi 14 giorni), con un'unica regola (`completion.ts`), senza dover aprire «Sincronizza settimana». Il piano mostra «Non registrata» invece di «Non svolta».
 
+## Correzione del 2026-10-11: sempre il lunedì, valutazione anticipata sostituita, reinvio a scelta
+
+Decisioni del coach dopo l'[audit della generazione e del feedback](../audit/2026-10-generazione-e-feedback/PCOACH_GENERATION_AND_FEEDBACK_AUDIT.md) (D-07, D-08, D-11):
+- **Sempre il lunedì**: si valuta sempre l'ultima settimana conclusa; in Impostazioni si sceglie solo l'ora. Un giorno diverso valutava la settimana in corso.
+- **Valutazione anticipata sostituita**: una valutazione preparata dal coach durante la settimana, e non ancora approvata, lascia il posto a quella del lunedì con una nuova revisione. Prima restava la versione parziale.
+- **Rigenerare dopo l'invio**: è consentito con un avviso; all'approvazione della nuova revisione il coach sceglie se inviarla. Prima partiva una seconda email senza chiederlo.
+
 ## Motivo
 
 - I conteggi e gli abbinamenti devono essere ripetibili e verificabili, e un modello linguistico non lo è.

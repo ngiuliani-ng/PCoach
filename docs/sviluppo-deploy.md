@@ -31,7 +31,7 @@ Rigenera `app/src/schema/types.generated.ts` da `app/src/schema/athlete_profile.
 npm run test
 ```
 
-Esegue Vitest (`vitest run`) sui file `src/**/*.test.ts`. Stato attuale: **129 test** in 13 file:
+Esegue Vitest (`vitest run`) sui file `src/**/*.test.ts`. Stato attuale: **132 test** in 13 file:
 
 | File | Test |
 |---|---|
@@ -40,7 +40,7 @@ Esegue Vitest (`vitest run`) sui file `src/**/*.test.ts`. Stato attuale: **129 t
 | `composables/useDirtyState.test.ts` | 9 |
 | `domain/availability.test.ts` | 6 (calendario del periodo, riallineamento al giorno, vincoli di disponibilità e durata) |
 | `domain/feedback.test.ts` | 32 (feedback: periodo, parametri, normalizzazione, abbinamento, metriche, tendenza, risposta dell'atleta, sedute svolte all'apertura della scheda, validazione dell'output, anche a cavallo d'anno) |
-| `domain/feedbackPipeline.test.ts` | 13 (pipeline del feedback con porte finte: stati, nuovi tentativi, idempotenza, approvazione e consegna) |
+| `domain/feedbackPipeline.test.ts` | 16 (pipeline del feedback con porte finte: stati, nuovi tentativi, idempotenza, sostituzione della valutazione anticipata, approvazione con o senza invio, consegna) |
 | `domain/planWeeks.test.ts` | 9 (settimane del piano, fasi del ciclo di carico, ancoraggio al piano attivo, data di prosecuzione) |
 | `domain/regeneration.test.ts` | 6 (lettura della proposta, differenze e payload della rigenerazione) |
 | `domain/shared.test.ts` | 26 (moduli condivisi con le Edge Function: calendario, zone e struttura, conversione per Intervals.icu, classificazione della sincronizzazione) |

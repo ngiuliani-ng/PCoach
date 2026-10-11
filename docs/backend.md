@@ -115,13 +115,13 @@ Adattatore della pipeline in `supabase/functions/_shared/feedback/pipeline.ts`, 
 
 **Due chiamanti**:
 - **`pg_cron`, ogni ora**, con un bearer che deve essere **esattamente** la service-role key (letta da Vault). Il gateway JWT da solo accetterebbe anche la chiave pubblica.
-  1. Nella finestra configurata (dal giorno e dall'ora di `app_settings` fino alla fine di quel giorno, nel fuso `weekly_feedback_timezone`) crea una valutazione `pending` per la settimana che contiene il giorno prima, per ogni atleta con chiave Intervals.icu e almeno una seduta approvata in quella settimana. La creazione è un `upsert … ignoreDuplicates` sull'indice unico della revisione: due esecuzioni non creano due righe.
+  1. Il lunedì, dall'ora di `weekly_feedback_time` (contano solo le ore) fino a fine giornata, nel fuso `weekly_feedback_timezone`, crea una valutazione `pending` per la settimana appena conclusa, per ogni atleta con chiave Intervals.icu e almeno una seduta approvata in quella settimana. La creazione è un `upsert … ignoreDuplicates` sull'indice unico della revisione: due esecuzioni non creano due righe. Se esiste già una valutazione creata durante la settimana e non ancora approvata, viene sostituita da una nuova revisione (`regenerate_weekly_review`); una valutazione approvata resta. `weekly_feedback_day` non è più usato: vale sempre `lunedi`.
   2. Elabora la coda (al massimo 20 righe, entro 100 s): righe `pending` o `analyzed` con meno di 3 tentativi, e righe `approved` con consegna `pending` o `failed` e meno di 3 tentativi. Ogni riga viene prima bloccata per 180 s (`locked_until`).
 - **Il coach**, con il JWT di sessione: il database è letto e scritto con RLS. Dopo l'autenticazione la funzione verifica che il chiamante possa leggere `app_settings`, cioè che sia il coach. Azioni `POST { action, … }`:
   - `create` (`athlete_id`, `week_start`: un lunedì non futuro): crea o riprende la valutazione corrente della settimana e la elabora subito;
   - `regenerate` (`review_id`): `regenerate_weekly_review`, poi elaborazione;
   - `retry` (`review_id`): riparte da `analysis_failed`, `generation_failed` o da una consegna fallita o saltata;
-  - `approve` (`review_id`, `text`): da `draft` ad `approved` con il testo del coach; se l'email è attiva, consegna subito.
+  - `approve` (`review_id`, `text`, `send?`): da `draft` ad `approved` con il testo del coach; se l'email è attiva e `send` non è `false`, consegna subito. L'app manda `send: false` quando la settimana è già stata inviata con una revisione precedente e il coach non sceglie di inviare anche questa.
 
   Risposta `{ id, status, delivery_status? }` oppure `{ error }`.
 
