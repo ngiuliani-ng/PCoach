@@ -31,7 +31,7 @@ Rigenera `app/src/schema/types.generated.ts` da `app/src/schema/athlete_profile.
 npm run test
 ```
 
-Esegue Vitest (`vitest run`) sui file `src/**/*.test.ts`. Stato attuale: **132 test** in 13 file:
+Esegue Vitest (`vitest run`) sui file `src/**/*.test.ts`. Stato attuale: **135 test** in 13 file:
 
 | File | Test |
 |---|---|
@@ -39,14 +39,14 @@ Esegue Vitest (`vitest run`) sui file `src/**/*.test.ts`. Stato attuale: **132 t
 | `composables/useConnectionStatus.test.ts` | 4 |
 | `composables/useDirtyState.test.ts` | 9 |
 | `domain/availability.test.ts` | 6 (calendario del periodo, riallineamento al giorno, vincoli di disponibilità e durata) |
-| `domain/feedback.test.ts` | 32 (feedback: periodo, parametri, normalizzazione, abbinamento, metriche, tendenza, risposta dell'atleta, sedute svolte all'apertura della scheda, validazione dell'output, anche a cavallo d'anno) |
+| `domain/feedback.test.ts` | 34 (feedback: periodo, parametri, normalizzazione, abbinamento, metriche, tendenza, risposta dell'atleta, sedute svolte con esito e dati dell'attività, aggiornamento dell'RPE, validazione dell'output, anche a cavallo d'anno) |
 | `domain/feedbackPipeline.test.ts` | 16 (pipeline del feedback con porte finte: stati, nuovi tentativi, idempotenza, sostituzione della valutazione anticipata, approvazione con o senza invio, consegna) |
 | `domain/planWeeks.test.ts` | 9 (settimane del piano, fasi del ciclo di carico, ancoraggio al piano attivo, data di prosecuzione) |
 | `domain/regeneration.test.ts` | 6 (lettura della proposta, differenze e payload della rigenerazione) |
 | `domain/shared.test.ts` | 26 (moduli condivisi con le Edge Function: calendario, zone e struttura, conversione per Intervals.icu, classificazione della sincronizzazione) |
 | `services/claude.test.ts` | 3 (lettura del JSON nella risposta di Claude) |
 | `services/intervals.test.ts` | 3 (finestra di sincronizzazione del carico) |
-| `services/planPrompt.test.ts` | 9 (istruzioni fisse e preferenze del coach, messaggio, calendario, percentuali, dati esclusi dal contesto, segnaposto nei dati, testo per l'invio manuale) |
+| `services/planPrompt.test.ts` | 10 (istruzioni fisse e preferenze del coach, messaggio, calendario, percentuali, dati esclusi dal contesto, sedute recenti con RPE e valutazioni recenti, segnaposto nei dati, testo per l'invio manuale) |
 | `stores/auth.test.ts` | 5 |
 
 Questo conteggio descrive solo lo stato corrente; l'evoluzione nel tempo è nel [CHANGELOG.md](../CHANGELOG.md), non qui.

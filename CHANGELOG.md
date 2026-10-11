@@ -6,6 +6,17 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
+**2026-10-11 — Esito e RPE sulle sedute svolte, analisi settimanali nella generazione**
+- Una seduta riconosciuta come svolta salva esito, rapporto svolto/prescritto e dati dell'attività (minuti, metri, carico, RPE); sotto la soglia di completamento è «Svolta in parte», con un filtro nello storico (migrazione `0009`).
+- All'apertura della scheda i dati delle sedute già svolte negli ultimi 14 giorni si rileggono: un RPE inserito più tardi arriva in PCoach.
+- L'anteprima di «Sincronizza settimana» usa la stessa regola di abbinamento dell'apertura della scheda e del feedback.
+- La generazione riceve esito, minuti svolti e RPE delle sedute approvate recenti (non più le bozze) e un riepilogo calcolato delle ultime due analisi settimanali, anche non approvate (prompt 2.1.0).
+- Corretto in `claude-proxy` il separatore fra i blocchi di testo della risposta, rotto dalla modifica precedente e mai pubblicato.
+- Test: 135 unitari, 8 end-to-end.
+
+*Motivazione*: decisioni D-09 e D-10 del coach e problemi E-21, E-26 dell'[audit](docs/audit/2026-10-generazione-e-feedback/PCOACH_GENERATION_AND_FEEDBACK_AUDIT.md).
+*Docs aggiornati*: [decisioni/0021](docs/decisioni/0021-esito-rpe-sedute-feedback-nel-piano.md), [modello-dati.md](docs/modello-dati.md), [integrazioni.md](docs/integrazioni.md), [backend.md](docs/backend.md), [architettura.md](docs/architettura.md), [sviluppo-deploy.md](docs/sviluppo-deploy.md).
+
 **2026-10-11 — Feedback: sempre il lunedì, valutazione anticipata sostituita, reinvio a scelta**
 - Il feedback automatico parte sempre il lunedì per la settimana appena conclusa; in Impostazioni si sceglie solo l'ora.
 - Una valutazione preparata durante la settimana e non ancora approvata viene sostituita da quella del lunedì (nuova revisione).

@@ -69,6 +69,7 @@ supabase/
   migrations/0006_generation_kind_continue.sql  tipo di generazione «continue» (prosecuzione del piano)
   migrations/0007_weekly_reviews.sql  valutazioni settimanali, rigenerazione, soglie del feedback
   migrations/0008_generation_trace.sql  tracciabilità delle generazioni, rifiuto delle date passate, claude_key_configured
+  migrations/0009_completion_details.sql  esito e dati dell'attività (RPE compreso) sulle sedute svolte
 .github/workflows/deploy.yml  Build + pubblicazione su GitHub Pages
 ```
 

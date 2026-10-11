@@ -11,7 +11,8 @@ Lo schema è versionato in `supabase/migrations/`, da eseguire in ordine numeric
 - `0005`: rimozione dell'import una tantum dei piani salvati nella scheda, concluso;
 - `0006`: tipo di generazione `continue` in `plan_generations.kind`;
 - `0007`: tabella `weekly_reviews`, funzione `regenerate_weekly_review`, colonna `app_settings.feedback_params`;
-- `0008`: colonne di tracciabilità di `plan_generations`, rifiuto delle proposte con data di partenza passata, funzione `claude_key_configured`.
+- `0008`: colonne di tracciabilità di `plan_generations`, rifiuto delle proposte con data di partenza passata, funzione `claude_key_configured`;
+- `0009`: esito e dati dell'attività sulle sedute svolte (`workouts.completion_outcome`, `completion_ratio`, `activity_*`).
 
 - **`athletes`**: `id` (text, chiave primaria: l'identificativo di 8 caratteri generato dall'app), `data` (jsonb, l'intero `AthleteTrainingProfile` — vedi [modello-dati.md](modello-dati.md)), `updated_at` (timestamptz, usato per il controllo di concorrenza ottimistico).
 - **`app_settings`**: riga singola (`id = 1`), contiene configurazione globale del coach: `claude_api_key` (scritta dall'app solo quando il coach ne inserisce una nuova, mai riletta: l'app sa solo se c'è, con `claude_key_configured()`), `claude_model` (uno dei modelli ammessi), preferenze del piano e tono del feedback (vuoti = predefiniti nel codice), `weekly_feedback_*` (timezone, giorno, ora, `email_enabled`), `feedback_params` (soglie dell'analisi del feedback, jsonb; i valori assenti prendono i predefiniti di `_shared/feedback/params.ts`).
@@ -98,7 +99,7 @@ Scrive le sedute sul calendario Intervals.icu dell'atleta. Regole di sincronizza
 - **Autenticazione del chiamante**: JWT di sessione del coach, verificato con `auth.getUser()`; la sola anon key non basta. Il database è letto e scritto con lo stesso JWT (la chiave pubblica inviata dal client nell'header `apikey`, perché la anon key legacy del progetto è disattivata, più il JWT del coach), quindi vale la RLS.
 - **Richiesta `{ action: "preview", athlete_id, week_start }`**:
   - legge gli eventi `WORKOUT` della settimana e, uno per uno, quelli memorizzati che non compaiono (404 = spariti);
-  - registra come svolte le sedute abbinate a un'attività (`paired_event_id`).
+  - registra come svolte, con esito e dati dell'attività, le sedute approvate abbinate con certezza a un'attività (regola unica `completionsIn` in `_shared/feedback/completion.ts`: evento abbinato, oppure stesso giorno e disciplina con una sola coppia).
 
   Risponde `{ remote: { events: [{id, updated}], missingIds }, completed }`. Non scrive nulla su Intervals.icu.
 - **Richiesta `{ action: "apply", athlete_id, workout_id, op, expected_revision }`**, con `op` tra `create`, `update`, `overwrite`, `recreate` e `delete`. Esegue una sola operazione:
