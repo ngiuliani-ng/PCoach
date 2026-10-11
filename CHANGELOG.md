@@ -6,6 +6,18 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
+**2026-10-11 — Navigazione con vue-router, modifiche non salvate protette, salvataggi falliti visibili**
+- Atleta, vista della scheda, Impostazioni, pannello della seduta e dialoghi del piano stanno nell'URL (`vue-router`, cronologia a hash). Ricaricare o riaprire la PWA riporta alla stessa vista; «indietro» chiude pannelli e dialoghi.
+- Lasciare una scheda o le Impostazioni con modifiche non salvate, o premere «Esci», chiede «Salva e continua», «Esci senza salvare» o «Resta». Alla chiusura della pagina compare l'avviso del browser.
+- Dalle Impostazioni il clic sull'atleta già aperto torna alla sua scheda.
+- Un salvataggio fallito della scheda dice «Scheda non salvata» e lascia la scheda modificata con «Salva» attivo; un atleta nuovo riceve l'id solo a salvataggio riuscito. Una scheda si elimina in locale solo dopo il database.
+- Un errore di rete al salvataggio di una seduta lascia il pannello aperto con le modifiche; il toast d'errore sale sopra il piede di pannelli e dialoghi.
+- Le Impostazioni mostrano «Modifiche non salvate»; il dialogo di conferma accetta più scelte e un pulsante non distruttivo.
+- Test: 143 unitari, 22 end-to-end.
+
+*Motivazione*: decisioni D-UX-1 e D-UX-5 del coach e problemi U-01, U-02, U-07, U-14, U-19 dell'[audit UI/UX](docs/audit/2026-10-ux-e-usabilita/PCOACH_UX_AUDIT.md).
+*Docs aggiornati*: [decisioni/0023](docs/decisioni/0023-navigazione-router-modifiche-non-salvate.md), [architettura.md](docs/architettura.md), [design-ui.md](docs/design-ui.md), [sviluppo-deploy.md](docs/sviluppo-deploy.md).
+
 **2026-10-11 — Gare e tapering calcolati da PCoach, controlli sulla proposta**
 - Ogni evento target ha le settimane di tapering (predefinite per priorità: A 2, B 1, C 0) e, facoltativo, il calo del volume. PCoach calcola le fasi «tapering» e «gara», sospende il ciclo e, dopo una gara A, lo fa ripartire da «carico 1»; il calendario indica il giorno della gara (prompt 2.2.0).
 - La proposta mostra avvisi per le settimane con un numero di sedute diverso da quello dell'atleta o con una variazione di volume fuori dalla fase.

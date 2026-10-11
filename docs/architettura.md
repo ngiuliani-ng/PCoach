@@ -26,7 +26,7 @@ Applicazione mono-coach, pensata per uso personale con un link non condiviso pub
 
 ## Stack
 
-- **Frontend**: Vue 3 (Composition API, `<script setup>`), Vite, Pinia (store), TypeScript, `lucide-vue-next` (icone).
+- **Frontend**: Vue 3 (Composition API, `<script setup>`), Vite, Pinia (store), `vue-router` (navigazione, cronologia a hash), TypeScript, `lucide-vue-next` (icone).
 - **Tipi**: generati automaticamente dallo schema JSON tramite `json-schema-to-typescript` (script `npm run gen:types` — vedi [sviluppo-deploy.md](sviluppo-deploy.md)), per evitare disallineamenti manuali tra schema e codice.
 - **Backend**: Supabase (Postgres + REST autogenerata tramite `@supabase/supabase-js`), più Edge Functions (Deno) per operazioni che richiedono un segreto lato server — vedi [backend.md](backend.md).
 - **Integrazioni esterne**: Intervals.icu, Anthropic Claude — vedi [integrazioni.md](integrazioni.md).
@@ -41,7 +41,7 @@ app/
     components/
       ui/        Componenti generici riutilizzabili (toast, dialog di conferma, IconButton, ...)
       domain/    Componenti specifici del dominio PCoach (scheda atleta, sidebar, grafico carico, ...)
-    composables/ Logica riutilizzabile con stato reattivo (toast, dialog di conferma, stato mobile sidebar, ...)
+    composables/ Logica riutilizzabile con stato reattivo (toast, dialog di conferma, stato mobile sidebar, livelli nella query dell'URL, ...)
     constants.ts Opzioni condivise tra componenti (discipline, obiettivi, ...), prompt predefiniti e helper di presentazione (formatDate, formatSigned, icone ed etichette delle discipline)
     domain/      Funzioni pure delle sedute (e test dei moduli condivisi del feedback): calendario e vincoli di disponibilità, settimane e ciclo di carico, lettura della proposta di Claude e differenze di una rigenerazione, stati derivati
     stores/      Pinia: athletes.ts (schede atleti, CRUD, polling), workouts.ts (sedute, piani e stato di sincronizzazione dell'atleta aperto), reviews.ts (valutazioni settimanali dell'atleta aperto), settings.ts (impostazioni globali del coach), auth.ts (sessione del coach)
@@ -53,6 +53,7 @@ app/
     icons/                  Icone PNG per la PWA (circolari 192×192 e 512×512)
   e2e/                      Test end-to-end Playwright con backend finto in memoria
   index.html, main.ts, App.vue  Bootstrap applicazione
+  src/router.ts             Rotte e guardie di navigazione (modifiche non salvate)
 supabase/
   functions/claude-proxy/     Edge Function: proxy verso l'API Claude
   functions/intervals-sync/   Edge Function: anteprima e invio delle sedute al calendario Intervals.icu
@@ -85,7 +86,8 @@ App.vue
      │    ├─ "Nuovo atleta" + lista atleti (nome, discipline e ultimo TSB per atleta)
      │    ├─ pallino di stato connessione (useConnectionStatus)
      │    └─ footer compatto: IconButton "Impostazioni" + IconButton "Esci" (auth.signOut)
-     ├─ domain/AthleteEditor.vue  (scheda atleta: header sticky con "Salva", viste Panoramica / Piano / Profilo)
+     ├─ <RouterView> (router.ts): una delle tre pagine seguenti
+     ├─ domain/AthleteEditor.vue  (/atleta/:id/:tab e /atleta/nuovo: header sticky con "Salva", viste Panoramica / Piano / Profilo)
      │    ├─ Panoramica
      │    │    ├─ domain/LoadMetricsChart.vue   (grafico CTL/ATL/TSB, tooltip, legenda con valori attuali)
      │    │    ├─ questa settimana              (domain/WorkoutRow.vue in sola lettura, collegamento al Piano)
@@ -99,8 +101,8 @@ App.vue
      │         ├─ ui/PasswordField.vue          (chiave Intervals.icu, mostra/nascondi)
      │         ├─ domain/MetricLogList.vue      (rilevazioni delle soglie per corsa/bici/nuoto)
      │         └─ identità, discipline, stato, obiettivi, vincoli, metodologia, note, esporta/elimina
-     ├─ stato vuoto (nessun atleta aperto: indica di scegliere o creare un atleta dall'elenco)
-     └─ domain/SettingsPanel.vue  (Impostazioni: Claude, prompt, tono e soglie del feedback, orario)
+     ├─ domain/EmptyState.vue     (/: nessun atleta aperto, indica di sceglierne o crearne uno dall'elenco)
+     └─ domain/SettingsPanel.vue  (/impostazioni: Claude, prompt, tono e soglie del feedback, orario)
   ui/ConfirmDialog.vue + ui/ToastHost.vue  (montati una volta in App.vue, pilotati da composables condivisi)
 ```
 
@@ -110,10 +112,23 @@ Il drawer della sidebar su mobile (backdrop cliccabile, Esc, scroll-lock, gestio
 
 ## Flussi principali
 
+**Navigazione e modifiche non salvate** (decisione in [decisioni/0023](decisioni/0023-navigazione-router-modifiche-non-salvate.md))
+
+| Rotta | Pagina |
+|---|---|
+| `#/` | nessun atleta aperto |
+| `#/impostazioni` | Impostazioni |
+| `#/atleta/nuovo` | bozza di un nuovo atleta |
+| `#/atleta/:id/:tab` | scheda, con `tab` fra `panoramica`, `piano` e `profilo` |
+
+Il pannello della seduta e i dialoghi del piano sono parametri di query (`?seduta=<id>`, `?dialogo=genera|prosegui|ripianifica|sincronizza`, composable `useQueryLayer`): «indietro» li chiude e un ricaricamento li riapre.
+
+La guardia globale (`router.ts`) chiede «Salva e continua / Esci senza salvare / Resta» quando si lascia una scheda o le Impostazioni con modifiche non salvate; «Esci» fa la stessa domanda. La chiusura della pagina usa l'avviso del browser (`beforeunload` in `App.vue`). Il pannello della seduta e i dialoghi hanno guardie proprie: conferma per le modifiche della seduta, nessuna chiusura durante generazione, applicazione o sincronizzazione.
+
 **Apertura scheda + sincronizzazione**
 ```
-Sidebar (click atleta) → store athletes.openAthlete(id)
-  → sincrono: legge la scheda già in memoria (nessuna chiamata di rete)
+Sidebar (click atleta) → router.push('/atleta/:id') → AthleteEditor (watch sulla rotta) → store athletes.openAthlete(id)
+  → sincrono: legge la scheda già in memoria (nessuna chiamata di rete); prima del primo caricamento mostra «Caricamento…»
   → popola il form (AthleteEditor.vue)
 AthleteEditor.vue → watch su apertura atleta
   → se presente una chiave Intervals.icu, avvia sincronizzazione del carico (services/intervals.ts)
@@ -126,6 +141,7 @@ La sincronizzazione Intervals.icu all'apertura è innescata da un `watch` dentro
 AthleteEditor → store athletes.saveCurrent()
   → insert (scheda nuova) oppure update condizionato a updated_at noto (scheda esistente)
   → in caso di conflitto (nessuna riga aggiornata): avviso, nessuna sovrascrittura
+  → in caso di errore: la scheda resta modificata, «Salva» resta attivo, l'elenco non cambia
 ```
 Il salvataggio scrive comunque l'intero blob `data`, ma l'update è condizionato al valore di `updated_at` noto al momento dell'apertura/ultimo salvataggio (controllo di concorrenza ottimistico). Se un'altra sessione ha salvato nel frattempo, l'update non trova righe da modificare e il coach viene avvisato del conflitto invece di sovrascrivere silenziosamente. Rischio residuo e mitigazione completa in [limiti-roadmap.md](limiti-roadmap.md).
 

@@ -67,8 +67,12 @@ Regole per chi modifica il layout:
 
 ## Componenti generici (`components/ui/`)
 
-- **Toast** (`ToastHost.vue` + `useToast`): notifiche non bloccanti. `showToast(msg)` mostra un messaggio informativo che sparisce da solo; `showToast(msg, "error")` mostra un errore che resta finché l'utente non lo chiude con il pulsante dedicato; `showResultToast(result)` sceglie tra i due in base all'esito `{ ok, message }` di un'azione dello store. Due regioni live sempre presenti nel DOM: `role="status"` per le informazioni, `role="alert"` per gli errori.
-- **ConfirmDialog** (`ConfirmDialog.vue` + `useConfirmDialog`): unico punto per conferme distruttive (eliminazione atleta, scarto di una bozza o di modifiche non salvate); mai `window.confirm`. `confirmDialog(messaggio, { confirmLabel, cancelLabel? })`: l'etichetta di conferma è obbligatoria e descrive l'azione. Il dialog è un `role="alertdialog"` modale: all'apertura il focus va sul pulsante di annullamento, Tab resta dentro il dialog, Esc annulla, alla chiusura il focus torna all'elemento che lo aveva aperto.
+- **Toast** (`ToastHost.vue` + `useToast`): notifiche non bloccanti. Con un pannello o un dialogo aperto il toast sale sopra il loro piede, così un errore che resta visibile non copre i pulsanti. `showToast(msg)` mostra un messaggio informativo che sparisce da solo; `showToast(msg, "error")` mostra un errore che resta finché l'utente non lo chiude con il pulsante dedicato; `showResultToast(result)` sceglie tra i due in base all'esito `{ ok, message }` di un'azione dello store. Due regioni live sempre presenti nel DOM: `role="status"` per le informazioni, `role="alert"` per gli errori.
+- **ConfirmDialog** (`ConfirmDialog.vue` + `useConfirmDialog`): unico punto per le domande al coach; mai `window.confirm`.
+  - `confirmDialog(messaggio, { confirmLabel, cancelLabel?, tone? })` per una conferma: l'etichetta descrive l'azione e il pulsante è rosso (`danger`) salvo `tone: "primary"`.
+  - `choiceDialog(messaggio, scelte, annulla)` per più scelte, ad esempio all'uscita da una scheda modificata: «Esci senza salvare» in rosso, «Salva e continua» primario, «Resta» come annullamento.
+
+  In entrambi i casi è un `role="alertdialog"` modale: all'apertura il focus va sul pulsante di annullamento, Tab resta dentro il dialog, Esc annulla, alla chiusura il focus torna all'elemento che lo aveva aperto.
 - **PasswordField**: campo per segreti digitati dall'utente (chiave Intervals.icu, chiave Claude) con toggle mostra/nascondi (`Eye`/`EyeOff`, `aria-label` e `aria-pressed`, senza tooltip nativo), mai loggato né esposto in chiaro nel DOM a riposo. Riceve `input-id` e va etichettato con `<label :for>`, non avvolto in una `<label>`, perché il pulsante interno finirebbe nel nome accessibile del campo.
 - **IconButton**: bottone compatto solo icona con stato hover/focus accessibile (`aria-label` obbligatorio, nessun tooltip nativo via `title`), ospita icone Lucide tramite slot. Usato nel footer della sidebar ("Impostazioni", "Esci") e per rimuovere un'unità (disciplina, evento, rilevazione).
 
@@ -76,7 +80,7 @@ Regole per chi modifica il layout:
 
 - **Desktop**: sidebar atleti a sinistra (260px, `flex-shrink: 0`, sticky), contenuto a destra (`.main`, `flex: 1`) in una colonna centrata di 680px massimi (`.form-wrap`). Lo scroll è quello della pagina: `.main` non ha `overflow`, così l'header sticky funziona.
 - **Sidebar**: "Nuovo atleta" in cima (pulsante tratteggiato in colore accento), poi gli atleti in ordine alfabetico. Ogni atleta è una riga resa come `<button>`: il nome, che va a capo invece di essere troncato, e sotto, su righe proprie, le discipline e l'ultimo TSB (così il TSB è sempre allineato a sinistra, qualunque sia la lunghezza del nome); la riga aperta ha sfondo `--surface-2` e un filetto d'accento a sinistra (`aria-current`). Il pulsante di eliminazione è un fratello del pulsante di selezione (mai annidato) e compare al passaggio del mouse o al focus; sui dispositivi senza hover è sempre visibile.
-- **Header di pagina** (`.page-header`): titolo e azioni principali ("Salva", "Salva impostazioni") con lo stato "Modifiche non salvate". È sticky (`top: --titlebar-h`) in cima alla scheda atleta e alle impostazioni, così il salvataggio è sempre raggiungibile. Sotto l'header, la scheda atleta mostra una riga di riepilogo (discipline, prossimo evento, data di aggiornamento) e, se un'altra sessione ha salvato la scheda, un avviso con "Ricarica i dati più recenti".
+- **Header di pagina** (`.page-header`): titolo e azioni principali ("Salva", "Salva impostazioni") con lo stato "Modifiche non salvate"; i pulsanti di salvataggio sono attivi solo con modifiche. È sticky (`top: --titlebar-h`) in cima alla scheda atleta e alle impostazioni, così il salvataggio è sempre raggiungibile. Sotto l'header, la scheda atleta mostra una riga di riepilogo (discipline, prossimo evento, data di aggiornamento) e, se un'altra sessione ha salvato la scheda, un avviso con "Ricarica i dati più recenti".
 - **Scheda atleta: tre viste** a tab (`role="tablist"`, frecce sinistra/destra per cambiare):
   - **Panoramica**: carico e forma, la settimana in corso in sola lettura con «Apri il piano», feedback settimanale (vedi [sotto](#feedback-settimanale));
   - **Piano**: vedi [sotto](#tab-piano);
@@ -86,7 +90,7 @@ Regole per chi modifica il layout:
 - **Sezioni** (`<section class="block">`, stile in `base.css`): piatte, separate da un filetto superiore in `--border`, titolo `h3`. Le **unità** (`.unit`) sono l'unico livello di card: sfondo `--surface`, bordo, `--radius-md`, intestazione `.unit-head` con titolo e `IconButton` di rimozione.
 - **Soglie**: una sola sezione con un selettore a segmenti (`.segmented`, `aria-pressed`) Corsa / Bici / Nuoto.
 - **Campi**: `<label class="field">` che avvolge `<span class="field-label">` e il controllo, così ogni etichetta è associata al suo campo senza `id`. Le righe di campi (`.field-row`) sono una griglia `auto-fit` con colonne da almeno 150px.
-- **Stato vuoto** (nessun atleta aperto): titolo e una frase su cosa fare. Non ha pulsanti: non ripete i comandi della sidebar, che su mobile si apre con l'hamburger.
+- **Stato vuoto** (`EmptyState.vue`, nessun atleta aperto): titolo e una frase su cosa fare; prima del caricamento dell'elenco, «Caricamento…». Non ha pulsanti: non ripete i comandi della sidebar, che su mobile si apre con l'hamburger.
 
 ### Tab Piano
 
@@ -132,7 +136,7 @@ Ogni componente interattivo gestisce esplicitamente: default, hover, focus (visi
 - Tutti i controlli interattivi sono elementi nativi (`button`, `input`, `select`) raggiungibili da tastiera; ordine di tabulazione naturale (nessun `tabindex` positivo; l'unico `tabindex="-1"` è sulle tab inattive, secondo il pattern ARIA delle tab).
 - Ogni campo ha un'etichetta associata (vedi [§ Layout](#layout)); i campi senza etichetta visibile (note libere, prompt, JSON del piano) hanno `aria-label`.
 - Icone e pulsanti solo-icona privi di testo visibile accompagnati da `aria-label` (nessun attributo `title`, per evitare tooltip nativi ridondanti).
-- Dialoghi (`ConfirmDialog`, drawer mobile, pannello della seduta, dialoghi di generazione e «Sincronizza settimana») intrappolano il focus e lo restituiscono all'elemento che li ha aperti alla chiusura; Esc chiude (tranne durante un'operazione in corso). Gli esiti asincroni dei dialoghi sono in una regione `aria-live`.
+- Dialoghi (`ConfirmDialog`, drawer mobile, pannello della seduta, dialoghi di generazione e «Sincronizza settimana») intrappolano il focus e lo restituiscono all'elemento che li ha aperti alla chiusura; Esc chiude (tranne durante un'operazione in corso). Pannello della seduta e dialoghi del piano si chiudono anche con «indietro» del browser o del telefono (vedi [architettura.md](architettura.md#flussi-principali)). Gli esiti asincroni dei dialoghi sono in una regione `aria-live`.
 - Il grafico del carico ha un `aria-label` con periodo e valori attuali; il tooltip è solo visivo (`aria-hidden`).
 - Animazioni continue e transizioni rispettano `prefers-reduced-motion`.
 

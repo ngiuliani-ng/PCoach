@@ -67,11 +67,17 @@ Playwright (`playwright.config.ts`, cartella `app/e2e/`) avvia Vite sulla porta 
 
 Nessuna chiamata raggiunge Supabase, Claude o Intervals.icu. La data è fissata al 10 ottobre 2026 con `page.clock`.
 
-Quattro flussi, ognuno su un progetto desktop e uno mobile (8 test):
+Undici flussi, ognuno su un progetto desktop e uno mobile (22 test):
 - modifica e approvazione di una seduta;
 - rigenerazione con anteprima delle differenze;
 - «Sincronizza settimana» con un errore parziale e il nuovo tentativo;
-- revisione e approvazione di un feedback settimanale.
+- revisione e approvazione di un feedback settimanale;
+- navigazione e modifiche non salvate (`navigation.spec.ts`):
+  - conferma al cambio di atleta, con «Salva e continua», «Esci senza salvare» e «Resta»;
+  - ritorno dalle Impostazioni modificate;
+  - salvataggio fallito di una scheda nuova e di una esistente, poi riuscito;
+  - vista e seduta nell'URL dopo un ricaricamento, e «indietro» che chiude il pannello;
+  - errore di rete al salvataggio di una seduta, con il pannello che resta aperto.
 
 Gli esiti finiscono in `test-results/`, non tracciata.
 
