@@ -46,6 +46,7 @@ app/
     domain/      Funzioni pure delle sedute (e test dei moduli condivisi del feedback): calendario e vincoli di disponibilità, settimane e ciclo di carico, lettura della proposta di Claude e differenze di una rigenerazione, stati derivati
     stores/      Pinia: athletes.ts (schede atleti, CRUD, polling), workouts.ts (sedute, piani e stato di sincronizzazione dell'atleta aperto), reviews.ts (valutazioni settimanali dell'atleta aperto), settings.ts (impostazioni globali del coach), auth.ts (sessione del coach)
     services/    Accesso a sistemi esterni: supabase.ts, intervals.ts (lettura del carico), intervalsSync.ts (Edge Function intervals-sync), feedback.ts (azioni del coach sulla Edge Function weekly-feedback), claude.ts, planPrompt.ts
+    help/        fieldHelp.ts: testi degli aiuti contestuali dei campi tecnici, con cosa va a Claude (verificato da fieldHelp.test.ts)
     schema/      athlete_profile.schema.json (sorgente di verità, vedi modello-dati.md), types.generated.ts (generato, non modificare a mano)
     styles/      tokens.css (variabili di design), base.css (stili globali)
   public/

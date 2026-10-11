@@ -74,6 +74,7 @@ Regole per chi modifica il layout:
 
   In entrambi i casi è un `role="alertdialog"` modale: all'apertura il focus va sul pulsante di annullamento, Tab resta dentro il dialog, Esc annulla, alla chiusura il focus torna all'elemento che lo aveva aperto.
 - **PasswordField**: campo per segreti digitati dall'utente (chiave Intervals.icu, chiave Claude) con toggle mostra/nascondi (`Eye`/`EyeOff`, `aria-label` e `aria-pressed`, senza tooltip nativo), mai loggato né esposto in chiaro nel DOM a riposo. Riceve `input-id` e va etichettato con `<label :for>`, non avvolto in una `<label>`, perché il pulsante interno finirebbe nel nome accessibile del campo.
+- **FieldHelp** (`FieldHelp.vue`, testi in `help/fieldHelp.ts`, decisione in [decisioni/0027](decisioni/0027-aiuti-contestuali-dei-campi.md)): aiuto di un campo tecnico. Una riga sempre visibile in `helper-text` e, se c'è, «Come lo usa PCoach» in un `<details>`. Niente tooltip: l'essenziale si legge senza interazione, anche al tocco. Un nuovo aiuto si aggiunge a `fieldHelp.ts`, non scritto nel componente.
 - **IconButton**: bottone compatto solo icona con stato hover/focus accessibile (`aria-label` obbligatorio, nessun tooltip nativo via `title`), ospita icone Lucide tramite slot. Usato nel footer della sidebar ("Impostazioni", "Esci") e per rimuovere un'unità (disciplina, evento, rilevazione).
 
 ## Layout

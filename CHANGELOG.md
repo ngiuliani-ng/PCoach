@@ -6,6 +6,14 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
+**2026-10-11 — Aiuti contestuali dei campi tecnici**
+- Nuovo componente `FieldHelp`: una riga d'aiuto sempre visibile e, se serve, «Come lo usa PCoach». Usato in Profilo (identità ed email, chiave Intervals.icu, volumi, soglie e sistema di zone, fattori di vita, periodizzazione, eventi, disponibilità, sedute a settimana, metodologia, note libere), Impostazioni (preferenze del piano, soglie del feedback con un esempio) e nel pannello della seduta (metrica dei target).
+- I testi vivono in `help/fieldHelp.ts`; un test verifica che i dati dichiarati inviati a Claude siano nel contesto del prompt e quelli dichiarati riservati no.
+- Test: 149 unitari, 38 end-to-end.
+
+*Motivazione*: §7-§8 e problema U-13 dell'[audit UI/UX](docs/audit/2026-10-ux-e-usabilita/PCOACH_UX_AUDIT.md).
+*Docs aggiornati*: [decisioni/0027](docs/decisioni/0027-aiuti-contestuali-dei-campi.md), [design-ui.md](docs/design-ui.md), [architettura.md](docs/architettura.md), [sviluppo-deploy.md](docs/sviluppo-deploy.md).
+
 **2026-10-11 — Misure per il tocco e orientamento libero della PWA**
 - Su telefono e tablet (`pointer: coarse`) i campi hanno il testo a 16px, per evitare lo zoom di iOS al tocco, e pulsanti, campi, tab, chip e voci dell'elenco sono alti almeno 44px.
 - Su schermi stretti «Prosegui il piano» e «Ripianifica da…» stanno affiancati nella barra del Piano.
