@@ -1,19 +1,25 @@
-// Client per la Edge Function "claude-proxy": porting diretto della funzione
-// originale in index.html, che bypassa i limiti CORS chiamando Claude lato server.
+// Client per la Edge Function "claude-proxy", che chiama Claude lato server (CORS, chiave mai nel
+// browser). Restituisce anche modello, stop_reason e consumo di token, salvati con la generazione.
 import { supabase, supabaseUrl, supabaseAnonKey } from "./supabase";
 
+export interface ClaudeUsage {
+  input_tokens?: number;
+  output_tokens?: number;
+  [key: string]: unknown;
+}
+
 export type ClaudeProxyResult =
-  | { ok: true; text: string; truncated: boolean }
+  | { ok: true; text: string; truncated: boolean; stopReason: string | null; model: string | null; usage: ClaudeUsage | null; id: string | null }
   | { ok: false; error: string };
 
 export async function callClaudeProxy(
-  promptText: string,
+  prompt: { system: string; user: string },
   maxTokens: number,
   model: string
 ): Promise<ClaudeProxyResult> {
   const url = supabaseUrl.replace(/\/$/, "") + "/functions/v1/claude-proxy";
   // Il bearer è il token della sessione del coach (non la anon key pubblica): la funzione
-  // verifica l'identità del chiamante prima di consumare quota Claude (vedi Fase 9).
+  // verifica l'identità del chiamante prima di consumare quota Claude.
   const sessionToken = (await supabase?.auth.getSession())?.data.session?.access_token;
   if (!sessionToken) {
     return { ok: false, error: "Sessione non valida: effettua di nuovo l'accesso." };
@@ -26,7 +32,7 @@ export async function callClaudeProxy(
         Authorization: "Bearer " + sessionToken,
         apikey: supabaseAnonKey
       },
-      body: JSON.stringify({ prompt: promptText, max_tokens: maxTokens || 4096, model })
+      body: JSON.stringify({ system: prompt.system, prompt: prompt.user, max_tokens: maxTokens || 4096, model })
     });
     const data = await res.json().catch(() => null);
     // 546: la Edge Function ha superato il limite di durata (150 s) prima della risposta di Claude.
@@ -36,7 +42,15 @@ export async function callClaudeProxy(
     if (!res.ok || !data || data.error) {
       return { ok: false, error: (data && data.error) || `Errore proxy (${res.status})` };
     }
-    return { ok: true, text: data.text || "", truncated: data.stop_reason === "max_tokens" };
+    return {
+      ok: true,
+      text: data.text || "",
+      truncated: data.stop_reason === "max_tokens",
+      stopReason: data.stop_reason ?? null,
+      model: data.model ?? null,
+      usage: data.usage ?? null,
+      id: data.id ?? null
+    };
   } catch {
     return { ok: false, error: "Impossibile contattare la Edge Function claude-proxy." };
   }

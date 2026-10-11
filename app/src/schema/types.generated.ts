@@ -216,7 +216,7 @@ export interface AthleteTrainingProfile {
   };
   constraints: {
     /**
-     * Un elemento per ogni giorno. 'active'/'max_duration_minutes' sono il vincolo reale di disponibilità; 'fixed_activity' è puramente informativo (cosa fai oggi), non un vincolo per la programmazione futura.
+     * Un elemento per ogni giorno. 'active'/'max_duration_minutes' sono il vincolo reale di disponibilità, verificato da PCoach; 'fixed_activity' è l'abitudine attuale, usata da Claude come preferenza e non verificata.
      */
     days_available: {
       day?: "lunedi" | "martedi" | "mercoledi" | "giovedi" | "venerdi" | "sabato" | "domenica";
@@ -226,7 +226,7 @@ export interface AthleteTrainingProfile {
       active?: boolean;
       max_duration_minutes?: number;
       /**
-       * Informativo: cosa l'atleta fa attualmente quel giorno. Non vincola la programmazione futura.
+       * Abitudine attuale: cosa l'atleta fa di solito quel giorno. Claude la usa come preferenza per disciplina e tipo di seduta; non è un vincolo verificato da PCoach.
        */
       fixed_activity?: string;
       [k: string]: unknown;
@@ -263,7 +263,7 @@ export interface AthleteTrainingProfile {
    */
   integrations?: {
     /**
-     * API key personale Intervals.icu dell'atleta, salvata in chiaro (compromesso di sicurezza accettato, vedi docs/DOCUMENTAZIONE.md §3). Attiva e aggiorna automaticamente la sincronizzazione del carico di allenamento.
+     * API key personale Intervals.icu dell'atleta, salvata in chiaro (compromesso di sicurezza accettato, vedi docs/sicurezza.md). Attiva e aggiorna automaticamente la sincronizzazione del carico di allenamento.
      */
     intervals_icu_api_key?: string;
     [k: string]: unknown;

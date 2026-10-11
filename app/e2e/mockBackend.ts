@@ -251,6 +251,7 @@ export async function installMockBackend(page: Page, state: MockState) {
       const body = req.postDataJSON() as { p: Row };
       state.rpcCalls.push({ name, body });
       if (name === "apply_plan_generation") return fulfillJson(route, applyGeneration(state, body.p));
+      if (name === "claude_key_configured") return fulfillJson(route, true);
       return fulfillJson(route, null);
     }
     if (path.startsWith("/rest/v1/")) return handleRest(state, route, path.split("/").pop()!, url.searchParams);

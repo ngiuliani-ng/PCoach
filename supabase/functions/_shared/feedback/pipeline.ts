@@ -10,9 +10,10 @@
 // Una nuova revisione (rigenerazione) rende "superseded" la precedente. Nessuna email parte
 // da una riga che il coach non ha approvato.
 import { addDaysISO } from "../workouts/calendar.ts";
+import { resolveModel } from "../claude/models.ts";
 import { completionsFrom } from "./completion.ts";
 import { buildFeedbackInput, type FeedbackInput } from "./contract.ts";
-import { buildFeedbackPrompt, buildFeedbackTool, type FeedbackOutput, type FeedbackTool, validateFeedbackOutput } from "./output.ts";
+import { buildFeedbackPrompt, buildFeedbackTool, DEFAULT_FEEDBACK_STYLE, type FeedbackOutput, type FeedbackTool, validateFeedbackOutput } from "./output.ts";
 import { loadProgressionOf, resolveFeedbackParams } from "./params.ts";
 import { inScheduleWindow, localDayHour, reviewPeriod } from "./period.ts";
 import type { CoachChange, Period, PlannedWorkout, PlanWindow, RawActivity, RawWellness } from "./types.ts";
@@ -108,7 +109,6 @@ export interface Deps {
   now: () => Date;
 }
 
-export const DEFAULT_MODEL = "claude-sonnet-4-5";
 const MAX_TOKENS = 3000;
 
 async function sha256(text: string): Promise<string> {
@@ -200,8 +200,9 @@ export async function generate(deps: Deps, row: ReviewRow, settings: FeedbackSet
     await store.update(row.id, "analyzed", { status: "generation_failed", error: "Chiave API di Claude non configurata in Impostazioni." });
     return "generation_failed";
   }
-  const template = settings.weekly_feedback_prompt_template ?? "";
-  const model = settings.claude_model || DEFAULT_MODEL;
+  const template = settings.weekly_feedback_prompt_template ?? DEFAULT_FEEDBACK_STYLE;
+  // Solo modelli ammessi (D-06): un valore sconosciuto torna al predefinito invece di far fallire la chiamata.
+  const model = resolveModel(settings.claude_model);
   const prompt = buildFeedbackPrompt(input, template);
   const tool = buildFeedbackTool(input.allowed_topics);
   let user = prompt.user;

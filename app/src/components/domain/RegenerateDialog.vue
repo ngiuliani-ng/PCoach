@@ -12,8 +12,8 @@ import { useSettingsStore } from "../../stores/settings";
 import { useModalFocus } from "../../composables/useModalFocus";
 import { useIntervalsSync } from "../../composables/useIntervalsSync";
 import { showToast } from "../../composables/useToast";
-import { addDaysISO, formatDate, todayISO, TRAINING_PLAN_JSON_SHAPE } from "../../constants";
-import { buildPlanPrompt } from "../../services/planPrompt";
+import { addDaysISO, DEFAULT_PLAN_PREFERENCES, formatDate, todayISO } from "../../constants";
+import { buildPlanPrompt, promptAsText } from "../../services/planPrompt";
 import { callClaudeProxy, copyToClipboardFallback, extractJsonBlock } from "../../services/claude";
 import { hasFtp } from "../../domain/athlete";
 import { continueFromDate, cycleAnchor, MAX_PLAN_WEEKS, parseLoadPattern, planMaxTokens, planWeeks } from "../../domain/planWeeks";
@@ -125,34 +125,37 @@ async function generate() {
   weeks.value = w;
   // Carico aggiornato prima di chiedere il piano (trigger di sincronizzazione "generazione").
   await useIntervalsSync().syncNow(athleteId.value, profile.value.integrations?.intervals_icu_api_key);
+  const preferences = settings.settings.plan_generation_prompt_template;
   const prompt = buildPlanPrompt(
     profile.value,
     { weeks: w, fromDate: fromDate.value, reason: reason.value, fixed: keptWorkouts.value, recent: recentWorkouts.value, planWeeks: weeksOfPlan(fromDate.value, w) },
-    TRAINING_PLAN_JSON_SHAPE,
-    settings.settings.plan_generation_prompt_template
+    preferences
   );
+  const maxTokens = planMaxTokens(w);
   const created = await store.createGeneration({
     athleteId: athleteId.value, kind: kind.value, fromDate: fromDate.value,
-    weeks: w, reason: reason.value.trim(), keptIds: keptIds.value, model: settings.settings.claude_model
+    weeks: w, reason: reason.value.trim(), keptIds: keptIds.value, model: settings.settings.claude_model,
+    prompt, preferencesDefault: preferences.trim() === DEFAULT_PLAN_PREFERENCES.trim(), maxTokens
   });
   if (!created.ok) { showToast(created.message, "error"); return; }
   generationId.value = created.value;
 
-  if (!settings.settings.claude_api_key) {
-    promptText.value = prompt;
-    const copied = await copyToClipboardFallback(prompt);
+  if (!settings.hasClaudeKey) {
+    promptText.value = promptAsText(prompt);
+    const copied = await copyToClipboardFallback(promptText.value);
     showToast(copied ? "Claude non è configurato: prompt copiato negli appunti. Incolla qui la risposta." : "Claude non è configurato: copia il prompt qui sotto e incolla la risposta.");
     step.value = "paste";
     return;
   }
   step.value = "generating";
-  const result = await callClaudeProxy(prompt, planMaxTokens(w), settings.settings.claude_model);
+  const result = await callClaudeProxy(prompt, maxTokens, settings.settings.claude_model);
   if (!result.ok) {
     await store.saveGenerationResult(created.value, { status: "failed", error: result.error });
     showToast(result.error, "error");
     step.value = "params";
     return;
   }
+  await store.saveGenerationResult(created.value, { response_model: result.model, response_id: result.id, stop_reason: result.stopReason, usage: result.usage });
   handleResponse(result.text, result.truncated);
 }
 

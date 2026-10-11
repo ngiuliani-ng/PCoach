@@ -221,14 +221,14 @@
       "properties": {
         "days_available": {
           "type": "array",
-          "description": "Un elemento per ogni giorno. 'active'/'max_duration_minutes' sono il vincolo reale di disponibilità; 'fixed_activity' è puramente informativo (cosa fai oggi), non un vincolo per la programmazione futura.",
+          "description": "Un elemento per ogni giorno. 'active'/'max_duration_minutes' sono il vincolo reale di disponibilità, verificato da PCoach; 'fixed_activity' è l'abitudine attuale, usata da Claude come preferenza e non verificata.",
           "items": {
             "type": "object",
             "properties": {
               "day": { "type": "string", "enum": ["lunedi", "martedi", "mercoledi", "giovedi", "venerdi", "sabato", "domenica"] },
               "active": { "type": "boolean", "description": "Se il giorno è realisticamente utilizzabile per allenarsi." },
               "max_duration_minutes": { "type": "integer" },
-              "fixed_activity": { "type": "string", "description": "Informativo: cosa l'atleta fa attualmente quel giorno. Non vincola la programmazione futura." }
+              "fixed_activity": { "type": "string", "description": "Abitudine attuale: cosa l'atleta fa di solito quel giorno. Claude la usa come preferenza per disciplina e tipo di seduta; non è un vincolo verificato da PCoach." }
             }
           }
         },
@@ -279,7 +279,7 @@
       "type": "object",
       "description": "Credenziali/config per sincronizzazioni automatiche con servizi esterni, per-atleta.",
       "properties": {
-        "intervals_icu_api_key": { "type": "string", "description": "API key personale Intervals.icu dell'atleta, salvata in chiaro (compromesso di sicurezza accettato, vedi docs/DOCUMENTAZIONE.md §3). Attiva e aggiorna automaticamente la sincronizzazione del carico di allenamento." }
+        "intervals_icu_api_key": { "type": "string", "description": "API key personale Intervals.icu dell'atleta, salvata in chiaro (compromesso di sicurezza accettato, vedi docs/sicurezza.md). Attiva e aggiorna automaticamente la sincronizzazione del carico di allenamento." }
       }
     }
   },

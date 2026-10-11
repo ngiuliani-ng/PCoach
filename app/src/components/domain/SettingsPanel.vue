@@ -5,7 +5,8 @@ import { computed } from "vue";
 import { useSettingsStore } from "../../stores/settings";
 import { DEFAULT_FEEDBACK_PARAMS, validateFeedbackParams, type FeedbackParams } from "@shared/feedback/params.ts";
 import { showResultToast } from "../../composables/useToast";
-import { DAY_LABELS } from "../../constants";
+import { DAY_LABELS, DEFAULT_PLAN_PREFERENCES } from "../../constants";
+import { SUPPORTED_MODELS } from "@shared/claude/models.ts";
 import PasswordField from "../ui/PasswordField.vue";
 
 const settings = useSettingsStore();
@@ -48,19 +49,24 @@ async function onSave() {
       <h3>Claude</h3>
       <div class="field-row">
         <div class="field">
-          <label class="field-label" for="claude-api-key">Chiave API di Claude</label>
+          <label class="field-label" for="claude-api-key">{{ settings.hasClaudeKey ? "Nuova chiave API di Claude" : "Chiave API di Claude" }}</label>
           <PasswordField v-model="settings.settings.claude_api_key" input-id="claude-api-key" />
+          <span class="helper-text">{{ settings.hasClaudeKey ? "Una chiave è già salvata: lascia vuoto per mantenerla." : "Nessuna chiave salvata." }}</span>
         </div>
         <label class="field">
           <span class="field-label">Modello</span>
-          <input type="text" v-model="settings.settings.claude_model" class="mono-input" />
+          <select v-model="settings.settings.claude_model">
+            <option v-for="m in SUPPORTED_MODELS" :key="m.id" :value="m.id">{{ m.label }}</option>
+          </select>
         </label>
       </div>
-      <p class="helper-text">Senza chiave, «Genera piano» copia il prompt negli appunti: puoi incollarlo in Claude a mano.</p>
+      <p class="helper-text">Solo modelli verificati con la generazione e con il feedback. Senza chiave, «Genera piano» copia il prompt negli appunti: puoi incollarlo in Claude a mano.</p>
     </section>
     <section class="block">
-      <h3>Prompt per generare il piano</h3>
-      <textarea v-model="settings.settings.plan_generation_prompt_template" rows="8" aria-label="Prompt per generare il piano"></textarea>
+      <h3>Preferenze per generare il piano</h3>
+      <textarea v-model="settings.settings.plan_generation_prompt_template" rows="6" aria-label="Preferenze per generare il piano"></textarea>
+      <p class="helper-text">Come preferisci impostare le settimane: scarico, ripartenza del ciclo, uso del carico recente. Dati dell'atleta, calendario, disponibilità, fasi del ciclo e formato della risposta li aggiunge PCoach e non dipendono da questo testo. <span v-pre>{{nome_atleta}}</span> diventa il nome.</p>
+      <button type="button" class="link-btn" @click="settings.settings.plan_generation_prompt_template = DEFAULT_PLAN_PREFERENCES">Ripristina le preferenze predefinite</button>
     </section>
     <section class="block">
       <h3>Tono del feedback settimanale</h3>

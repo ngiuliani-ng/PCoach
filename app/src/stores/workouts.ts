@@ -255,7 +255,11 @@ export const useWorkoutsStore = defineStore("workouts", {
     },
 
     // ---------- Generazioni ----------
-    async createGeneration(g: { athleteId: string; kind: GenerationKind; fromDate: string; weeks: number; reason: string; keptIds: string[]; model: string }): Promise<Result<string>> {
+    /** Registra la richiesta prima di chiamare Claude, con il prompt esatto che verra' inviato (ADR 0020). */
+    async createGeneration(g: {
+      athleteId: string; kind: GenerationKind; fromDate: string; weeks: number; reason: string; keptIds: string[]; model: string;
+      prompt: { system: string; user: string; version: string }; preferencesDefault: boolean; maxTokens: number;
+    }): Promise<Result<string>> {
       if (!supabase) return { ok: false, message: "Supabase non configurato." };
       // Le richieste rimaste senza risposta (pagina chiusa durante l'attesa, risposta mai incollata)
       // si chiudono: oltre ORPHAN_MINUTES nessuna risposta puo' piu' arrivare dal proxy.
@@ -264,13 +268,18 @@ export const useWorkoutsStore = defineStore("workouts", {
         .lt("created_at", new Date(Date.now() - ORPHAN_MINUTES * 60_000).toISOString());
       const { data, error } = await supabase.from("plan_generations").insert({
         athlete_id: g.athleteId, kind: g.kind, from_date: g.fromDate, weeks: g.weeks, reason: g.reason,
-        kept_workout_ids: g.keptIds, model: g.model, status: "proposed"
+        kept_workout_ids: g.keptIds, model: g.model, status: "proposed",
+        prompt_version: g.prompt.version, system_prompt: g.prompt.system, user_prompt: g.prompt.user,
+        preferences_default: g.preferencesDefault, max_tokens: g.maxTokens
       }).select("id").single();
       if (error || !data) return { ok: false, message: "Non riesco a registrare la generazione: riprova." };
       return { ok: true, value: (data as { id: string }).id };
     },
 
-    async saveGenerationResult(id: string, patch: { raw_response?: string; proposal?: unknown; status?: GenerationRecord["status"]; error?: string }) {
+    async saveGenerationResult(id: string, patch: {
+      raw_response?: string; proposal?: unknown; status?: GenerationRecord["status"]; error?: string;
+      response_model?: string | null; response_id?: string | null; stop_reason?: string | null; usage?: unknown;
+    }) {
       if (!supabase) return;
       await supabase.from("plan_generations").update(patch).eq("id", id);
     },
@@ -293,6 +302,7 @@ export const useWorkoutsStore = defineStore("workouts", {
           return { ok: false, message: "Nel frattempo le sedute sono cambiate: ho ricaricato i dati, ricalcola la proposta." };
         }
         if (msg.includes("generation_not_proposed")) return { ok: false, message: "Questa proposta è già stata applicata o scartata." };
+        if (msg.includes("from_date_past")) return { ok: false, message: "La proposta parte da una data già passata: genera una nuova proposta." };
         return { ok: false, message: "Non sono riuscito ad applicare la proposta: nessuna seduta è stata modificata." };
       }
       await this.reload();

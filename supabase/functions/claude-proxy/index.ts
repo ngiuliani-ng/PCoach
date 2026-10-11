@@ -1,11 +1,15 @@
-// Proxy verso l'API Claude: bypassa il blocco CORS sulle chiamate dirette da browser
-// (verificato: api.anthropic.com rifiuta le richieste cross-origin salvo l'header
-// "dangerous" sconsigliato da Anthropic stessa — vedi docs/specifica-tecnica.md §5.5).
-// La Claude API key vive in Supabase (tabella app_settings) e non lascia mai questa funzione.
-// Fase 9: il bearer deve essere il token di sessione del coach, non la sola anon key
-// pubblica — altrimenti chiunque conoscesse la anon key potrebbe consumare quota Claude
-// a carico del coach. Verificato via auth.getUser() con la service-role key.
+// Proxy verso l'API Claude per la generazione delle sedute: Anthropic rifiuta le chiamate dirette dal
+// browser (CORS) e la chiave di Claude, in app_settings, non deve raggiungere il client.
+// - Chiamante: il token di sessione del coach, non la sola anon key pubblica; l'utente deve poter
+//   leggere app_settings con la propria RLS, cioe' essere il coach (stesso controllo di weekly-feedback).
+// - Modello: solo quelli ammessi (_shared/claude/models.ts, ADR 0020); max_tokens con un tetto.
+// - Risposta: testo, stop_reason, modello effettivo, consumo di token e id, salvati dal client
+//   con la generazione per poterla ricostruire.
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { resolveModel } from "../_shared/claude/models.ts";
+
+/** Tetto ai token di risposta: la generazione ne chiede al massimo 18 000 (4 settimane). */
+const MAX_TOKENS_CAP = 20_000;
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -29,12 +33,14 @@ Deno.serve(async (req: Request) => {
   }
 
   let prompt: string | undefined;
+  let system: string | undefined;
   let maxTokens: number | undefined;
   let model: string | undefined;
   try {
     const body = await req.json();
     prompt = body.prompt;
-    maxTokens = body.max_tokens;
+    system = typeof body.system === "string" && body.system.trim() ? body.system : undefined;
+    maxTokens = typeof body.max_tokens === "number" ? body.max_tokens : undefined;
     model = body.model;
   } catch {
     return jsonResponse({ error: "Corpo della richiesta non è JSON valido." }, 400);
@@ -54,22 +60,32 @@ Deno.serve(async (req: Request) => {
 
   const authHeader = req.headers.get("Authorization") || "";
   const bearerToken = authHeader.replace(/^Bearer\s+/i, "");
-  const adminClient = createClient(supabaseUrl, serviceRoleKey);
-  const { data: userData, error: userError } = await adminClient.auth.getUser(bearerToken);
+  const anonKey = req.headers.get("apikey") || Deno.env.get("SUPABASE_ANON_KEY");
+  if (!anonKey) {
+    return jsonResponse({ error: "Configurazione Supabase mancante nella Edge Function." }, 500);
+  }
+  const userClient = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: `Bearer ${bearerToken}` } },
+    auth: { persistSession: false },
+  });
+  const { data: userData, error: userError } = await userClient.auth.getUser(bearerToken);
   if (userError || !userData.user) {
     return jsonResponse({ error: "Non autenticato." }, 401);
   }
+  // Solo il coach legge app_settings (RLS): un altro utente autenticato non ottiene la riga.
+  const { data: own } = await userClient.from("app_settings").select("id").eq("id", 1).maybeSingle();
+  if (!own) {
+    return jsonResponse({ error: "Non autorizzato." }, 403);
+  }
 
   let claudeApiKey: string | undefined;
-  let claudeModel = model;
+  let configuredModel: string | undefined;
   try {
-    const settingsRes = await fetch(
-      `${supabaseUrl}/rest/v1/app_settings?id=eq.1&select=claude_api_key,claude_model`,
-      { headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` } },
-    );
-    const rows = await settingsRes.json();
-    claudeApiKey = rows?.[0]?.claude_api_key;
-    claudeModel = claudeModel || rows?.[0]?.claude_model;
+    const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
+    const { data: row, error } = await admin.from("app_settings").select("claude_api_key, claude_model").eq("id", 1).maybeSingle();
+    if (error) throw error;
+    claudeApiKey = row?.claude_api_key ?? undefined;
+    configuredModel = row?.claude_model ?? undefined;
   } catch {
     return jsonResponse({ error: "Impossibile leggere app_settings da Supabase." }, 500);
   }
@@ -87,8 +103,9 @@ Deno.serve(async (req: Request) => {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: claudeModel || "claude-sonnet-4-5",
-        max_tokens: maxTokens || 4096,
+        model: resolveModel(model, configuredModel),
+        max_tokens: Math.min(MAX_TOKENS_CAP, maxTokens && maxTokens > 0 ? maxTokens : 4096),
+        ...(system ? { system } : {}),
         messages: [{ role: "user", content: prompt }],
       }),
     });
@@ -100,8 +117,9 @@ Deno.serve(async (req: Request) => {
 
     const text = (data.content || [])
       .map((block: { type: string; text?: string }) => block.text || "")
-      .join("\n");
-    return jsonResponse({ text, stop_reason: data.stop_reason });
+      .join("
+");
+    return jsonResponse({ text, stop_reason: data.stop_reason, model: data.model ?? null, usage: data.usage ?? null, id: data.id ?? null });
   } catch {
     return jsonResponse({ error: "Impossibile contattare l'API Claude." }, 502);
   }

@@ -534,7 +534,7 @@ function onExport() {
           <span class="day-label">{{ DAY_LABELS.find(([k]) => k === day.day)?.[1] }}</span>
           <label class="checkbox-line"><input type="checkbox" v-model="day.active" /> Disponibile</label>
           <label class="field"><span class="field-label">Durata massima (min)</span><input type="number" v-model.number="day.max_duration_minutes" /></label>
-          <label class="field"><span class="field-label">Attività già prevista</span><input type="text" v-model="day.fixed_activity" /></label>
+          <label class="field"><span class="field-label">Attività abituale</span><input type="text" v-model="day.fixed_activity" /></label>
         </div>
         <div class="field-row">
           <label class="field"><span class="field-label">Sessioni a settimana (obiettivo)</span><input type="number" v-model.number="profile.constraints.sessions_per_week_target" /></label>

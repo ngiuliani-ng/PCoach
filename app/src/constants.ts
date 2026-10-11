@@ -149,38 +149,22 @@ Regole del formato:
 - Anche le sedute a ritmo costante hanno steps (un solo step "steady").
 - Palestra (strength): steps vuoto, duration_min valorizzato, esercizi e serie in notes.`;
 
-export const DEFAULT_PLAN_PROMPT = `Sei un coach esperto di allenamento endurance (corsa, bici, nuoto, palestra). Prepara le sedute di {{settimane}} settimane per l'atleta {{nome_atleta}}, dal {{data_inizio}} al {{data_fine}} compresi.
-
-Dati dell'atleta (profilo, soglie, carico recente, sedute delle ultime due settimane con l'esito):
-{{contesto_atleta_json}}
-
-Motivo della pianificazione indicato dal coach:
-{{motivo}}
-
-Calendario del periodo, già calcolato: per ogni data il giorno della settimana, se l'atleta è disponibile, la durata massima in minuti di quel giorno, l'attività che fa di solito e, se noti, il numero della settimana e la sua fase nel ciclo di carico e scarico:
-{{calendario_json}}
-
-Sedute già fissate nel periodo, da NON ripetere né spostare (pianifica intorno a queste, tenendone conto nel carico):
-{{sedute_fisse_json}}
-
-Restituisci SOLO un oggetto JSON valido (puoi racchiuderlo in un blocco di codice \`\`\`json, oppure scriverlo senza altro testo prima o dopo), con questa struttura esatta:
-{{formato_training_plan_json}}
-
-Regole:
-- Usa solo date del calendario con "disponibile": true. Non pianificare nulla nelle altre.
-- La somma delle durate delle sedute di un giorno non deve superare "durata_massima_min" di quel giorno.
-- L'attività abituale indica cosa l'atleta fa di solito quel giorno: rispettala come disciplina e tipo di seduta, salvo motivo diverso indicato dal coach.
-- Rispetta il numero di sedute a settimana dell'atleta.
-- Rispetta la distribuzione dell'intensità indicata.
-- Rispetta la fase di ogni settimana e la variazione di carico indicata nel calendario ("fase", "variazione_carico"), in ogni disciplina: le percentuali sono quelle scelte dal coach per questo atleta.
-- Nella settimana di scarico c'è pochissimo lavoro intenso.
+// Preferenze metodologiche del coach per la generazione (ADR 0020): l'unica parte del prompt del piano
+// modificabile in Impostazioni. Regole fisse, dati e formato sono in services/planPrompt.ts.
+export const DEFAULT_PLAN_PREFERENCES = `- Nella settimana di scarico c'è pochissimo lavoro intenso.
 - Un nuovo ciclo riparte da un carico simile alla seconda settimana di carico del ciclo precedente: guarda le sedute recenti.
 - La settimana di raccordo (fase "raccordo"), se presente, è leggera.
 - Tieni conto del carico recente (CTL, ATL, TSB) e delle sedute senza un'attività registrata.`;
 
-// Indicazioni del coach su tono e priorita' del feedback settimanale. Le regole su cosa il
-// feedback puo' affermare sono fisse nel codice (_shared/feedback/output.ts, ADR 0019).
-export const DEFAULT_FEEDBACK_PROMPT = `Sei il coach di {{nome_atleta}}, esperto di allenamento endurance (corsa, bici, nuoto, palestra). Tono diretto e incoraggiante, frasi brevi. Metti al primo posto le sedute chiave della settimana e un'indicazione pratica per la prossima, coerente con il piano.`;
+/** true per un template del vecchio formato (prompt intero con i segnaposto dei dati): non si usa
+ * piu' come preferenze, perche' ripeterebbe regole e dati. */
+export function isLegacyPlanTemplate(text: string | null | undefined): boolean {
+  return !!text && /\{\{(contesto_atleta_json|calendario_json|formato_training_plan_json)\}\}/.test(text);
+}
+
+// Tono del feedback settimanale: il predefinito vive nel modulo condiviso con weekly-feedback,
+// che lo usa quando la colonna e' vuota (le regole sul contenuto sono fisse, ADR 0019).
+export { DEFAULT_FEEDBACK_STYLE as DEFAULT_FEEDBACK_PROMPT } from "@shared/feedback/output.ts";
 
 // Date come "YYYY-MM-DD" nel calendario locale: implementazione nel modulo condiviso con le
 // Edge Function (aritmetica a mezzogiorno UTC, immune ai fusi orari).
