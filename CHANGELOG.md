@@ -6,6 +6,18 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
+**2026-10-11 — Generazione: regole nel codice, preferenze del coach, prompt salvato e modelli ammessi**
+- Il prompt della generazione è diviso in istruzioni di sistema (regole fisse e formato nel codice, poi le preferenze metodologiche del coach) e messaggio con i dati dell'atleta, il calendario, il motivo e le sedute fisse, sempre presenti. In Impostazioni si modificano solo le preferenze, con un pulsante per ripristinarle.
+- Preferenze e tono del feedback uguali al predefinito si salvano vuoti; il salvataggio delle impostazioni è bloccato se il caricamento non è riuscito.
+- Ogni generazione salva il prompt inviato, la versione, `max_tokens`, il modello effettivo, `stop_reason` e i token (migrazione `0008`).
+- Modello scelto da un elenco chiuso (`_shared/claude/models.ts`), applicato anche da `claude-proxy` e `weekly-feedback`.
+- L'app non rilegge più la chiave di Claude; `claude-proxy` accetta solo il coach e limita `max_tokens`. `apply_plan_generation` rifiuta una data di partenza passata.
+- «Attività abituale»: preferenza per Claude, non vincolo (schema e prompt allineati).
+- Test: 129 unitari, 8 end-to-end.
+
+*Motivazione*: decisioni D-01, D-04 e D-06 del coach e problemi E-01, E-02, E-03, E-04, E-06, E-18 dell'[audit](docs/audit/2026-10-generazione-e-feedback/PCOACH_GENERATION_AND_FEEDBACK_AUDIT.md).
+*Docs aggiornati*: [decisioni/0020](docs/decisioni/0020-generazione-istruzioni-separate-tracciabilita.md), [integrazioni.md](docs/integrazioni.md), [backend.md](docs/backend.md), [modello-dati.md](docs/modello-dati.md), [sicurezza.md](docs/sicurezza.md), [architettura.md](docs/architettura.md), [sviluppo-deploy.md](docs/sviluppo-deploy.md).
+
 **2026-10-11 — Correzioni puntuali dall'audit della generazione e del feedback**
 - Feedback: il controllo dei giorni della settimana nel testo usa l'anno giusto anche nelle settimane a cavallo d'anno (prima «venerdì 1 gennaio 2027» risultava sbagliato).
 - Generazione: l'email dell'atleta non è più inviata a Claude; i segnaposto scritti nei dati dell'atleta restano testo; il JSON si legge anche con testo intorno senza blocco di codice.

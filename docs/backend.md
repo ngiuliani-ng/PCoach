@@ -10,10 +10,11 @@ Lo schema è versionato in `supabase/migrations/`, da eseguire in ordine numeric
 - `0004`: tabelle delle sedute, trigger e funzioni SQL;
 - `0005`: rimozione dell'import una tantum dei piani salvati nella scheda, concluso;
 - `0006`: tipo di generazione `continue` in `plan_generations.kind`;
-- `0007`: tabella `weekly_reviews`, funzione `regenerate_weekly_review`, colonna `app_settings.feedback_params`.
+- `0007`: tabella `weekly_reviews`, funzione `regenerate_weekly_review`, colonna `app_settings.feedback_params`;
+- `0008`: colonne di tracciabilità di `plan_generations`, rifiuto delle proposte con data di partenza passata, funzione `claude_key_configured`.
 
 - **`athletes`**: `id` (text, chiave primaria: l'identificativo di 8 caratteri generato dall'app), `data` (jsonb, l'intero `AthleteTrainingProfile` — vedi [modello-dati.md](modello-dati.md)), `updated_at` (timestamptz, usato per il controllo di concorrenza ottimistico).
-- **`app_settings`**: riga singola (`id = 1`), contiene configurazione globale del coach: `claude_api_key`, `claude_model`, template dei prompt, `weekly_feedback_*` (timezone, giorno, ora, `email_enabled`), `feedback_params` (soglie dell'analisi del feedback, jsonb; i valori assenti prendono i predefiniti di `_shared/feedback/params.ts`).
+- **`app_settings`**: riga singola (`id = 1`), contiene configurazione globale del coach: `claude_api_key` (scritta dall'app solo quando il coach ne inserisce una nuova, mai riletta: l'app sa solo se c'è, con `claude_key_configured()`), `claude_model` (uno dei modelli ammessi), preferenze del piano e tono del feedback (vuoti = predefiniti nel codice), `weekly_feedback_*` (timezone, giorno, ora, `email_enabled`), `feedback_params` (soglie dell'analisi del feedback, jsonb; i valori assenti prendono i predefiniti di `_shared/feedback/params.ts`).
 - **`training_plans`, `plan_generations`, `workouts`, `workout_sync`, `workout_events`**: le sedute e ciò che le riguarda. Colonne, vincoli e stati in [modello-dati.md § Sedute e piani](modello-dati.md#sedute-e-piani).
 - **`weekly_reviews`**: le valutazioni settimanali. Colonne e stati in [modello-dati.md § Valutazioni settimanali](modello-dati.md#valutazioni-settimanali).
 
@@ -56,7 +57,10 @@ Lo schema è versionato in `supabase/migrations/`, da eseguire in ordine numeric
   4. inserisce le nuove come bozze, collegando `superseded_by`;
   5. segna la generazione `applied`.
 
+  Rifiuta anche una data di partenza già passata nel fuso del coach (`from_date_past`).
+
   Ripeterla è innocuo.
+- **`claude_key_configured()`**: `true` se la chiave di Claude è salvata, senza restituirla.
 
 ## Autenticazione e RLS
 
@@ -79,13 +83,13 @@ Scrittura mirata usata per aggiornare `training_status.load_metrics_log` senza r
 
 ## `claude-proxy` (Edge Function)
 
-Proxy verso `api.anthropic.com`, necessario perché Anthropic rifiuta le chiamate dirette dal browser (CORS) e perché la Claude API key non deve mai raggiungere il client.
+Proxy verso `api.anthropic.com` per la generazione delle sedute, necessario perché Anthropic rifiuta le chiamate dirette dal browser (CORS) e perché la Claude API key non deve mai raggiungere il client.
 
-- **Autenticazione del chiamante**: richiede un bearer che sia un JWT di sessione valido del coach (verificato con `auth.getUser()` usando la service-role key); la sola anon key pubblica non basta. Altrimenti chiunque conoscesse la anon key potrebbe consumare quota Claude a carico del coach.
-- **Richiesta**: `POST { prompt, max_tokens?, model? }`.
-- **Risposta**: `{ text, stop_reason }` in caso di successo; `{ error }` (stringa) con status 4xx/5xx in ogni caso di fallimento (JSON non valido, prompt mancante, non autenticato, chiave Claude non configurata, errore Anthropic, rete).
-- `max_tokens` di default 4096 se non passato dal client; il client (generazione piano) lo scala in proporzione al numero di settimane richieste — vedi [integrazioni.md](integrazioni.md).
-- `model` di default `claude-sonnet-4-5` se non configurato in `app_settings` né passato nella richiesta.
+- **Autenticazione del chiamante**: JWT di sessione valido, verificato con `auth.getUser()`, e lettura di `app_settings` con quel JWT: solo il coach ottiene la riga (RLS), altrimenti 403. La sola anon key non basta.
+- **Richiesta**: `POST { prompt, system?, max_tokens?, model? }`: `prompt` è il messaggio, `system` le istruzioni.
+- **Risposta**: `{ text, stop_reason, model, usage, id }` in caso di successo; `{ error }` (stringa) con status 4xx/5xx in ogni caso di fallimento (JSON non valido, prompt mancante, non autenticato o non coach, chiave Claude non configurata, errore Anthropic, rete).
+- `max_tokens`: quello del client (generazione: vedi [integrazioni.md](integrazioni.md#claude-generazione-delle-sedute)), 4096 se assente, mai oltre 20 000.
+- `model`: il primo modello ammesso (`_shared/claude/models.ts`) fra quello della richiesta e quello di `app_settings`, altrimenti il predefinito.
 
 ## `intervals-sync` (Edge Function)
 

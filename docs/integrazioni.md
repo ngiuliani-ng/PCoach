@@ -92,9 +92,15 @@ Il coach la vede come anteprima delle differenze prima di applicarla (vedi [arch
 - ultima soglia nota per sport (running/cycling/swimming);
 - stato di allenamento, incluso `detraining_period`, `lifestyle_factors`/`lifestyle_factors_note` e il log CTL/ATL/TSB degli ultimi 30 giorni;
 - obiettivi, vincoli, preferenze metodologiche, note libere;
-- le sedute delle due settimane precedenti la data d'inizio, con l'esito (svolta, non svolta).
+- le sedute delle due settimane precedenti la data d'inizio, con l'esito (svolta, nessuna attività registrata, in programma).
 
-**Placeholder del template prompt** (sostituiti da `buildPlanPrompt` in un solo passaggio: un segnaposto scritto nei dati dell'atleta resta testo): `{{settimane}}`, `{{nome_atleta}}`, `{{contesto_atleta_json}}`, `{{formato_training_plan_json}}`, `{{data_inizio}}`, `{{data_fine}}`, `{{calendario_json}}` (ogni data del periodo con `giorno`, `disponibile`, `durata_massima_min`, `attivita_abituale`, `settimana` e `fase`; vedi «Settimane e ciclo di carico» sotto), `{{sedute_fisse_json}}` (sedute mantenute o svolte nel periodo, da non ripetere, con il giorno della settimana), `{{motivo}}`. Se un template personalizzato non contiene periodo, calendario, sedute fisse e formato, questi vengono aggiunti in fondo.
+**Istruzioni e messaggio** (`buildPlanPrompt`, decisione in [decisioni/0020](decisioni/0020-generazione-istruzioni-separate-tracciabilita.md)):
+- **istruzioni di sistema**: regole fisse nel codice (`PLAN_RULES`: giorni disponibili, durata massima del giorno, attività abituale come preferenza, sedute a settimana, distribuzione dell'intensità, fase e variazione di carico, sedute fisse) e formato della risposta, seguite dalle **preferenze metodologiche del coach** (Impostazioni, colonna `plan_generation_prompt_template`; predefinite in `DEFAULT_PLAN_PREFERENCES`), presentate come non in grado di cambiare regole e formato. Le preferenze possono citare `{{nome_atleta}}`;
+- **messaggio**: periodo, contesto dell'atleta, motivo indicato dal coach, calendario e sedute fisse, sempre presenti qualunque siano le preferenze. I dati dell'atleta non sono interpretati come segnaposto.
+
+Le preferenze uguali al predefinito si salvano vuote, così un miglioramento del predefinito arriva anche a chi non le ha cambiate. Un template del vecchio formato (prompt intero con `{{contesto_atleta_json}}`) viene ignorato e sostituito dal predefinito.
+
+**Tracciabilità**: ogni generazione salva in `plan_generations` le istruzioni e il messaggio inviati (`system_prompt`, `user_prompt`), la versione (`prompt_version`, `PLAN_PROMPT_VERSION`), se le preferenze erano quelle predefinite, `max_tokens` e, dalla risposta, modello effettivo, id, `stop_reason` e consumo di token (`usage`).
 
 **Formato richiesto** (`TRAINING_PLAN_JSON_SHAPE`): `plan_name`, `weeks[]` (`week_start`, `label`, `is_deload`) e `workouts[]`. Ogni seduta ha `date` e `day` (copiati dal calendario), `discipline`, `title`, `objective`, `notes`, `duration_min` (solo palestra) e `steps[]` (step con `duration_sec` o `distance_m` e `zone`/`zone_to` da Z1 a Z7; ripetute con `count` e `steps`). Claude indica solo zone: la metrica la sceglie PCoach. Il JSON va scritto compatto, una seduta per riga, senza i campi null o vuoti, per contenere la lunghezza della risposta.
 
@@ -102,11 +108,13 @@ Il coach la vede come anteprima delle differenze prima di applicarla (vedi [arch
 
 **Durata massima**: una generazione copre al massimo 4 settimane (`MAX_PLAN_WEEKS`), in una sola chiamata. Una chiamata a `claude-proxy` non può durare più di 150 secondi (limite delle Edge Function; oltre, Supabase interrompe la funzione e risponde 546, mostrato al coach come superamento del tempo massimo), e Claude impiega circa 25-30 secondi per settimana di sedute per un atleta con circa 8 sedute a settimana. Le settimane successive si aggiungono con «Prosegui il piano»: parte dal giorno dopo la fine del piano attivo o dell'ultima seduta attiva, ma mai prima di domani (`continueFromDate`), non sostituisce nulla e il ciclo prosegue dall'ancora del piano. «Ripianifica da…» resta per sostituire le sedute da una data quando qualcosa cambia.
 
-**`max_tokens`**: `min(64000, settimane × 4000 + 2000)` (`planMaxTokens`).
+**`max_tokens`**: `min(64000, settimane × 4000 + 2000)` (`planMaxTokens`), quindi al massimo 18 000 con 4 settimane; `claude-proxy` applica comunque un tetto di 20 000.
+
+**Modello**: solo quelli dell'elenco chiuso `SUPPORTED_MODELS` (`_shared/claude/models.ts`), scelto in Impostazioni; un valore non ammesso torna al predefinito, sia in `claude-proxy` sia in `weekly-feedback`.
 
 **`stop_reason`**: propagato da `claude-proxy` fino al client (`callClaudeProxy` imposta `truncated: true` quando `stop_reason === "max_tokens"`), per distinguere un piano troncato per limite di token da un JSON malformato restituito da Claude — mostrato al coach con un toast persistente invece di un errore generico silenzioso.
 
-**Fallback senza chiave configurata**: se `app_settings.claude_api_key` non è impostata, il prompt viene copiato negli appunti invece di essere inviato. Il dialogo mostra il prompt e un campo in cui incollare la risposta di Claude, che segue poi lo stesso percorso (salvataggio della proposta, anteprima, applicazione).
+**Fallback senza chiave configurata**: se la chiave di Claude non è salvata (`claude_key_configured`), istruzioni e messaggio vengono copiati negli appunti come testo unico (`promptAsText`) invece di essere inviati. Il dialogo mostra il prompt e un campo in cui incollare la risposta di Claude, che segue poi lo stesso percorso (salvataggio della proposta, anteprima, applicazione).
 
 ## Claude (feedback settimanale)
 
@@ -140,7 +148,7 @@ Chiamata lato server dentro `weekly-feedback` (contratto in [backend.md](backend
 - **Testo non attendibile**: i nomi delle attività vanno in un blocco separato, presentato a Claude come testo da non eseguire.
 
 **Chiamata**:
-- prompt di sistema con le regole fisse (`FEEDBACK_RULES`) più il tono scelto dal coach (`weekly_feedback_prompt_template`, segnaposto `{{nome_atleta}}`);
+- prompt di sistema con le regole fisse (`FEEDBACK_RULES`) più il tono scelto dal coach (`weekly_feedback_prompt_template`, segnaposto `{{nome_atleta}}`; se la colonna è vuota vale `DEFAULT_FEEDBACK_STYLE`);
 - messaggio con il contratto;
 - strumento obbligatorio `submit_weekly_feedback`;
 - `max_tokens` 3000.

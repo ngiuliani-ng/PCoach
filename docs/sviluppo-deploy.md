@@ -31,7 +31,7 @@ Rigenera `app/src/schema/types.generated.ts` da `app/src/schema/athlete_profile.
 npm run test
 ```
 
-Esegue Vitest (`vitest run`) sui file `src/**/*.test.ts`. Stato attuale: **127 test** in 13 file:
+Esegue Vitest (`vitest run`) sui file `src/**/*.test.ts`. Stato attuale: **129 test** in 13 file:
 
 | File | Test |
 |---|---|
@@ -46,7 +46,7 @@ Esegue Vitest (`vitest run`) sui file `src/**/*.test.ts`. Stato attuale: **127 t
 | `domain/shared.test.ts` | 26 (moduli condivisi con le Edge Function: calendario, zone e struttura, conversione per Intervals.icu, classificazione della sincronizzazione) |
 | `services/claude.test.ts` | 3 (lettura del JSON nella risposta di Claude) |
 | `services/intervals.test.ts` | 3 (finestra di sincronizzazione del carico) |
-| `services/planPrompt.test.ts` | 7 (template, calendario, percentuali, dati esclusi dal contesto, segnaposto nei dati) |
+| `services/planPrompt.test.ts` | 9 (istruzioni fisse e preferenze del coach, messaggio, calendario, percentuali, dati esclusi dal contesto, segnaposto nei dati, testo per l'invio manuale) |
 | `stores/auth.test.ts` | 5 |
 
 Questo conteggio descrive solo lo stato corrente; l'evoluzione nel tempo è nel [CHANGELOG.md](../CHANGELOG.md), non qui.
@@ -78,7 +78,7 @@ Gli esiti finiscono in `test-results/`, non tracciata.
 
 Le funzioni in `supabase/functions/` si pubblicano sul progetto Supabase. Il CLI non è nel repository: si usa la dashboard oppure lo strumento di deploy del MCP Supabase. `intervals-sync` importa i moduli di `functions/_shared/workouts/`; `weekly-feedback` quelli di `functions/_shared/feedback/` e `functions/_shared/workouts/` (calendario e struttura) e il mittente email. Vanno pubblicati insieme alla funzione, con nomi relativi (`../_shared/...`). Il CLI Deno non è installato: i tipi delle funzioni si controllano con `tsc` usando un'interfaccia minima per `Deno`, e la logica vive nei moduli condivisi, testati con Vitest.
 
-L'ordine conta: prima le migrazioni (`supabase/migrations/`, in ordine numerico), poi le funzioni che leggono le nuove tabelle (`weekly-feedback`, `intervals-sync`).
+L'ordine conta: prima le migrazioni (`supabase/migrations/`, in ordine numerico), poi le funzioni che leggono le nuove tabelle o colonne, infine l'app. `claude-proxy` e `weekly-feedback` importano anche `functions/_shared/claude/models.ts`.
 
 ## Build
 

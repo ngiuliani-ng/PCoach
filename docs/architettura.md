@@ -60,6 +60,7 @@ supabase/
   functions/_shared/          EmailSender astratto + implementazione Resend
   functions/_shared/workouts/ Moduli puri condivisi con l'app (alias @shared): calendario, struttura della seduta, conversione per Intervals.icu, classificazione della sincronizzazione
   functions/_shared/feedback/ Moduli puri del feedback: parametri, periodo, normalizzazione, abbinamento, contratto, output di Claude, pipeline a stati
+  functions/_shared/claude/   Elenco dei modelli Claude ammessi (app, claude-proxy, weekly-feedback)
   migrations/0001_enable_rls.sql  is_coach() + policy RLS su athletes/app_settings
   migrations/0002_move_is_coach_private.sql  sposta is_coach() nello schema private (non esposto)
   migrations/0003_baseline_tables.sql  definizione versionata di athletes e app_settings
@@ -67,6 +68,7 @@ supabase/
   migrations/0005_remove_legacy_import.sql  rimozione dell'import dei piani salvati nella scheda (concluso)
   migrations/0006_generation_kind_continue.sql  tipo di generazione «continue» (prosecuzione del piano)
   migrations/0007_weekly_reviews.sql  valutazioni settimanali, rigenerazione, soglie del feedback
+  migrations/0008_generation_trace.sql  tracciabilità delle generazioni, rifiuto delle date passate, claude_key_configured
 .github/workflows/deploy.yml  Build + pubblicazione su GitHub Pages
 ```
 
@@ -129,8 +131,10 @@ Il salvataggio scrive comunque l'intero blob `data`, ma l'update è condizionato
 **Generazione e rigenerazione delle sedute**
 ```
 PlanTab → RegenerateDialog: data di ripartenza, settimane, motivo, sedute da mantenere
-  → plan_generations (status proposed)
-  → services/planPrompt.ts → services/claude.ts → claude-proxy → api.anthropic.com
+  → services/planPrompt.ts: istruzioni (regole fisse + preferenze del coach) e messaggio (dati calcolati)
+  → plan_generations (status proposed, con il prompt inviato)
+  → services/claude.ts → claude-proxy → api.anthropic.com
+  → modello effettivo, stop_reason e token salvati nella generazione
   → risposta salvata nella generazione → domain/regeneration.ts parseProposal (date nel periodo, metrica per disciplina)
   → anteprima: regenerationDiff (mantenute, sostituite, aggiunte, tolte)
   → conferma del coach → rpc apply_plan_generation (una transazione)
@@ -140,7 +144,7 @@ La funzione SQL:
 - segna come «sostituite» le sedute non mantenute, che restano nello storico;
 - inserisce le nuove sedute come bozze.
 
-Rifiuta l'applicazione se nel frattempo una seduta è cambiata, se una seduta dalla data di ripartenza non è classificata, o se la proposta è già stata applicata. Nulla prima della data di ripartenza viene toccato e le sedute svolte restano sempre.
+Rifiuta l'applicazione se nel frattempo una seduta è cambiata, se una seduta dalla data di ripartenza non è classificata, se la proposta è già stata applicata o se la data di ripartenza è ormai passata. Nulla prima della data di ripartenza viene toccato e le sedute svolte restano sempre.
 
 Se non è configurata una chiave Claude, il prompt viene copiato negli appunti e la risposta si incolla nel dialogo. Dettagli in [backend.md](backend.md#funzioni-sql-delle-sedute) e [integrazioni.md](integrazioni.md#claude-generazione-delle-sedute).
 
