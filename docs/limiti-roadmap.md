@@ -54,4 +54,9 @@ Limiti noti dell'analisi ([decisioni/0019](decisioni/0019-feedback-analisi-deter
 - **Dati soggettivi del benessere**: fatica, dolore, stress e umore inseriti su Intervals.icu non sono usati, perché la direzione delle loro scale non è stata verificata. Si usano RPE, HRV, frequenza a riposo e sonno.
 - **Attività importate da Strava**: via API arrivano senza dati, quindi le sedute di quei giorni risultano «dato non disponibile».
 - **Soglie operative**: le soglie di classificazione sono regole pratiche modificabili in Impostazioni, non valori fisiologici.
+- **Soglie d'intensità e sistema di zone**: «Intensità bassa fino alla zona» e «Intensità media fino alla zona» valgono per tutti gli atleti e non seguono il loro sistema di zone ([decisioni/0025](decisioni/0025-sistema-di-zone-e-dati-personali-a-claude.md)). Con 3 zone, la Z3 conta come intensità media.
+
+## Zone del nuoto
+
+Il nuoto non ha un sistema di zone proprio nella scheda: le sue sedute usano fino a 7 zone.
 

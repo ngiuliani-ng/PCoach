@@ -418,3 +418,46 @@ Scelte tecniche conseguenti (mie, da confermare):
 - la riduzione dei dati personali (D-UX-7) riguarda la generazione: il feedback settimanale invia già solo il nome di battesimo (`display_name` da `identity.nome`, `pipeline.ts`), come verificato durante l'implementazione; una prima stesura di questa riga diceva il contrario;
 - il nuoto, che non ha un `zone_system`, resta a 7 zone;
 - le soglie del feedback «Intensità bassa fino alla zona» e «Intensità media fino alla zona» restano globali e non seguono il sistema di zone dell'atleta: è un punto aperto, da decidere.
+
+## 16. Resoconto dell'implementazione (11 ottobre 2026)
+
+Commit dell'implementazione, ognuno con il codice e poi i documenti (ADR 0023-0027):
+
+| Fase | Commit | Problemi risolti |
+|---|---|---|
+| 1. Sicurezza dei dati e navigazione | `8d1a316`, `6fc0f98` | U-01, U-02, U-07, U-14, U-19, U-27; toast d'errore sopra il piede dei pannelli, emerso dai nuovi test |
+| 2a. Interfaccia coerente con i dati usati | `1bae113`, `79aca28` | U-03, U-04, U-05, U-06, U-09, U-11, U-17, U-18 |
+| 2b. Zone e dati personali verso Claude | `645e3d9`, `704c90e` | U-10 (reso efficace, D-UX-3), U-13 (D-UX-7); prompt 2.3.0 |
+| 3. Mobile e PWA | `37801af`, `e96ba95` | U-15, U-20, U-22, U-23 |
+| 4. Aiuti contestuali | `f915468`, `b91ca10` | §8, U-13 (dichiarazione dei dati inviati) |
+| 5. Design system e accessibilità | `2aa59a5`, `be5f669` | U-12, U-16, U-21, U-25, U-26, U-31 |
+
+**Verifiche eseguite** sull'ultimo commit (`be5f669`):
+- `vue-tsc -b` senza errori, build di produzione riuscita;
+- 153 test unitari in 16 file;
+- 38 test end-to-end, desktop e mobile, su backend finto. Le riproduzioni dell'audit sono diventate test permanenti in `navigation.spec.ts` e `coherence.spec.ts`;
+- `tsc` delle Edge Function con un'interfaccia minima di Deno, senza errori.
+
+**Verifiche visive**:
+- le misure del §4 ripetute sulla versione finale a 320, 375, 430, 768, 1280 e 1440 px: su 59 schermate nessuno scorrimento orizzontale, nessun controllo senza nome o etichetta;
+- con emulazione touch a 320-768 px nessun campo sotto i 16px. Tutti i controlli sono alti almeno 44px, salvo i due `<summary>` (36-37px), sopra il minimo AA.
+
+Sono ancora simulazioni in Chromium, non verifiche su dispositivo.
+
+**Rispetto ai criteri di accettazione del §12**:
+- nessuna modifica si perde senza una scelta: verificato;
+- un salvataggio fallito resta visibile e ripetibile: verificato;
+- dalle Impostazioni si torna all'atleta: verificato;
+- i valori usati dalla generazione sono quelli salvati: verificato;
+- i campi tecnici non accettano valori ignorati o bloccanti: verificato per schema di carico e fuso orario;
+- un ricaricamento torna alla stessa vista e «indietro» chiude pannelli e dialoghi: verificato;
+- campi a 16px e bersagli da 44px al tocco: verificato in emulazione;
+- aiuti coerenti con il prompt: verificato da test;
+- contrasti verificati da test: sì.
+
+**Non fatto o ancora aperto**:
+- **U-28** (linter): non introdotto. Aggiungere ESLint con le regole per Vue richiede di correggere o accettare le segnalazioni su tutto il codice: va pianificato a parte.
+- **Soglie d'intensità del feedback**: sono globali e non seguono il sistema di zone dell'atleta (vedi [limiti-roadmap.md](../../limiti-roadmap.md)). Serve una decisione del coach.
+- **Verifica su dispositivo**: iPhone (zoom, standalone, tastiera), Android (rotazione e «indietro» nella PWA installata), lettore di schermo. Non eseguita.
+- **Pubblicazione**: le modifiche sono solo nei commit locali, perché pubblicare richiede la conferma del coach. La Edge Function `weekly-feedback` va ripubblicata per il ripiego del fuso orario (`safeTimeZone`).
+- **Avviso di Vite**: il bundle supera di poco i 500 kB per l'aggiunta di `vue-router`. È solo un avviso: la suddivisione del codice è un'ottimizzazione possibile, non necessaria.
