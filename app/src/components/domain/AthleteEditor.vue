@@ -14,8 +14,9 @@ import {
   OBJECTIVE_OPTIONS, SHARED_OBJECTIVE_OPTIONS, EVENT_DISCIPLINE_OPTIONS, EVENT_PRIORITIES,
   LIFESTYLE_FACTOR_OPTIONS, DAY_LABELS, RUN_THRESHOLD_FIELDS, BIKE_THRESHOLD_FIELDS, SWIM_THRESHOLD_FIELDS,
   PERIODIZATION_LABELS,
-  fullName, formatDate, disciplineIcon, disciplineLabel, todayISO
+  fullName, formatDate, disciplineIcon, disciplineLabel, todayISO, numOrNull
 } from "../../constants";
+import { DEFAULT_TAPER_WEEKS } from "../../domain/planWeeks";
 import { addDaysISO, weekStartISO } from "@shared/workouts/calendar.ts";
 import { showToast, showResultToast } from "../../composables/useToast";
 import { confirmDialog } from "../../composables/useConfirmDialog";
@@ -523,6 +524,19 @@ function onExport() {
               </label>
               <label class="field"><span class="field-label">Risultato target</span><input type="text" v-model="ev.target_result" /></label>
             </div>
+            <div class="field-row">
+              <label class="field">
+                <span class="field-label">Settimane di tapering</span>
+                <input type="number" min="0" max="4" step="1" :placeholder="String(DEFAULT_TAPER_WEEKS[ev.priority ?? 'C'] ?? 0)"
+                  :value="ev.taper_weeks ?? ''" @input="ev.taper_weeks = numOrNull(($event.target as HTMLInputElement).value) ?? undefined" />
+              </label>
+              <label class="field">
+                <span class="field-label">Calo del volume nel tapering (%)</span>
+                <input type="number" min="0" max="80" step="1" placeholder="lo decide Claude"
+                  :value="ev.taper_volume_decrease_pct ?? ''" @input="ev.taper_volume_decrease_pct = numOrNull(($event.target as HTMLInputElement).value) ?? undefined" />
+              </label>
+            </div>
+            <p class="helper-text">Prima della settimana di gara PCoach pianifica le settimane di tapering indicate (vuoto: A 2, B 1, C 0) e sospende il ciclo di carico; dopo una gara A il ciclo riparte da «carico 1».</p>
           </div>
           <button type="button" class="add-row" @click="addTargetEvent"><Plus :size="16" aria-hidden="true" />Aggiungi evento</button>
         </template>

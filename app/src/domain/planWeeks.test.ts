@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { continueFromDate, cycleAnchor, parseLoadPattern, planWeeks, withPhases } from "./planWeeks";
+import { continueFromDate, cycleAnchor, DEFAULT_TAPER_WEEKS, parseLoadPattern, planWeeks, raceEvents, withPhases } from "./planWeeks";
+import { planningCalendar } from "./availability";
+import { loadProgressionOf } from "@shared/feedback/params.ts";
 
 const pattern = parseLoadPattern("3:1");
 
@@ -66,5 +68,43 @@ describe("prosecuzione del piano", () => {
     expect(continueFromDate("2026-11-08", ["2026-11-12"], "2026-10-11")).toBe("2026-11-13");
     expect(continueFromDate("2026-10-04", [], "2026-10-11")).toBe("2026-10-12");
     expect(continueFromDate(null, [], "2026-10-11")).toBe("2026-10-12");
+  });
+});
+
+describe("gare e tapering (D-03)", () => {
+  const maratona = { name: "Maratona", date: "2026-11-01", priority: "A" as const };
+
+  it("tapering predefinito per priorita', o quello indicato per la gara", () => {
+    const races = raceEvents([maratona, { name: "Mezza", date: "2026-10-25", priority: "B" }, { name: "10 km", date: "2026-10-18", priority: "C" }, { name: "Senza data", priority: "A" }, { ...maratona, taper_weeks: 3, taper_volume_decrease_pct: 40 }]);
+    expect(races.map((r) => [r.name, r.taperWeeks, r.taperDecreasePct])).toEqual([["10 km", 0, null], ["Mezza", 1, null], ["Maratona", 2, null], ["Maratona", 3, 40]]);
+    expect(DEFAULT_TAPER_WEEKS).toEqual({ A: 2, B: 1, C: 0 });
+  });
+
+  it("gara A: tapering, settimana di gara con il ciclo sospeso, poi il ciclo riparte da carico 1", () => {
+    const weeks = planWeeks("2026-10-12", 4, pattern, null, raceEvents([maratona]));
+    expect(weeks.map((w) => [w.phase, w.cycleWeek, w.isDeload, w.weeksToRace ?? null])).toEqual([
+      ["tapering", null, true, 2], ["tapering", null, true, 1], ["gara", null, true, null], ["carico 1 di 3", 1, false, null]
+    ]);
+    const meta = withPhases([], weeks);
+    expect(meta[2]).toEqual({ week_start: "2026-10-26", label: "Gara", is_deload: true });
+  });
+
+  it("gara B: il ciclo resta sospeso durante tapering e gara e poi prosegue", () => {
+    const weeks = planWeeks("2026-10-12", 4, pattern, null, raceEvents([{ name: "Mezza", date: "2026-10-25", priority: "B" }]));
+    expect(weeks.map((w) => w.phase)).toEqual(["tapering", "gara", "carico 1 di 3", "carico 2 di 3"]);
+  });
+
+  it("il calendario indica il giorno della gara e la riduzione del tapering", () => {
+    const weeks = planWeeks("2026-10-12", 3, pattern, null, raceEvents([{ ...maratona, taper_volume_decrease_pct: 40 }]));
+    const cal = planningCalendar(null, "2026-10-12", "2026-11-01", weeks, loadProgressionOf(null));
+    expect(cal.find((d) => d.data === "2026-11-01")).toMatchObject({ fase: "gara", gara: "Maratona (priorità A)" });
+    expect(cal.find((d) => d.data === "2026-10-31")?.gara).toBeUndefined();
+    expect(cal[0].variazione_carico).toBe("tapering: volume −40% rispetto all'ultima settimana di carico, 2 settimane alla settimana della gara «Maratona» (2026-11-01)");
+  });
+
+  it("una gara A passata dopo l'ancora fa ripartire il ciclo", () => {
+    const anchor = cycleAnchor([{ week_start: "2026-09-28", label: "", is_deload: false, cycle_week: 2 }], "2026-10-19");
+    const weeks = planWeeks("2026-10-19", 2, pattern, anchor, raceEvents([{ name: "Gara", date: "2026-10-11", priority: "A" }]));
+    expect(weeks.map((w) => w.phase)).toEqual(["carico 2 di 3", "carico 3 di 3"]);
   });
 });

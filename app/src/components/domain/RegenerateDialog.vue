@@ -17,10 +17,11 @@ import { addDaysISO, DEFAULT_PLAN_PREFERENCES, formatDate, todayISO } from "../.
 import { buildPlanPrompt, promptAsText } from "../../services/planPrompt";
 import { callClaudeProxy, copyToClipboardFallback, extractJsonBlock } from "../../services/claude";
 import { hasFtp } from "../../domain/athlete";
-import { continueFromDate, cycleAnchor, MAX_PLAN_WEEKS, parseLoadPattern, planMaxTokens, planWeeks } from "../../domain/planWeeks";
+import { continueFromDate, cycleAnchor, MAX_PLAN_WEEKS, parseLoadPattern, planMaxTokens, planWeeks, raceEvents } from "../../domain/planWeeks";
 import type { DiffDay, Proposal } from "../../domain/regeneration";
 import { buildApplyPayload, defaultKeep, diffCounts, isForcedKeep, parseProposal, regenerationCandidates, regenerationDiff } from "../../domain/regeneration";
 import { workoutTotals } from "@shared/workouts/structure.ts";
+import { loadProgressionOf } from "@shared/feedback/params.ts";
 import { formatMinutes } from "../../domain/workoutState";
 import { ChevronLeft, LoaderCircle, Sparkles, X } from "lucide-vue-next";
 
@@ -104,14 +105,17 @@ const recentWorkouts = computed(() =>
 
 // Vincoli dell'atleta e sedute mantenute: la proposta viene ricontrollata contro entrambi.
 function parseOptions(from: string, w: number) {
-  return { fromDate: from, weeks: w, hasFtp: hasFtp(profile.value), constraints: profile.value.constraints, fixed: keptWorkouts.value, planWeeks: weeksOfPlan(from, w) };
+  return {
+    fromDate: from, weeks: w, hasFtp: hasFtp(profile.value), constraints: profile.value.constraints, fixed: keptWorkouts.value,
+    planWeeks: weeksOfPlan(from, w), progression: loadProgressionOf(profile.value.methodology_preferences)
+  };
 }
 
 // Numero e fase del ciclo di carico e scarico di ogni settimana, calcolati qui e non da Claude:
 // il ciclo prosegue da quello del piano attivo (ripianificazione o finestra successiva).
 function weeksOfPlan(from: string, w: number) {
   const pattern = parseLoadPattern(profile.value.methodology_preferences?.load_deload_pattern);
-  return planWeeks(from, w, pattern, cycleAnchor(store.activePlan?.weeks_meta, from));
+  return planWeeks(from, w, pattern, cycleAnchor(store.activePlan?.weeks_meta, from), raceEvents(profile.value.goals?.target_events));
 }
 
 function candidateReason(w: (typeof candidates.value)[number]): string {

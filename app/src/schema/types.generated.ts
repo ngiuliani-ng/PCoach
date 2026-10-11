@@ -210,6 +210,14 @@ export interface AthleteTrainingProfile {
       distance_or_duration?: string;
       priority?: "A" | "B" | "C";
       target_result?: string;
+      /**
+       * Settimane di tapering prima della settimana di gara. Se assente vale il predefinito per priorità: A 2, B 1, C 0.
+       */
+      taper_weeks?: number;
+      /**
+       * Calo del volume nelle settimane di tapering rispetto all'ultima settimana di carico, in %. Se assente, la riduzione la decide Claude.
+       */
+      taper_volume_decrease_pct?: number;
       [k: string]: unknown;
     }[];
     [k: string]: unknown;

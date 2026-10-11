@@ -123,7 +123,7 @@ export interface PlanPromptInput {
 }
 
 /** Versione delle istruzioni fisse e della forma del messaggio: salvata con ogni generazione. */
-export const PLAN_PROMPT_VERSION = "2.1.0";
+export const PLAN_PROMPT_VERSION = "2.2.0";
 
 // Regole e formato fissi nel codice (ADR 0020, decisione del coach D-01): il coach modifica solo le
 // preferenze metodologiche, che non possono togliere a Claude i dati dell'atleta, i vincoli o il formato.
@@ -136,6 +136,7 @@ Regole:
 - Rispetta il numero di sedute a settimana dell'atleta (constraints.sessions_per_week_target), se indicato.
 - Rispetta la distribuzione dell'intensità scelta per l'atleta (methodology_preferences.intensity_distribution_model).
 - Rispetta la fase di ogni settimana e la variazione di carico indicate nel calendario ("fase", "variazione_carico"), in ogni disciplina: le percentuali sono quelle scelte dal coach per questo atleta.
+- Le settimane con fase "tapering" o "gara" preparano la gara indicata nel calendario (campo "gara" nel giorno della gara): rispetta la variazione di carico indicata e non pianificare altre sedute nel giorno della gara.
 - Le sedute già fissate nel periodo non vanno ripetute né spostate: pianifica intorno a queste, tenendone conto nel carico.
 - "recent_workouts" e "recent_reviews" descrivono com'è andato il periodo precedente, con dati calcolati da PCoach (esiti, minuti svolti, RPE, scostamenti di volume): usali per calibrare il carico, senza ricalcolarli. "nessuna attività registrata" non significa che l'atleta non si sia allenato.
 

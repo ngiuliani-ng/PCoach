@@ -15,6 +15,7 @@ import { showToast } from "../../composables/useToast";
 import { disciplineIcon, disciplineLabel, formatDate, todayISO } from "../../constants";
 import { TARGET_LABELS, activitySummary, formatMinutes, formatMeters, execState, isPartlyDone } from "../../domain/workoutState";
 import { hasFtp } from "../../domain/athlete";
+import { availabilityIssues } from "../../domain/availability";
 import StepEditor from "./StepEditor.vue";
 import StructureBar from "./StructureBar.vue";
 import WorkoutBadges from "./WorkoutBadges.vue";
@@ -69,14 +70,23 @@ function onDisciplineChange(value: string) {
   }
 }
 
+// Disponibilita' dell'atleta ricontrollata sulla seduta modificata, con le altre sedute attive del giorno.
+function availabilityIssue(): string | null {
+  const sameDay = store.workouts.filter((w) => w.id !== props.workoutId && w.planned_date === draft.planned_date && (w.status === "draft" || w.status === "approved"));
+  return availabilityIssues([...sameDay, draft], athletes.athletes[original.value.athlete_id]?.constraints).get(sameDay.length) ?? null;
+}
+
 async function save(approve: boolean) {
   if (hasErrors.value || saving.value) return;
+  const issue = availabilityIssue();
+  // Approvare con un vincolo non rispettato e' una scelta del coach, chiesta esplicitamente.
+  if (approve && issue && !(await confirmDialog(`${issue} Approvarla comunque?`, { confirmLabel: "Approva comunque", cancelLabel: "Continua a modificare" }))) return;
   saving.value = true;
   const patch: Record<string, unknown> = { ...clone(contentOf(draft)), locked: draft.locked };
   if (draft.planned_date !== original.value.planned_date) patch.slot = store.freeSlot(draft.planned_date, props.workoutId);
   if (approve) patch.status = "approved";
-  // Una seduta corretta dal coach non ha piu' bisogno di verifica.
-  if (original.value.needs_review && !hasErrors.value) patch.needs_review = null;
+  // Struttura valida: resta da verificare solo un vincolo di disponibilita' non rispettato, salvo approvazione.
+  patch.needs_review = approve ? null : issue;
   const result = await store.update(props.workoutId, patch);
   saving.value = false;
   if (!result.ok) {

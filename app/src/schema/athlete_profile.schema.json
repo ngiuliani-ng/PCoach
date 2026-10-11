@@ -208,7 +208,9 @@
               "discipline": { "type": "string", "enum": ["running", "cycling", "swimming", "triathlon", "other"], "description": "Qui 'triathlon' è corretto: è una categoria di evento, non un bucket di volume di allenamento." },
               "distance_or_duration": { "type": "string" },
               "priority": { "type": "string", "enum": ["A", "B", "C"] },
-              "target_result": { "type": "string" }
+              "target_result": { "type": "string" },
+              "taper_weeks": { "type": "integer", "minimum": 0, "maximum": 4, "description": "Settimane di tapering prima della settimana di gara. Se assente vale il predefinito per priorità: A 2, B 1, C 0." },
+              "taper_volume_decrease_pct": { "type": "number", "minimum": 0, "maximum": 80, "description": "Calo del volume nelle settimane di tapering rispetto all'ultima settimana di carico, in %. Se assente, la riduzione la decide Claude." }
             }
           }
         }

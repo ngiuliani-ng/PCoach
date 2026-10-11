@@ -52,6 +52,8 @@ export interface CalendarDay {
   fase?: string;
   /** Variazione di carico attesa in quella settimana, con le percentuali dell'atleta. */
   variazione_carico?: string;
+  /** Gara in programma quel giorno (nome e priorita'). */
+  gara?: string;
 }
 
 /** Calendario del periodo da passare a Claude: ogni data con giorno, vincoli e, se note,
@@ -69,7 +71,8 @@ export function planningCalendar(constraints: Constraints, fromDate: string, toD
       durata_massima_min: rule?.maxMinutes ?? null,
       attivita_abituale: rule?.usual ?? "",
       ...(week ? { settimana: week.number, fase: week.phase } : {}),
-      ...(week && progression && loadChangeText(week, progression) ? { variazione_carico: loadChangeText(week, progression) } : {})
+      ...(week && progression && loadChangeText(week, progression) ? { variazione_carico: loadChangeText(week, progression) } : {}),
+      ...(week?.race && week.phase === "gara" && week.race.date === date ? { gara: `${week.race.name} (priorità ${week.race.priority})` } : {})
     };
   });
 }

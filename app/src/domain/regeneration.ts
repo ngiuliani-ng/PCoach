@@ -8,7 +8,9 @@
 //    in un'unica transazione.
 import { addDaysISO, dayKey, isISODate, weekStartISO } from "@shared/workouts/calendar.ts";
 import type { Discipline, WorkoutContent } from "@shared/workouts/structure.ts";
-import { defaultTargetMetric, isDiscipline } from "@shared/workouts/structure.ts";
+import { defaultTargetMetric, isDiscipline, validateWorkout } from "@shared/workouts/structure.ts";
+import type { LoadProgression } from "@shared/feedback/params.ts";
+import { weeklyIssues } from "./planChecks";
 import type { AthleteTrainingProfile } from "../schema/types.generated";
 import { alignToDay, availabilityIssues, isDayKey } from "./availability";
 import { withPhases, type PlanWeek, type StoredWeekMeta } from "./planWeeks";
@@ -49,6 +51,8 @@ export interface ParseOptions {
   fixed?: Pick<WorkoutContent, "planned_date" | "discipline" | "structure" | "duration_min">[];
   /** Settimane del periodo con le fasi del ciclo: scarico e settimana del ciclo vengono da qui. */
   planWeeks?: PlanWeek[];
+  /** Progressione del carico dell'atleta, per i controlli sulle settimane (D-02). */
+  progression?: LoadProgression;
 }
 
 export function parseProposal(raw: unknown, opts: ParseOptions): Proposal | { error: string } {
@@ -108,6 +112,23 @@ export function parseProposal(raw: unknown, opts: ParseOptions): Proposal | { er
       }
     });
     if (flagged) warnings.push(`${flagged === 1 ? "Una seduta non rispetta" : `${flagged} sedute non rispettano`} la disponibilità dell'atleta: ${flagged === 1 ? "è segnata" : "sono segnate"} da verificare.`);
+  }
+
+  // Struttura incompleta (step senza durata o zona, seduta senza step): da verificare, non scartata.
+  let incomplete = 0;
+  for (const w of workouts) {
+    if (w.needs_review) continue;
+    const first = Object.values(validateWorkout(w))[0];
+    if (first) {
+      w.needs_review = `Struttura da completare: ${first}`;
+      incomplete++;
+    }
+  }
+  if (incomplete) warnings.push(`${incomplete === 1 ? "Una seduta ha" : `${incomplete} sedute hanno`} una struttura da completare: ${incomplete === 1 ? "è segnata" : "sono segnate"} da verificare.`);
+
+  // Settimane: numero di sedute e variazione di volume rispetto alla fase (D-02, solo avvisi).
+  if (opts.planWeeks && opts.progression) {
+    warnings.push(...weeklyIssues(opts.planWeeks, [...(opts.fixed ?? []), ...workouts], opts.constraints?.sessions_per_week_target, opts.progression));
   }
 
   // Una voce per settimana, anche se Claude ne ripete una.

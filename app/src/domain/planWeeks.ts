@@ -4,7 +4,7 @@
 // calendario: Claude non deve ricavarla da solo. Il ciclo e' ancorato al piano attivo (`cycle_week`
 // salvato in weeks_meta), cosi' una generazione successiva o una ripianificazione a meta' ciclo
 // prosegue dalla settimana giusta invece di ripartire da "carico 1".
-import { addDaysISO, dayIndex, daysBetween, weekStartISO } from "@shared/workouts/calendar.ts";
+import { addDaysISO, dayIndex, daysBetween, isISODate, weekStartISO } from "@shared/workouts/calendar.ts";
 import type { LoadProgression } from "@shared/feedback/params.ts";
 
 /** Settimane massime per generazione: un ciclo 3:1 intero. Claude scrive circa 25-30 s per
@@ -56,6 +56,33 @@ export function cycleAnchor(meta: StoredWeekMeta[] | null | undefined, fromDate:
   return last ? { weekStart: last.week_start, cycleWeek: last.cycle_week! } : null;
 }
 
+/** Gara dell'atleta con il suo tapering (decisione del coach D-03, ADR 0022). */
+export interface RaceEvent {
+  date: string;
+  name: string;
+  priority: string;
+  /** Settimane di tapering prima della settimana di gara. */
+  taperWeeks: number;
+  /** Calo del volume nel tapering rispetto all'ultima settimana di carico; null = lo decide Claude. */
+  taperDecreasePct: number | null;
+}
+
+/** Settimane di tapering predefinite per priorita', se la gara non le indica. */
+export const DEFAULT_TAPER_WEEKS: Record<string, number> = { A: 2, B: 1, C: 0 };
+
+/** Gare valide della scheda (data ISO), con i default di tapering per priorita'. */
+export function raceEvents(events: { date?: string; name?: string; priority?: string; taper_weeks?: number; taper_volume_decrease_pct?: number }[] | null | undefined): RaceEvent[] {
+  return (events ?? [])
+    .filter((e) => isISODate(e.date))
+    .map((e) => {
+      const priority = e.priority ?? "C";
+      const weeks = typeof e.taper_weeks === "number" && Number.isInteger(e.taper_weeks) && e.taper_weeks >= 0 && e.taper_weeks <= 4 ? e.taper_weeks : DEFAULT_TAPER_WEEKS[priority] ?? 0;
+      const pct = typeof e.taper_volume_decrease_pct === "number" && e.taper_volume_decrease_pct > 0 && e.taper_volume_decrease_pct <= 80 ? e.taper_volume_decrease_pct : null;
+      return { date: e.date as string, name: (e.name ?? "").trim() || "gara", priority, taperWeeks: weeks, taperDecreasePct: pct };
+    })
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
 export interface PlanWeek {
   /** 0 per i pochi giorni prima del primo lunedi' (raccordo), poi dalla 1. */
   number: number;
@@ -64,10 +91,14 @@ export interface PlanWeek {
   /** Primo e ultimo giorno della settimana dentro il periodo pianificato. */
   from: string;
   to: string;
-  /** "carico 2 di 3", "scarico", "raccordo", oppure "" senza uno schema riconoscibile. */
+  /** "carico 2 di 3", "scarico", "raccordo", "tapering", "gara", oppure "" senza uno schema riconoscibile. */
   phase: string;
   isDeload: boolean;
   cycleWeek: number | null;
+  /** Gara a cui si riferiscono le settimane di tapering e di gara (il ciclo e' sospeso). */
+  race?: RaceEvent;
+  /** Settimane mancanti alla settimana di gara, per il tapering (1 = quella prima della gara). */
+  weeksToRace?: number;
 }
 
 /**
@@ -75,28 +106,50 @@ export interface PlanWeek {
  * e' la 1; se inizia da venerdi' a domenica, quei giorni sono un raccordo (settimana 0) e la 1 parte
  * dal lunedi' successivo. Il ciclo prosegue dall'ancora del piano attivo se c'e', altrimenti parte
  * dalla settimana 1 (e il raccordo resta fuori dal ciclo).
+ *
+ * Gare (D-03): la settimana che contiene una gara e' «gara», le `taperWeeks` precedenti sono «tapering».
+ * In quelle settimane il ciclo e' sospeso (non avanza); dopo una gara di priorita' A riparte da
+ * «carico 1». Una gara A gia' passata fra l'ancora e l'inizio del periodo fa ripartire il ciclo.
  */
-export function planWeeks(fromDate: string, weeks: number, pattern: LoadPattern | null, anchor: CycleAnchor | null = null): PlanWeek[] {
+export function planWeeks(fromDate: string, weeks: number, pattern: LoadPattern | null, anchor: CycleAnchor | null = null, races: RaceEvent[] = []): PlanWeek[] {
   const toDate = addDaysISO(fromDate, weeks * 7 - 1);
   const firstMonday = weekStartISO(fromDate);
   const offset = dayIndex(fromDate) <= 3 ? 1 : 0;
-  const base = anchor ?? { weekStart: offset ? firstMonday : addDaysISO(firstMonday, 7), cycleWeek: 1 };
+  let base = anchor ?? { weekStart: offset ? firstMonday : addDaysISO(firstMonday, 7), cycleWeek: 1 };
+  const pastA = races.filter((r) => r.priority === "A" && anchor && weekStartISO(r.date) > anchor.weekStart && weekStartISO(r.date) < firstMonday).at(-1);
+  if (pastA) base = { weekStart: addDaysISO(weekStartISO(pastA.date), 7), cycleWeek: 1 };
+  let paused = 0;
   const result: PlanWeek[] = [];
   for (let start = firstMonday; start <= toDate; start = addDaysISO(start, 7)) {
     const number = daysBetween(firstMonday, start) / 7 + offset;
+    const end = addDaysISO(start, 6);
+    const range = { number, weekStart: start, from: start < fromDate ? fromDate : start, to: end > toDate ? toDate : end };
+    const raceWeek = races.find((r) => weekStartISO(r.date) === start);
+    const taper = !raceWeek
+      ? races.map((r) => ({ r, k: daysBetween(start, weekStartISO(r.date)) / 7 })).find(({ r, k }) => k >= 1 && k <= r.taperWeeks)
+      : undefined;
+    if (raceWeek || taper) {
+      const race = raceWeek ?? taper!.r;
+      result.push({ ...range, phase: raceWeek ? "gara" : "tapering", isDeload: true, cycleWeek: null, race, ...(taper ? { weeksToRace: taper.k } : {}) });
+      paused++;
+      if (raceWeek?.priority === "A") {
+        base = { weekStart: addDaysISO(start, 7), cycleWeek: 1 };
+        paused = 0;
+      }
+      continue;
+    }
     let phase = "";
     let isDeload = false;
     let cycleWeek: number | null = null;
     if (number === 0 && !anchor) phase = "raccordo";
     else if (pattern) {
       const length = pattern.load + pattern.deload;
-      const pos = (((base.cycleWeek - 1 + daysBetween(base.weekStart, start) / 7) % length) + length) % length;
+      const pos = (((base.cycleWeek - 1 + daysBetween(base.weekStart, start) / 7 - paused) % length) + length) % length;
       cycleWeek = pos + 1;
       isDeload = pos >= pattern.load;
       phase = isDeload ? "scarico" : `carico ${pos + 1} di ${pattern.load}`;
     }
-    const end = addDaysISO(start, 6);
-    result.push({ number, weekStart: start, from: start < fromDate ? fromDate : start, to: end > toDate ? toDate : end, phase, isDeload, cycleWeek });
+    result.push({ ...range, phase, isDeload, cycleWeek });
   }
   return result;
 }
@@ -115,6 +168,11 @@ export function continueFromDate(planEnd: string | null | undefined, activeDates
 /** Variazione di carico attesa in una settimana, con le percentuali scelte per l'atleta. */
 export function loadChangeText(w: PlanWeek, p: LoadProgression): string {
   if (w.phase === "raccordo") return "settimana leggera";
+  if (w.race && w.phase === "gara") return `settimana della gara «${w.race.name}» (${w.race.date}, priorità ${w.race.priority})`;
+  if (w.race && w.phase === "tapering") {
+    const left = `${w.weeksToRace} ${w.weeksToRace === 1 ? "settimana" : "settimane"} alla settimana della gara «${w.race.name}» (${w.race.date})`;
+    return w.race.taperDecreasePct !== null ? `tapering: volume −${w.race.taperDecreasePct}% rispetto all'ultima settimana di carico, ${left}` : `tapering: volume in calo, ${left}`;
+  }
   if (w.isDeload) return `volume −${p.deload_decrease_pct}% rispetto all'ultima settimana di carico`;
   if (w.cycleWeek === 1) return "inizio ciclo: carico simile alla seconda settimana di carico del ciclo precedente, o di partenza se è il primo ciclo";
   if (w.cycleWeek) return `carico +${p.increase_min_pct}-${p.increase_max_pct}% rispetto alla settimana precedente`;
@@ -134,6 +192,7 @@ export function withPhases(fromClaude: StoredWeekMeta[], all: PlanWeek[]): Store
   return all.map((w) => {
     const claude = fromClaude.find((m) => m.week_start === w.weekStart);
     const label = claude?.label || (w.phase ? w.phase[0].toUpperCase() + w.phase.slice(1) : "");
+    if (w.race) return { week_start: w.weekStart, label, is_deload: true };
     return w.cycleWeek === null
       ? { week_start: w.weekStart, label, is_deload: claude?.is_deload ?? false }
       : { week_start: w.weekStart, label, is_deload: w.isDeload, cycle_week: w.cycleWeek };
