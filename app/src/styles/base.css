@@ -394,7 +394,7 @@ input, select, textarea {
   min-height: 36px;
   padding: var(--sp-2) 10px;
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-control);
   border-radius: var(--radius-sm);
   color: var(--text);
   font-family: var(--font-ui);

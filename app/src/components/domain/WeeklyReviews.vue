@@ -124,7 +124,7 @@ async function onRegenerate(r: ReviewRecord) {
   if (r.delivery_status === "sent") {
     const ok = await confirmDialog(
       `L'atleta ha già ricevuto questo feedback${r.delivered_at ? ` il ${formatDate(r.delivered_at.slice(0, 10))}` : ""}. Rigenerandolo prepari una nuova versione da rivedere: all'approvazione sceglierai se inviarla.`,
-      { confirmLabel: "Rigenera", cancelLabel: "Annulla" }
+      { confirmLabel: "Rigenera", cancelLabel: "Annulla", tone: "primary" }
     );
     if (!ok) return;
   }

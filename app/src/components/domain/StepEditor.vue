@@ -143,6 +143,7 @@ function isRepeat(b: WorkoutBlock): b is Extract<WorkoutBlock, { kind: "repeat" 
           </div>
           <span class="step-tools" v-if="!readonly">
             <button type="button" class="icon-btn" aria-label="Sposta su" @click="move(block.steps, j, -1)"><ArrowUp :size="16" aria-hidden="true" /></button>
+            <button type="button" class="icon-btn" aria-label="Sposta giù" @click="move(block.steps, j, 1)"><ArrowDown :size="16" aria-hidden="true" /></button>
             <button type="button" class="icon-btn" aria-label="Rimuovi lo step" @click="block.steps.splice(j, 1)"><Trash2 :size="16" aria-hidden="true" /></button>
           </span>
           <p v-if="errors[`step:${i}.${j}`]" class="helper-text error-text step-error">{{ errors[`step:${i}.${j}`] }}</p>

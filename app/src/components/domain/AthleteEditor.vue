@@ -255,7 +255,8 @@ function onExport() {
       <h2>{{ fullName(profile.identity) || "Nuovo atleta" }}</h2>
       <div class="page-header-actions">
         <span v-if="athletes.isDirty" class="unsaved-badge">Modifiche non salvate</span>
-        <button type="button" class="primary" :disabled="!athletes.isDirty" @click="onSave">Salva</button>
+        <!-- Salva i dati del Profilo: fuori da quella vista compare solo se ci sono modifiche da salvare. -->
+        <button v-if="tab === 'profilo' || athletes.isDirty" type="button" class="primary" :disabled="!athletes.isDirty" @click="onSave">{{ tab === "profilo" ? "Salva" : "Salva il profilo" }}</button>
       </div>
     </header>
     <p v-if="athletes.hasRemoteUpdate" class="update-banner" role="status">

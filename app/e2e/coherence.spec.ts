@@ -68,8 +68,8 @@ test("con modifiche non salvate la generazione chiede se salvarle; Claude riceve
   await page.getByRole("dialog").getByRole("button", { name: "Genera la proposta" }).click();
   await expect.poll(() => calls.length).toBe(1);
   expect(calls[0].prompt).toContain('"sessions_per_week_target": 5');
-  // Le modifiche restano nella scheda, non salvate.
-  await expect(page.getByRole("button", { name: "Salva", exact: true })).toBeEnabled();
+  // Le modifiche restano nella scheda, non salvate: fuori dal Profilo l'header offre «Salva il profilo».
+  await expect(page.getByRole("button", { name: "Salva il profilo" })).toBeEnabled();
 });
 
 test("«Salva e genera» salva la scheda prima di aprire la generazione", async ({ page }) => {

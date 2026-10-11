@@ -5,6 +5,7 @@ import { computed } from "vue";
 import { useSettingsStore } from "../../stores/settings";
 import { DEFAULT_FEEDBACK_PARAMS, validateFeedbackParams, type FeedbackParams } from "@shared/feedback/params.ts";
 import { showResultToast } from "../../composables/useToast";
+import { confirmDialog } from "../../composables/useConfirmDialog";
 import { DEFAULT_PLAN_PREFERENCES } from "../../constants";
 import { SUPPORTED_MODELS } from "@shared/claude/models.ts";
 import { isValidTimeZone } from "@shared/feedback/period.ts";
@@ -37,6 +38,16 @@ const HOURS = Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, "0")
 const ZONES: string[] = (Intl as unknown as { supportedValuesOf?: (key: string) => string[] }).supportedValuesOf?.("timeZone") ?? ["Europe/Rome"];
 const tzValid = computed(() => isValidTimeZone(settings.settings.weekly_feedback_timezone));
 const tzOptions = computed(() => (ZONES.includes(settings.settings.weekly_feedback_timezone) ? ZONES : [settings.settings.weekly_feedback_timezone, ...ZONES]));
+
+// Le preferenze personalizzate si perdono: si chiede prima (resta possibile uscire senza salvare).
+async function resetPreferences() {
+  const current = settings.settings.plan_generation_prompt_template.trim();
+  if (current && current !== DEFAULT_PLAN_PREFERENCES.trim()) {
+    const ok = await confirmDialog("Sostituire le tue preferenze con quelle predefinite?", { confirmLabel: "Ripristina le predefinite", cancelLabel: "Mantieni le mie" });
+    if (!ok) return;
+  }
+  settings.settings.plan_generation_prompt_template = DEFAULT_PLAN_PREFERENCES;
+}
 
 function resetParams() {
   settings.settings.feedback_params = { ...DEFAULT_FEEDBACK_PARAMS };
@@ -77,7 +88,7 @@ async function onSave() {
       <h3>Preferenze per generare il piano</h3>
       <textarea v-model="settings.settings.plan_generation_prompt_template" rows="6" aria-label="Preferenze per generare il piano"></textarea>
       <FieldHelp field="settings.plan_generation_prompt_template" />
-      <button type="button" class="link-btn" @click="settings.settings.plan_generation_prompt_template = DEFAULT_PLAN_PREFERENCES">Ripristina le preferenze predefinite</button>
+      <button type="button" class="link-btn" @click="resetPreferences">Ripristina le preferenze predefinite</button>
     </section>
     <section class="block">
       <h3>Tono del feedback settimanale</h3>

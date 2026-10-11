@@ -188,6 +188,10 @@ async function startGeneration() {
   handleResponse(result.text, result.truncated);
 }
 
+async function copyPrompt() {
+  showToast((await copyToClipboardFallback(promptText.value)) ? "Prompt copiato negli appunti." : "Copia non riuscita: seleziona il testo e copialo a mano.");
+}
+
 async function handleResponse(text: string, truncated = false) {
   const id = generationId.value!;
   const raw = extractJsonBlock(text);
@@ -302,6 +306,7 @@ function dayLabel(date: string) {
 
         <template v-else-if="step === 'paste'">
           <label class="field"><span class="field-label">Prompt da incollare in Claude</span><textarea class="mono-input" rows="6" readonly :value="promptText"></textarea></label>
+          <button type="button" class="secondary" @click="copyPrompt">Copia il prompt</button>
           <label class="field"><span class="field-label">Risposta di Claude</span><textarea class="mono-input" rows="8" v-model="pastedText"></textarea></label>
         </template>
 
@@ -345,7 +350,7 @@ function dayLabel(date: string) {
           </button>
         </template>
         <template v-else-if="step === 'paste'">
-          <button type="button" class="secondary" @click="step = 'params'">Indietro</button>
+          <button type="button" class="secondary" @click="backToParams">Indietro</button>
           <button type="button" class="primary" :disabled="!pastedText.trim()" @click="handleResponse(pastedText)">Leggi la risposta</button>
         </template>
         <template v-else-if="step === 'preview'">

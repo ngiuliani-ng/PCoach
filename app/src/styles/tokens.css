@@ -3,13 +3,15 @@
   --surface: #FFFFFF;
   --surface-2: #EEF0F3;
   --border: #DDE1E7;
+  /* Bordo dei campi: almeno 3:1 con lo sfondo del campo e della pagina (WCAG 1.4.11). */
+  --border-control: #858D99;
   --text: #14181F;
   --text-muted: #626B79;
   --accent: #0F6E64;
   --accent-contrast: #FFFFFF;
   --danger: #B3261E;
   --danger-bg: #FBEAE9;
-  --warning: #9A6B07;
+  --warning: #8A5E00;
   --warning-bg: #FBF1DA;
   --focus: #0F6E64;
   /* Grafico del carico: CTL e' la linea principale (inchiostro), ATL una linea sottile
@@ -57,6 +59,7 @@
     --surface: #1C2025;
     --surface-2: #262B31;
     --border: #33393F;
+    --border-control: #6B7380;
     --text: #EDEFF2;
     --text-muted: #97A0AC;
     --accent: #37C2AE;
@@ -75,6 +78,7 @@
   --surface: #1C2025;
   --surface-2: #262B31;
   --border: #33393F;
+  --border-control: #6B7380;
   --text: #EDEFF2;
   --text-muted: #97A0AC;
   --accent: #37C2AE;

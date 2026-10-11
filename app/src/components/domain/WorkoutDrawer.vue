@@ -88,7 +88,7 @@ async function save(approve: boolean) {
   if (hasErrors.value || saving.value) return;
   const issue = availabilityIssue();
   // Approvare con un vincolo non rispettato e' una scelta del coach, chiesta esplicitamente.
-  if (approve && issue && !(await confirmDialog(`${issue} Approvarla comunque?`, { confirmLabel: "Approva comunque", cancelLabel: "Continua a modificare" }))) return;
+  if (approve && issue && !(await confirmDialog(`${issue} Approvarla comunque?`, { confirmLabel: "Approva comunque", cancelLabel: "Continua a modificare", tone: "primary" }))) return;
   saving.value = true;
   const patch: Record<string, unknown> = { ...clone(contentOf(draft)), locked: draft.locked };
   if (draft.planned_date !== original.value.planned_date) patch.slot = store.freeSlot(draft.planned_date, props.workoutId);
