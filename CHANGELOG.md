@@ -6,6 +6,12 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
+**2026-10-11 — Audit della generazione dei piani e del feedback settimanale**
+- Nuovo documento `docs/audit/2026-10-generazione-e-feedback/PCOACH_GENERATION_AND_FEEDBACK_AUDIT.md`: flussi effettivi, chiamate a Claude, payload e provenienza dei dati, prompt e configurazioni, rischi di modifica, dominio, test, problemi verificati, decisioni del coach (D-01…D-11) e piano di intervento. Verifiche in sola lettura sul database di produzione. Nessuna modifica al codice o ai dati.
+
+*Motivazione*: sapere con esattezza cosa riceve Claude e dove una modifica può rompere la generazione o il feedback, prima di intervenire. Fra i problemi: prompt della generazione non salvato, template che può togliere a Claude il profilo dell'atleta, feedback incompatibile con i modelli più recenti, proposte riprese con data passata, validazione dei giorni errata a cavallo d'anno.
+*Docs aggiornati*: [docs/audit/2026-10-generazione-e-feedback/](docs/audit/2026-10-generazione-e-feedback/PCOACH_GENERATION_AND_FEEDBACK_AUDIT.md).
+
 **2026-10-11 — Sedute svolte riconosciute all'apertura della scheda**
 - Aprendo un atleta, l'app legge da Intervals.icu le attività degli ultimi 14 giorni e segna come svolte le sedute approvate abbinate con certezza: evento abbinato su Intervals.icu, oppure stesso giorno e stessa disciplina con una sola coppia possibile.
 - La regola è unica (`_shared/feedback/completion.ts`) e vale anche per l'analisi del feedback (`weekly-feedback` versione 17).
