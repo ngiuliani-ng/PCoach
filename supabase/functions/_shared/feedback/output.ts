@@ -120,12 +120,17 @@ const MONTHS: Record<string, number> = { gennaio: 1, febbraio: 2, marzo: 3, apri
 /** Giorni della settimana sbagliati accanto a una data ("sabato 11 ottobre" quando e' domenica). */
 function wrongWeekdays(text: string, input: FeedbackInput): string[] {
   const errors: string[] = [];
+  const start = Date.parse(`${input.period.start}T12:00:00Z`);
   const year = Number(input.period.start.slice(0, 4));
   const re = /(lunedì|martedì|mercoledì|giovedì|venerdì|sabato|domenica)\s+(\d{1,2})(?:\s+(gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)|\/(\d{1,2}))/gi;
   for (const m of text.matchAll(re)) {
     const month = m[3] ? MONTHS[m[3].toLowerCase()] : Number(m[4]);
     if (!month) continue;
-    const d = new Date(Date.UTC(year, month - 1, Number(m[2]), 12));
+    // L'anno non e' scritto: vale quello che porta la data piu' vicina al periodo (a cavallo
+    // d'anno "1 gennaio" e' dell'anno successivo all'inizio della settimana).
+    const d = [year - 1, year, year + 1]
+      .map((y) => new Date(Date.UTC(y, month - 1, Number(m[2]), 12)))
+      .sort((a, b) => Math.abs(a.getTime() - start) - Math.abs(b.getTime() - start))[0];
     const actual = WEEKDAYS[(d.getUTCDay() + 6) % 7];
     if (actual !== m[1].toLowerCase()) errors.push(`Giorno sbagliato: "${m[0]}" è ${actual}.`);
   }

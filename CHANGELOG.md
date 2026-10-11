@@ -6,6 +6,15 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
+**2026-10-11 — Correzioni puntuali dall'audit della generazione e del feedback**
+- Feedback: il controllo dei giorni della settimana nel testo usa l'anno giusto anche nelle settimane a cavallo d'anno (prima «venerdì 1 gennaio 2027» risultava sbagliato).
+- Generazione: l'email dell'atleta non è più inviata a Claude; i segnaposto scritti nei dati dell'atleta restano testo; il JSON si legge anche con testo intorno senza blocco di codice.
+- Una proposta salvata che parte da una data passata non si riprende più: viene scartata con un avviso. Le richieste senza risposta da oltre 30 minuti si chiudono come fallite.
+- La pubblicazione su GitHub Pages esegue prima i test unitari. Test: 127.
+
+*Motivazione*: problemi E-05, E-07 (decisione D-05), E-09, E-16, E-17, E-19 ed E-22 dell'[audit](docs/audit/2026-10-generazione-e-feedback/PCOACH_GENERATION_AND_FEEDBACK_AUDIT.md).
+*Docs aggiornati*: [integrazioni.md](docs/integrazioni.md), [sviluppo-deploy.md](docs/sviluppo-deploy.md).
+
 **2026-10-11 — Audit della generazione dei piani e del feedback settimanale**
 - Nuovo documento `docs/audit/2026-10-generazione-e-feedback/PCOACH_GENERATION_AND_FEEDBACK_AUDIT.md`: flussi effettivi, chiamate a Claude, payload e provenienza dei dati, prompt e configurazioni, rischi di modifica, dominio, test, problemi verificati, decisioni del coach (D-01…D-11) e piano di intervento. Verifiche in sola lettura sul database di produzione. Nessuna modifica al codice o ai dati.
 

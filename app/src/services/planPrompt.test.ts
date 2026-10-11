@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { blankProfile, DEFAULT_PLAN_PROMPT, TRAINING_PLAN_JSON_SHAPE } from "../constants";
+import { blankProfile, DEFAULT_PLAN_PROMPT, todayISO, TRAINING_PLAN_JSON_SHAPE } from "../constants";
 import { parseLoadPattern, planWeeks } from "../domain/planWeeks";
-import { buildPlanPrompt, type PromptWorkout } from "./planPrompt";
+import { buildAthleteContextForPrompt, buildPlanPrompt, type PromptWorkout } from "./planPrompt";
 
 const fixed: PromptWorkout = {
   planned_date: "2026-10-18", discipline: "running", title: "Lungo", objective: "", notes_for_athlete: "",
@@ -38,6 +38,35 @@ describe("buildPlanPrompt", () => {
     expect(text).toContain(`{"data":"2026-11-02","giorno":"lunedì","disponibile":true,"durata_massima_min":null,"attivita_abituale":"","settimana":4,"fase":"scarico","variazione_carico":"volume −33% rispetto all'ultima settimana di carico"}`);
     expect(text).toContain('"fase":"carico 2 di 3","variazione_carico":"carico +5-10% rispetto alla settimana precedente"');
     expect(text).toContain("Rispetta la fase di ogni settimana");
+  });
+
+  it("contesto dell'atleta: niente email ne' chiave Intervals.icu, si' profilo, vincoli e carico", () => {
+    const full = {
+      ...profile,
+      identity: { ...profile.identity, email: "giulia@example.test" },
+      integrations: { intervals_icu_api_key: "CHIAVE-SEGRETA" },
+      training_status: { ...profile.training_status, load_metrics_log: [{ date: todayISO(), source: "manual" as const, ctl: 40, atl: 45, tsb: -5 }] }
+    };
+    const ctx = buildAthleteContextForPrompt(full);
+    const text = JSON.stringify(ctx);
+    expect(text).not.toContain("giulia@example.test");
+    expect(text).not.toContain("CHIAVE-SEGRETA");
+    expect(ctx.identity.nome).toBe("Giulia");
+    expect(ctx.constraints.days_available).toHaveLength(7);
+    expect(ctx.training_status.load_metrics_last_30_days).toHaveLength(1);
+  });
+
+  it("un segnaposto scritto nei dati dell'atleta resta testo", () => {
+    const withNote = { ...profile, notes_free_text: "Scrive {{data_inizio}} nelle note" };
+    const text = buildPlanPrompt(withNote, { weeks: 1, fromDate: "2026-10-12", reason: "Motivo con {{settimane}}", fixed: [], recent: [] }, TRAINING_PLAN_JSON_SHAPE, DEFAULT_PLAN_PROMPT);
+    expect(text).toContain("Scrive {{data_inizio}} nelle note");
+    expect(text).toContain("Motivo con {{settimane}}");
+  });
+
+  it("caratterizzazione: un template senza contesto dell'atleta non lo riceve (audit E-02)", () => {
+    const text = buildPlanPrompt(profile, { weeks: 1, fromDate: "2026-10-12", reason: "", fixed: [], recent: [] }, TRAINING_PLAN_JSON_SHAPE, "");
+    expect(text).toContain("Periodo: dal 2026-10-12 al 2026-10-18 compresi.");
+    expect(text).not.toContain("load_metrics_last_30_days");
   });
 
   it("usa le percentuali di carico e scarico della scheda dell'atleta", () => {

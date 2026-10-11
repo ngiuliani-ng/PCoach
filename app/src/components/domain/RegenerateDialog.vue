@@ -64,6 +64,13 @@ function resetKeep() {
 onMounted(async () => {
   resetKeep();
   const pending = await store.pendingGeneration(athleteId.value);
+  // Una proposta che parte da una data ormai passata non si riprende: applicarla sostituirebbe
+  // sedute dei giorni trascorsi senza attivita' registrata.
+  if (pending && pending.from_date < todayISO()) {
+    await store.discardGeneration(pending.id);
+    showToast(`La proposta del ${formatDate(pending.created_at.slice(0, 10))} partiva dal ${formatDate(pending.from_date, false)}, una data già passata: è stata scartata.`);
+    return;
+  }
   if (pending && pending.proposal) {
     resumed.value = pending;
     kind.value = pending.kind;

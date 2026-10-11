@@ -48,7 +48,15 @@ export function extractJsonBlock(text: string): unknown | null {
   try {
     return JSON.parse(candidate.trim());
   } catch {
-    return null;
+    // Testo prima o dopo il JSON senza blocco di codice: si prova dalla prima "{" all'ultima "}".
+    const from = candidate.indexOf("{");
+    const to = candidate.lastIndexOf("}");
+    if (from < 0 || to <= from) return null;
+    try {
+      return JSON.parse(candidate.slice(from, to + 1));
+    } catch {
+      return null;
+    }
   }
 }
 

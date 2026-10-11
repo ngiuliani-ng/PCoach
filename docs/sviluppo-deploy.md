@@ -31,7 +31,7 @@ Rigenera `app/src/schema/types.generated.ts` da `app/src/schema/athlete_profile.
 npm run test
 ```
 
-Esegue Vitest (`vitest run`) sui file `src/**/*.test.ts`. Stato attuale: **120 test** in 12 file:
+Esegue Vitest (`vitest run`) sui file `src/**/*.test.ts`. Stato attuale: **127 test** in 13 file:
 
 | File | Test |
 |---|---|
@@ -39,13 +39,14 @@ Esegue Vitest (`vitest run`) sui file `src/**/*.test.ts`. Stato attuale: **120 t
 | `composables/useConnectionStatus.test.ts` | 4 |
 | `composables/useDirtyState.test.ts` | 9 |
 | `domain/availability.test.ts` | 6 (calendario del periodo, riallineamento al giorno, vincoli di disponibilità e durata) |
-| `domain/feedback.test.ts` | 31 (feedback: periodo, parametri, normalizzazione, abbinamento, metriche, tendenza, risposta dell'atleta, sedute svolte all'apertura della scheda, validazione dell'output) |
+| `domain/feedback.test.ts` | 32 (feedback: periodo, parametri, normalizzazione, abbinamento, metriche, tendenza, risposta dell'atleta, sedute svolte all'apertura della scheda, validazione dell'output, anche a cavallo d'anno) |
 | `domain/feedbackPipeline.test.ts` | 13 (pipeline del feedback con porte finte: stati, nuovi tentativi, idempotenza, approvazione e consegna) |
 | `domain/planWeeks.test.ts` | 9 (settimane del piano, fasi del ciclo di carico, ancoraggio al piano attivo, data di prosecuzione) |
 | `domain/regeneration.test.ts` | 6 (lettura della proposta, differenze e payload della rigenerazione) |
 | `domain/shared.test.ts` | 26 (moduli condivisi con le Edge Function: calendario, zone e struttura, conversione per Intervals.icu, classificazione della sincronizzazione) |
+| `services/claude.test.ts` | 3 (lettura del JSON nella risposta di Claude) |
 | `services/intervals.test.ts` | 3 (finestra di sincronizzazione del carico) |
-| `services/planPrompt.test.ts` | 4 |
+| `services/planPrompt.test.ts` | 7 (template, calendario, percentuali, dati esclusi dal contesto, segnaposto nei dati) |
 | `stores/auth.test.ts` | 5 |
 
 Questo conteggio descrive solo lo stato corrente; l'evoluzione nel tempo è nel [CHANGELOG.md](../CHANGELOG.md), non qui.
@@ -94,8 +95,9 @@ Workflow `.github/workflows/deploy.yml`, innescato da push su `main` (o manualme
 Actions usate: `actions/checkout@v7`, `actions/setup-node@v7`, `actions/upload-pages-artifact@v5`, `actions/deploy-pages@v5` (tutte su runtime Node.js 24).
 
 1. Checkout, setup Node 22, `npm ci` (dentro `app/`, con cache su `package-lock.json`).
-2. `npm run build`, con `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` presi dai **repository secrets** GitHub (non dal file `.env` locale).
-3. Upload di `app/dist` come artifact Pages, poi deploy.
+2. `npm run test`: un test fallito blocca la pubblicazione.
+3. `npm run build`, con `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` presi dai **repository secrets** GitHub (non dal file `.env` locale).
+4. Upload di `app/dist` come artifact Pages, poi deploy.
 
 `vite.config.ts` imposta `base: '/PCoach/'`, necessario perché l'app è servita da un sotto-percorso (`https://<utente>.github.io/PCoach/`) e non dalla radice del dominio.
 

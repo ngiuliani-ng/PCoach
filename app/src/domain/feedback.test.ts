@@ -317,6 +317,12 @@ describe("output del modello", () => {
     expect(validateFeedbackOutput({ ...valid, athlete_message: "Domenica 18 ottobre e sabato 17/10 sono a posto." }, contract)).toEqual([]);
   });
 
+  it("a cavallo d'anno il giorno si controlla sull'anno giusto", () => {
+    const newYear = { ...contract, period: { ...contract.period, start: "2026-12-28", end: "2027-01-03" } };
+    expect(validateFeedbackOutput({ ...valid, athlete_message: "Venerdì 1 gennaio e lunedì 28 dicembre." }, newYear)).toEqual([]);
+    expect(validateFeedbackOutput({ ...valid, athlete_message: "Giovedì 1 gennaio." }, newYear).join()).toContain("Giorno sbagliato");
+  });
+
   it("niente giudizi su fatica o recupero dai dati di benessere", () => {
     expect(validateFeedbackOutput({ ...valid, athlete_message: "Nessun segnale di affaticamento particolare." }, contract).join()).toContain("Affermazione vietata");
     expect(validateFeedbackOutput({ ...valid, athlete_message: "Sei ben recuperato." }, contract).join()).toContain("Affermazione vietata");

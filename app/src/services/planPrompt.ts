@@ -33,8 +33,10 @@ export function buildAthleteContextForPrompt(profile: AthleteTrainingProfile, re
   const latestThreshold = <T extends { date: string }>(log: T[] | undefined): T | undefined =>
     log && log.length ? [...log].sort((a, b) => a.date.localeCompare(b.date)).at(-1) : undefined;
 
+  // L'email serve solo alla consegna del feedback: non va a Claude.
+  const { email: _email, ...identity } = profile.identity;
   return {
-    identity: profile.identity,
+    identity,
     disciplines: profile.disciplines,
     latest_thresholds: {
       running: latestThreshold(profile.physiological_thresholds?.running?.thresholds_log),
@@ -55,11 +57,9 @@ export function buildAthleteContextForPrompt(profile: AthleteTrainingProfile, re
   };
 }
 
+// Un solo passaggio: un segnaposto scritto nei dati dell'atleta (note, motivo) resta testo.
 function interpolate(template: string, values: Record<string, string>): string {
-  return Object.entries(values).reduce(
-    (acc, [key, value]) => acc.replaceAll(`{{${key}}}`, value),
-    template
-  );
+  return template.replace(/\{\{(\w+)\}\}/g, (match, key: string) => (key in values ? values[key] : match));
 }
 
 export interface PlanPromptInput {

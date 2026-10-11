@@ -70,7 +70,10 @@ export type Result<T = undefined> = { ok: true; value: T; message?: string } | {
 const WORKOUT_COLUMNS =
   "id, athlete_id, plan_id, generation_id, planned_date, slot, discipline, title, objective, notes_for_athlete, duration_min, structure, primary_target, status, superseded_by, locked, needs_review, completed_at, completed_activity_id, completion_source, revision, created_at, updated_at";
 
-const CONFLICT_MESSAGE = "La seduta è stata modificata altrove: ricarico i dati, riapri la seduta e riapplica le modifiche.";
+/** Oltre questo tempo una generazione senza proposta non ricevera' piu' risposta (proxy: 150 s). */
+const ORPHAN_MINUTES = 30;
+
+const CONFLICT_MESSAGE ="La seduta è stata modificata altrove: ricarico i dati, riapri la seduta e riapplica le modifiche.";
 
 function normalize(row: Record<string, unknown>): WorkoutRecord {
   return { ...(row as unknown as WorkoutRecord), duration_min: row.duration_min == null ? null : Number(row.duration_min) };
@@ -254,6 +257,11 @@ export const useWorkoutsStore = defineStore("workouts", {
     // ---------- Generazioni ----------
     async createGeneration(g: { athleteId: string; kind: GenerationKind; fromDate: string; weeks: number; reason: string; keptIds: string[]; model: string }): Promise<Result<string>> {
       if (!supabase) return { ok: false, message: "Supabase non configurato." };
+      // Le richieste rimaste senza risposta (pagina chiusa durante l'attesa, risposta mai incollata)
+      // si chiudono: oltre ORPHAN_MINUTES nessuna risposta puo' piu' arrivare dal proxy.
+      await supabase.from("plan_generations").update({ status: "failed", error: "Nessuna risposta registrata." })
+        .eq("athlete_id", g.athleteId).eq("status", "proposed").is("proposal", null)
+        .lt("created_at", new Date(Date.now() - ORPHAN_MINUTES * 60_000).toISOString());
       const { data, error } = await supabase.from("plan_generations").insert({
         athlete_id: g.athleteId, kind: g.kind, from_date: g.fromDate, weeks: g.weeks, reason: g.reason,
         kept_workout_ids: g.keptIds, model: g.model, status: "proposed"
