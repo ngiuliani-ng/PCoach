@@ -6,6 +6,15 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
+**2026-10-11 — Misure per il tocco e orientamento libero della PWA**
+- Su telefono e tablet (`pointer: coarse`) i campi hanno il testo a 16px, per evitare lo zoom di iOS al tocco, e pulsanti, campi, tab, chip e voci dell'elenco sono alti almeno 44px.
+- Su schermi stretti «Prosegui il piano» e «Ripianifica da…» stanno affiancati nella barra del Piano.
+- La PWA installata non è più bloccata in verticale.
+- Test: 147 unitari, 38 end-to-end; misure verificate con emulazione touch a 320, 375, 430 e 768 px.
+
+*Motivazione*: decisione D-UX-6 del coach e problemi U-15, U-20, U-22, U-23 dell'[audit UI/UX](docs/audit/2026-10-ux-e-usabilita/PCOACH_UX_AUDIT.md).
+*Docs aggiornati*: [decisioni/0026](docs/decisioni/0026-touch-e-orientamento-pwa.md), [design-ui.md](docs/design-ui.md), [sviluppo-deploy.md](docs/sviluppo-deploy.md).
+
 **2026-10-11 — Sistema di zone dell'atleta effettivo, dati personali ridotti verso Claude**
 - Il sistema di zone di corsa e bici (3, 5 o 7) entra nel prompt (`zone_per_disciplina`, con una regola fissa), nei controlli della proposta (sedute oltre il limite da verificare), nell'editor della struttura (solo quelle zone) e nel ricontrollo al salvataggio della seduta. Il nuoto usa 7 zone.
 - A Claude vanno solo il nome di battesimo e l'età, non più cognome e anno di nascita (prompt 2.3.0).

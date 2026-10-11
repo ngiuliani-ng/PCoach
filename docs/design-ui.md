@@ -172,7 +172,12 @@ L'hamburger è fisso in alto a sinistra e sta dentro la fascia dell'header di pa
 
 Altre compattazioni:
 - sotto `720px`: titolo di pagina a `--fs-xl`; la disponibilità settimanale passa da quattro colonne a due (giorno e "Disponibile", poi durata e attività);
-- sotto `480px`: campi e checkbox su una colonna, pulsanti delle barre d'azione a tutta larghezza, l'etichetta "Modifiche non salvate" è nascosta (lo stato resta leggibile dal pulsante "Salva" attivo).
+- sotto `480px`: campi e checkbox su una colonna, pulsanti delle barre d'azione a tutta larghezza, l'etichetta "Modifiche non salvate" è nascosta (lo stato resta leggibile dal pulsante "Salva" attivo); nella barra del Piano «Prosegui il piano» e «Ripianifica da…» stanno affiancati e «Sincronizza settimana» occupa la riga sotto.
+
+**Dispositivi touch** (`@media (pointer: coarse)`, decisione in [decisioni/0026](decisioni/0026-touch-e-orientamento-pwa.md)):
+- i campi hanno il testo a 16px, perché sotto quella misura Safari su iOS ingrandisce la pagina al tocco;
+- pulsanti, campi, tab, chip, voci dell'elenco atleti, pulsanti-icona, caselle con etichetta e «Aggiungi…» sono alti almeno 44px;
+- i link nel testo restano in riga, con un'area di tocco più alta.
 
 ## Feedback settimanale
 
