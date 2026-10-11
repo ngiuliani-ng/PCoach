@@ -1090,8 +1090,25 @@ body:has(.drawer-foot) .toast, body:has(.dialog-foot) .toast { bottom: calc(var(
   .checkbox-grid { grid-template-columns: 1fr; }
   .action-bar { flex-direction: column; }
   .action-bar > * { width: 100%; }
-  .toolbar-actions { width: 100%; margin-left: 0; }
-  .toolbar-actions > * { flex: 1 1 auto; }
+  /* Barra del Piano: «Prosegui» e «Ripianifica» affiancati, «Sincronizza settimana» sotto, a tutta riga. */
+  .toolbar-actions { width: 100%; margin-left: 0; display: grid; grid-template-columns: 1fr 1fr; }
+  .toolbar-actions > button { white-space: normal; padding: var(--sp-1) var(--sp-2); }
+  .toolbar-actions > button.primary, .toolbar-actions > button:only-child,
+  .toolbar-actions > button.secondary:first-child:has(+ button.primary) { grid-column: 1 / -1; }
   .drawer-foot > button { flex: 1 1 auto; }
   .drawer-spacer { display: none; }
+}
+
+/* ---------- Dispositivi touch ---------- */
+/* Campi a 16px: sotto, Safari su iOS ingrandisce la pagina al tocco di un campo. Bersagli da 44px
+   per i controlli (WCAG 2.5.5, consigliato per il tocco); i link nel testo restano in riga. */
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]), select, textarea, .mono-input { font-size: var(--fs-lg); }
+  input:not([type="checkbox"]):not([type="radio"]), select { min-height: 44px; }
+  button.primary, button.secondary, button.ghost, button.danger, .segmented button, .chip { min-height: 44px; }
+  .icon-btn, .del-btn { min-width: 44px; min-height: 44px; }
+  .tab, .athlete-select, .new-athlete-card .athlete-select, button.add-row { min-height: 44px; }
+  summary { padding-block: var(--sp-2); }
+  .checkbox-line, .op-choice label { min-height: 44px; }
+  .link-btn { padding-block: var(--sp-2); }
 }

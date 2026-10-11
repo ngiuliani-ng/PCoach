@@ -36,7 +36,7 @@ export default defineConfig({
         // Desktop Chromium (Edge/Chrome): barra del titolo disegnata dall'app, senza nome/icona di sistema.
         // `standalone` resta il fallback per i browser che non supportano la modalità.
         display_override: ['window-controls-overlay'],
-        orientation: 'portrait',
+        // Nessun blocco dell'orientamento: su telefono e tablet l'app ruota (decisione del coach D-UX-6).
         start_url: '/PCoach/',
         scope: '/PCoach/',
         lang: 'it',

@@ -227,4 +227,8 @@ function isRepeat(b: WorkoutBlock): b is Extract<WorkoutBlock, { kind: "repeat" 
 .step-times { color: var(--text-muted); }
 .step-repeat .step-tools { margin-left: auto; }
 .step-add { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-4); }
+/* Touch: stesso testo da 16px e altezza da 44px degli altri campi (base.css). */
+@media (pointer: coarse) {
+  .step-fields select, .step-fields input, .step-repeat-head input { min-height: 44px; font-size: var(--fs-lg); }
+}
 </style>

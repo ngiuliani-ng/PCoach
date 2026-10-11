@@ -30,6 +30,9 @@ defineEmits<{ (e: "click"): void }>();
   background: var(--surface-2);
   color: var(--text);
 }
+@media (pointer: coarse) {
+  .icon-square-btn { width: 44px; height: 44px; }
+}
 .icon-square-btn:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
