@@ -6,6 +6,16 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
+**2026-10-11 — Contrasti, conferme e rifiniture**
+- Testo d'avviso del tema chiaro più scuro (`--warning` `#8A5E00`, 5:1 sul suo sfondo) e nuovo token `--border-control` per i bordi dei campi (almeno 3:1); un test verifica i contrasti dei due temi.
+- Le conferme non distruttive («Approva comunque», «Rigenera») hanno il pulsante primario, non rosso.
+- Nella scheda, fuori dal Profilo, «Salva il profilo» compare solo con modifiche da salvare.
+- Editor della struttura: «Sposta giù» anche dentro le ripetute. Generazione manuale: «Copia il prompt», e «Indietro» scarta la richiesta. Ripristinare le preferenze personalizzate chiede conferma.
+- Test: 153 unitari, 38 end-to-end.
+
+*Motivazione*: problemi U-12, U-16, U-21, U-25, U-26, U-31 dell'[audit UI/UX](docs/audit/2026-10-ux-e-usabilita/PCOACH_UX_AUDIT.md).
+*Docs aggiornati*: [design-ui.md](docs/design-ui.md), [sviluppo-deploy.md](docs/sviluppo-deploy.md).
+
 **2026-10-11 — Aiuti contestuali dei campi tecnici**
 - Nuovo componente `FieldHelp`: una riga d'aiuto sempre visibile e, se serve, «Come lo usa PCoach». Usato in Profilo (identità ed email, chiave Intervals.icu, volumi, soglie e sistema di zone, fattori di vita, periodizzazione, eventi, disponibilità, sedute a settimana, metodologia, note libere), Impostazioni (preferenze del piano, soglie del feedback con un esempio) e nel pannello della seduta (metrica dei target).
 - I testi vivono in `help/fieldHelp.ts`; un test verifica che i dati dichiarati inviati a Claude siano nel contesto del prompt e quelli dichiarati riservati no.

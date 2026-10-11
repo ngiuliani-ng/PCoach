@@ -31,13 +31,14 @@ Rigenera `app/src/schema/types.generated.ts` da `app/src/schema/athlete_profile.
 npm run test
 ```
 
-Esegue Vitest (`vitest run`) sui file `src/**/*.test.ts`. Stato attuale: **149 test** in 15 file:
+Esegue Vitest (`vitest run`) sui file `src/**/*.test.ts`. Stato attuale: **153 test** in 16 file:
 
 | File | Test |
 |---|---|
 | `constants.test.ts` | 4 |
 | `composables/useConnectionStatus.test.ts` | 4 |
 | `composables/useDirtyState.test.ts` | 9 |
+| `styles/tokens.test.ts` | 4 (contrasti dei token di colore nei due temi: testo 4,5:1, bordo dei campi 3:1) |
 | `help/fieldHelp.test.ts` | 2 (aiuti contestuali: chiavi presenti nello schema, dati dichiarati inviati o non inviati a Claude come nel contesto del prompt) |
 | `domain/availability.test.ts` | 6 (calendario del periodo, riallineamento al giorno, vincoli di disponibilità e durata) |
 | `domain/feedback.test.ts` | 35 (feedback: periodo, fuso non valido, parametri, normalizzazione, abbinamento, metriche, tendenza, risposta dell'atleta, sedute svolte con esito e dati dell'attività, aggiornamento dell'RPE, validazione dell'output, anche a cavallo d'anno) |

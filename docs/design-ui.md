@@ -20,7 +20,8 @@ Variabili CSS definite in `app/src/styles/tokens.css`, con supporto a tema chiar
 | `--bg` | Sfondo della pagina (le sezioni piatte stanno direttamente su di esso) |
 | `--surface`, `--surface-2` | Sfondo di sidebar, unità di contenuto, campi di input e dialoghi / sfondo di hover, selezione in sidebar e badge neutri |
 | `--text`, `--text-muted` | Testo primario / testo secondario |
-| `--border` | Bordi di unità e input, filetti tra sezioni e righe |
+| `--border` | Bordi delle unità, filetti tra sezioni e righe |
+| `--border-control` | Bordo dei campi (input, select, textarea): almeno 3:1 con lo sfondo del campo e della pagina |
 | `--accent`, `--accent-contrast` | Azione primaria e selezione (tab attiva, atleta aperto, segmento scelto, settimana corrente) / testo sopra uno sfondo accento |
 | `--focus` | Colore del bordo e dell'alone di focus |
 | `--danger`, `--danger-bg`, `--warning`, `--warning-bg` | Stati semantici di errore e attenzione: colore del testo e relativo sfondo |
@@ -81,7 +82,7 @@ Regole per chi modifica il layout:
 
 - **Desktop**: sidebar atleti a sinistra (260px, `flex-shrink: 0`, sticky), contenuto a destra (`.main`, `flex: 1`) in una colonna centrata di 680px massimi (`.form-wrap`). Lo scroll è quello della pagina: `.main` non ha `overflow`, così l'header sticky funziona.
 - **Sidebar**: "Nuovo atleta" in cima (pulsante tratteggiato in colore accento), poi gli atleti in ordine alfabetico. Ogni atleta è una riga resa come `<button>`: il nome, che va a capo invece di essere troncato, e sotto, su righe proprie, le discipline e l'ultimo TSB (così il TSB è sempre allineato a sinistra, qualunque sia la lunghezza del nome); la riga aperta ha sfondo `--surface-2` e un filetto d'accento a sinistra (`aria-current`). Il pulsante di eliminazione è un fratello del pulsante di selezione (mai annidato) e compare al passaggio del mouse o al focus; sui dispositivi senza hover è sempre visibile.
-- **Header di pagina** (`.page-header`): titolo e azioni principali ("Salva", "Salva impostazioni") con lo stato "Modifiche non salvate"; i pulsanti di salvataggio sono attivi solo con modifiche. È sticky (`top: --titlebar-h`) in cima alla scheda atleta e alle impostazioni, così il salvataggio è sempre raggiungibile. Sotto l'header, la scheda atleta mostra una riga di riepilogo (discipline, prossimo evento, data di aggiornamento) e, se un'altra sessione ha salvato la scheda, un avviso con "Ricarica i dati più recenti".
+- **Header di pagina** (`.page-header`): titolo e azioni principali ("Salva", "Salva impostazioni"; nella scheda, fuori dalla vista Profilo il pulsante compare solo con modifiche e dice "Salva il profilo") con lo stato "Modifiche non salvate"; i pulsanti di salvataggio sono attivi solo con modifiche. È sticky (`top: --titlebar-h`) in cima alla scheda atleta e alle impostazioni, così il salvataggio è sempre raggiungibile. Sotto l'header, la scheda atleta mostra una riga di riepilogo (discipline, prossimo evento, data di aggiornamento) e, se un'altra sessione ha salvato la scheda, un avviso con "Ricarica i dati più recenti".
 - **Scheda atleta: tre viste** a tab (`role="tablist"`, frecce sinistra/destra per cambiare):
   - **Panoramica**: carico e forma, la settimana in corso in sola lettura con «Apri il piano», feedback settimanale (vedi [sotto](#feedback-settimanale));
   - **Piano**: vedi [sotto](#tab-piano);
@@ -123,7 +124,7 @@ Una sola vista, un pannello e due dialoghi, al posto di schermate separate (moti
   - cronologia.
 
   Il piede contiene «Elimina bozza» (solo bozze mai inviate) o «Annulla seduta», poi «Salva modifiche» e, per le bozze, «Salva e approva» / «Approva». Chiudere con modifiche non salvate chiede conferma.
-- **Editor della struttura** (`StepEditor`): ogni step è un'unità con una striscia del colore della zona a sinistra e i campi tipo, durata, unità (min, s, km, m), zona, «fino a…», indicazione per l'atleta. Le zone proposte sono quelle del sistema dell'atleta per la disciplina; una zona già oltre resta visibile come «Z5, oltre le 3 zone», con il motivo sotto la struttura. Ha i comandi sposta su/giù e rimuovi. Le ripetute sono un riquadro con nome e numero di ripetizioni che contiene i propri step. L'errore di validazione compare sotto lo step, con il bordo `--danger` sul campo interessato.
+- **Editor della struttura** (`StepEditor`): ogni step è un'unità con una striscia del colore della zona a sinistra e i campi tipo, durata, unità (min, s, km, m), zona, «fino a…», indicazione per l'atleta. Le zone proposte sono quelle del sistema dell'atleta per la disciplina; una zona già oltre resta visibile come «Z5, oltre le 3 zone», con il motivo sotto la struttura. Ha i comandi sposta su/giù e rimuovi, anche per gli step dentro una ripetuta. Le ripetute sono un riquadro con nome e numero di ripetizioni che contiene i propri step. L'errore di validazione compare sotto lo step, con il bordo `--danger` sul campo interessato.
 - **Dialoghi** di generazione («Genera il piano», «Prosegui il piano», «Ripianifica da una data») e «Sincronizza settimana». Nella generazione, «Genera la proposta» resta disattivato con «Preparo la richiesta…» fino alla chiamata a Claude; uno schema di carico non riconosciuto è segnalato nei parametri; nella proposta gli avvisi (sedute a settimana, variazione di volume, date riallineate o scartate) sono in un riquadro d'avviso con il conteggio. In generale: box centrato di 720px (a schermo intero sotto i 560px), con intestazione, corpo scorrevole e piede con le azioni a destra. Il pulsante di conferma dice cosa succede e quante sedute coinvolge («Applica la nuova programmazione», «Sincronizza 3 sedute, di cui 1 da rimuovere»). Le liste dentro i dialoghi (`.op-list`, `.keep-list`, differenze per giorno) sono unità con righe separate da filetti. Gli esiti per riga usano icona e testo: in corso in `--accent`, riuscita neutra, non riuscita in `--danger` con il motivo.
 - **Storico**: selettore del piano (attivo, chiusi con la data) e filtri a chip con conteggio: tutte, da revisionare, da verificare, approvate, su Intervals.icu, da aggiornare, errori, svolte, non registrate, in programma, annullate o sostituite. Le sedute sono raggruppate per settimana, dalla più recente.
 
@@ -133,7 +134,7 @@ Ogni componente interattivo gestisce esplicitamente: default, hover, focus (visi
 
 ## Accessibilità
 
-- Contrasto testo/sfondo verificato per i token di colore principali in entrambi i temi.
+- Contrasti dei token verificati da `styles/tokens.test.ts` in entrambi i temi: testo (anche d'avviso ed errore) almeno 4,5:1 sugli sfondi in cui compare, bordo dei campi almeno 3:1.
 - Tutti i controlli interattivi sono elementi nativi (`button`, `input`, `select`) raggiungibili da tastiera; ordine di tabulazione naturale (nessun `tabindex` positivo; l'unico `tabindex="-1"` è sulle tab inattive, secondo il pattern ARIA delle tab).
 - Ogni campo ha un'etichetta associata (vedi [§ Layout](#layout)); i campi senza etichetta visibile (note libere, prompt, JSON del piano) hanno `aria-label`.
 - Icone e pulsanti solo-icona privi di testo visibile accompagnati da `aria-label` (nessun attributo `title`, per evitare tooltip nativi ridondanti).
