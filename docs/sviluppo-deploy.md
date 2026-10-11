@@ -31,7 +31,7 @@ Rigenera `app/src/schema/types.generated.ts` da `app/src/schema/athlete_profile.
 npm run test
 ```
 
-Esegue Vitest (`vitest run`) sui file `src/**/*.test.ts`. Stato attuale: **118 test** in 12 file:
+Esegue Vitest (`vitest run`) sui file `src/**/*.test.ts`. Stato attuale: **120 test** in 12 file:
 
 | File | Test |
 |---|---|
@@ -39,7 +39,7 @@ Esegue Vitest (`vitest run`) sui file `src/**/*.test.ts`. Stato attuale: **118 t
 | `composables/useConnectionStatus.test.ts` | 4 |
 | `composables/useDirtyState.test.ts` | 9 |
 | `domain/availability.test.ts` | 6 (calendario del periodo, riallineamento al giorno, vincoli di disponibilità e durata) |
-| `domain/feedback.test.ts` | 29 (feedback: periodo, parametri, normalizzazione, abbinamento, metriche, tendenza, risposta dell'atleta, validazione dell'output) |
+| `domain/feedback.test.ts` | 31 (feedback: periodo, parametri, normalizzazione, abbinamento, metriche, tendenza, risposta dell'atleta, sedute svolte all'apertura della scheda, validazione dell'output) |
 | `domain/feedbackPipeline.test.ts` | 13 (pipeline del feedback con porte finte: stati, nuovi tentativi, idempotenza, approvazione e consegna) |
 | `domain/planWeeks.test.ts` | 9 (settimane del piano, fasi del ciclo di carico, ancoraggio al piano attivo, data di prosecuzione) |
 | `domain/regeneration.test.ts` | 6 (lettura della proposta, differenze e payload della rigenerazione) |

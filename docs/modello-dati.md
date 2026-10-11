@@ -65,7 +65,7 @@ Le sedute vivono in tabelle Postgres proprie, separate dalla scheda (definizione
   - Una seduta approvata e poi modificata resta approvata.
   - Approvare non invia nulla a Intervals.icu.
 - **Esecuzione** (derivata, non salvata come stato):
-  - svolta se `completed_at` è valorizzato: da un'attività Intervals.icu abbinata (`completion_source: intervals`, registrata dall'anteprima di «Sincronizza settimana» o dall'analisi del feedback) oppure a mano (`manual`);
+  - svolta se `completed_at` è valorizzato: da un'attività Intervals.icu abbinata con certezza (`completion_source: intervals`), oppure a mano (`manual`). L'abbinamento viene registrato all'apertura della scheda (ultimi 14 giorni), dall'anteprima di «Sincronizza settimana» e dall'analisi del feedback, con la regola in `_shared/feedback/completion.ts`;
   - non registrata se la data è passata senza esecuzione: PCoach sa solo che non c'è un'attività abbinata, non che l'allenamento non sia stato fatto;
   - altrimenti in programma.
 - **Sincronizzazione** (da `workout_sync`): non inviata, su Intervals.icu, da aggiornare (revisione o data cambiate dopo l'invio), invio non riuscito, da rimuovere, rimossa, scollegata. La logica è in `localSyncState` (`_shared/workouts/sync.ts`).

@@ -39,7 +39,7 @@ L'audit di ottobre 2026 ([docs/audit/2026-10-feedback/](../audit/2026-10-feedbac
 6. **Soglie modificabili**:
    - le soglie che classificano sedute e scostamenti sono parametri globali in Impostazioni (`app_settings.feedback_params`);
    - le percentuali di carico e scarico sono per atleta (`methodology_preferences`) e servono sia al prompt del piano sia al confronto fra settimane.
-7. **Esecuzione registrata**: le sedute abbinate con certezza (evento abbinato su Intervals.icu, oppure stesso giorno e stessa disciplina) risultano svolte anche nel piano. Il piano mostra «Non registrata» invece di «Non svolta».
+7. **Esecuzione registrata**: le sedute abbinate con certezza (evento abbinato su Intervals.icu, oppure stesso giorno e stessa disciplina) risultano svolte anche nel piano. Succede all'analisi del feedback e all'apertura della scheda dell'atleta (ultimi 14 giorni), con un'unica regola (`completion.ts`), senza dover aprire «Sincronizza settimana». Il piano mostra «Non registrata» invece di «Non svolta».
 
 ## Motivo
 

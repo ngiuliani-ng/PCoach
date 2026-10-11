@@ -114,6 +114,7 @@ Sidebar (click atleta) → store athletes.openAthlete(id)
   → popola il form (AthleteEditor.vue)
 AthleteEditor.vue → watch su apertura atleta
   → se presente una chiave Intervals.icu, avvia sincronizzazione del carico (services/intervals.ts)
+  → carica le sedute; con la chiave, legge le attività degli ultimi 14 giorni e segna come svolte le sedute abbinate con certezza (workouts.recordCompletions, _shared/feedback/completion.ts)
 ```
 La sincronizzazione Intervals.icu all'apertura è innescata da un `watch` dentro `AthleteEditor.vue`, non dallo store — vedi [integrazioni.md](integrazioni.md) per i tre trigger lato client.
 

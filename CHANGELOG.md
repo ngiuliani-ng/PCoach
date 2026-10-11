@@ -6,6 +6,14 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
+**2026-10-11 — Sedute svolte riconosciute all'apertura della scheda**
+- Aprendo un atleta, l'app legge da Intervals.icu le attività degli ultimi 14 giorni e segna come svolte le sedute approvate abbinate con certezza: evento abbinato su Intervals.icu, oppure stesso giorno e stessa disciplina con una sola coppia possibile.
+- La regola è unica (`_shared/feedback/completion.ts`) e vale anche per l'analisi del feedback (`weekly-feedback` versione 17).
+- Test: 120 unitari.
+
+*Motivazione*: prima una seduta risultava svolta solo aprendo «Sincronizza settimana» o con l'analisi del lunedì; nel frattempo appariva «Non registrata».
+*Docs aggiornati*: [decisioni/0019](docs/decisioni/0019-feedback-analisi-deterministica-approvazione.md), [modello-dati.md](docs/modello-dati.md), [integrazioni.md](docs/integrazioni.md), [architettura.md](docs/architettura.md), [sviluppo-deploy.md](docs/sviluppo-deploy.md).
+
 **2026-10-11 — Feedback settimanale: analisi deterministica, valutazioni con stati e approvazione del coach**
 - **Analisi in PCoach** (`supabase/functions/_shared/feedback/`):
   - periodo da lunedì a domenica;

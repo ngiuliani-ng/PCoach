@@ -21,6 +21,8 @@ Due endpoint usati, entrambi su `https://intervals.icu/api/v1/athlete/0/...`:
 
 Il feedback settimanale non usa il log della scheda: legge carico e benessere direttamente da Intervals.icu al momento della valutazione.
 
+**Sedute svolte all'apertura della scheda**: dopo il caricamento delle sedute, l'app legge le attività degli ultimi 14 giorni (`fetchActivities`) e segna come svolte le sedute approvate abbinate con certezza: evento abbinato su Intervals.icu (`paired_event_id`), oppure stesso giorno e stessa disciplina con una sola coppia possibile (`recentCompletions` in `_shared/feedback/completion.ts`, la stessa regola dell'analisi del feedback). Gli abbinamenti incerti (più sedute nello stesso giorno, spostamenti, sostituzioni) restano «Non registrata». È solo una lettura: su Intervals.icu non si scrive nulla, e un errore lascia le sedute come sono.
+
 Errori gestiti esplicitamente: chiave non valida (401), altri errori HTTP, errori di rete/CORS. L'esito compare come stato accanto al campo della chiave nel Profilo («Chiave valida.», «Chiave non valida…», «Non verificabile ora…»), senza bloccare il resto dell'interfaccia.
 
 **Limite noto**: nessun retry/backoff sui rate limit di Intervals.icu nelle letture del carico — vedi [limiti-roadmap.md](limiti-roadmap.md). La scrittura delle sedute invece li ha (sezione seguente).
