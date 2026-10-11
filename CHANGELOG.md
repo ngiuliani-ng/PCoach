@@ -6,6 +6,15 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
+**2026-10-11 — Gare e tapering calcolati da PCoach, controlli sulla proposta**
+- Ogni evento target ha le settimane di tapering (predefinite per priorità: A 2, B 1, C 0) e, facoltativo, il calo del volume. PCoach calcola le fasi «tapering» e «gara», sospende il ciclo e, dopo una gara A, lo fa ripartire da «carico 1»; il calendario indica il giorno della gara (prompt 2.2.0).
+- La proposta mostra avvisi per le settimane con un numero di sedute diverso da quello dell'atleta o con una variazione di volume fuori dalla fase.
+- Le sedute con struttura incompleta arrivano «da verificare»; nel pannello, salvare ricontrolla disponibilità e durata e approvare nonostante un vincolo chiede conferma.
+- Test: 143 unitari, 8 end-to-end.
+
+*Motivazione*: decisioni D-02 e D-03 del coach e problemi E-12, E-13, E-15 dell'[audit](docs/audit/2026-10-generazione-e-feedback/PCOACH_GENERATION_AND_FEEDBACK_AUDIT.md).
+*Docs aggiornati*: [decisioni/0022](docs/decisioni/0022-gare-tapering-controlli-proposta.md), [integrazioni.md](docs/integrazioni.md), [modello-dati.md](docs/modello-dati.md), [sviluppo-deploy.md](docs/sviluppo-deploy.md).
+
 **2026-10-11 — Esito e RPE sulle sedute svolte, analisi settimanali nella generazione**
 - Una seduta riconosciuta come svolta salva esito, rapporto svolto/prescritto e dati dell'attività (minuti, metri, carico, RPE); sotto la soglia di completamento è «Svolta in parte», con un filtro nello storico (migrazione `0009`).
 - All'apertura della scheda i dati delle sedute già svolte negli ultimi 14 giorni si rileggono: un RPE inserito più tardi arriva in PCoach.
