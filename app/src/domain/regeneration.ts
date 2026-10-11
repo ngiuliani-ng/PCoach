@@ -11,6 +11,7 @@ import type { Discipline, WorkoutContent } from "@shared/workouts/structure.ts";
 import { defaultTargetMetric, isDiscipline, validateWorkout } from "@shared/workouts/structure.ts";
 import type { LoadProgression } from "@shared/feedback/params.ts";
 import { weeklyIssues } from "./planChecks";
+import { zoneIssue, type ZoneDiscipline } from "./athlete";
 import type { AthleteTrainingProfile } from "../schema/types.generated";
 import { alignToDay, availabilityIssues, isDayKey } from "./availability";
 import { withPhases, type PlanWeek, type StoredWeekMeta } from "./planWeeks";
@@ -53,6 +54,8 @@ export interface ParseOptions {
   planWeeks?: PlanWeek[];
   /** Progressione del carico dell'atleta, per i controlli sulle settimane (D-02). */
   progression?: LoadProgression;
+  /** Zone del sistema dell'atleta per disciplina (D-UX-3): oltre, la seduta arriva "da verificare". */
+  zoneLimits?: Record<ZoneDiscipline, number>;
 }
 
 export function parseProposal(raw: unknown, opts: ParseOptions): Proposal | { error: string } {
@@ -112,6 +115,20 @@ export function parseProposal(raw: unknown, opts: ParseOptions): Proposal | { er
       }
     });
     if (flagged) warnings.push(`${flagged === 1 ? "Una seduta non rispetta" : `${flagged} sedute non rispettano`} la disponibilità dell'atleta: ${flagged === 1 ? "è segnata" : "sono segnate"} da verificare.`);
+  }
+
+  // Zone oltre il sistema impostato per l'atleta (D-UX-3): da verificare, con il motivo.
+  if (opts.zoneLimits) {
+    let overZone = 0;
+    for (const w of workouts) {
+      if (w.needs_review) continue;
+      const issue = zoneIssue(w, opts.zoneLimits);
+      if (issue) {
+        w.needs_review = issue;
+        overZone++;
+      }
+    }
+    if (overZone) warnings.push(`${overZone === 1 ? "Una seduta usa" : `${overZone} sedute usano`} zone oltre il sistema impostato per l'atleta: ${overZone === 1 ? "è segnata" : "sono segnate"} da verificare.`);
   }
 
   // Struttura incompleta (step senza durata o zona, seduta senza step): da verificare, non scartata.

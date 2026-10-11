@@ -39,11 +39,11 @@ export interface AthleteTrainingProfile {
      */
     email?: string;
     /**
-     * Usato per stime età-correlate (es. FC max teorica), non l'età esatta.
+     * A Claude va solo l'età che ne deriva, non l'anno.
      */
     birth_year?: number;
     /**
-     * Rilevante per formule fisiologiche standard (FC max, VO2max stimato). Opzionale.
+     * Contesto per Claude nella generazione. Opzionale.
      */
     biological_sex?: "male" | "female" | "unspecified";
     height_cm?: number;
@@ -82,7 +82,7 @@ export interface AthleteTrainingProfile {
     [k: string]: unknown;
   }[];
   /**
-   * Soglie per ciascuno sport. 'zone_system' è configurazione (cambia raramente); 'thresholds_log' è uno storico datato — il valore corrente è l'ultima voce per data, non un campo a sé da sovrascrivere.
+   * Soglie per ciascuno sport. 'zone_system' è il sistema di zone dell'atleta (3, 5 o 7): le sedute di quello sport usano solo le zone da Z1 a quel numero, come su Intervals.icu; 'thresholds_log' è uno storico datato — il valore corrente è l'ultima voce per data, non un campo a sé da sovrascrivere.
    */
   physiological_thresholds?: {
     running?: {

@@ -1,6 +1,7 @@
 // Costruzione pura (testabile) del prompt della generazione (ADR 0020): regole fisse e formato nel
 // codice, preferenze metodologiche del coach, dati dell'atleta e calendario calcolati da PCoach.
-import { addDaysISO, fullName, todayISO, TRAINING_PLAN_JSON_SHAPE } from "../constants";
+import { addDaysISO, todayISO, TRAINING_PLAN_JSON_SHAPE } from "../constants";
+import { zoneLimits } from "../domain/athlete";
 import type { AthleteTrainingProfile } from "../schema/types.generated";
 import { workoutTotals, zoneLabel, flattenSteps } from "@shared/workouts/structure.ts";
 import type { WorkoutContent } from "@shared/workouts/structure.ts";
@@ -78,16 +79,37 @@ export function reviewSummaryForPrompt(r: RecentReview) {
   };
 }
 
+/** Nome con cui Claude chiama l'atleta: solo il nome di battesimo (decisione del coach D-UX-7). */
+export function promptName(profile: AthleteTrainingProfile): string {
+  return profile.identity?.nome?.trim() || "l'atleta";
+}
+
+/**
+ * Identita' inviata a Claude (D-UX-7): nome di battesimo ed eta' invece di cognome e anno di nascita.
+ * L'email serve solo alla consegna del feedback e non va a Claude.
+ */
+function promptIdentity(profile: AthleteTrainingProfile) {
+  const { nome, birth_year, biological_sex, height_cm, weight_kg } = profile.identity ?? {};
+  const year = Number(todayISO().slice(0, 4));
+  return {
+    nome: nome?.trim() || null,
+    eta: typeof birth_year === "number" && birth_year > 1900 ? year - birth_year : null,
+    biological_sex: biological_sex ?? null,
+    height_cm: height_cm ?? null,
+    weight_kg: weight_kg ?? null
+  };
+}
+
 export function buildAthleteContextForPrompt(profile: AthleteTrainingProfile, recent: PromptWorkout[] = [], reviews: RecentReview[] = []) {
   const cutoff = addDaysISO(todayISO(), -30);
   const latestThreshold = <T extends { date: string }>(log: T[] | undefined): T | undefined =>
     log && log.length ? [...log].sort((a, b) => a.date.localeCompare(b.date)).at(-1) : undefined;
 
-  // L'email serve solo alla consegna del feedback: non va a Claude.
-  const { email: _email, ...identity } = profile.identity;
   return {
-    identity,
+    identity: promptIdentity(profile),
     disciplines: profile.disciplines,
+    // Sistema di zone dell'atleta (D-UX-3): le sedute restano entro queste zone.
+    zone_per_disciplina: zoneLimits(profile),
     latest_thresholds: {
       running: latestThreshold(profile.physiological_thresholds?.running?.thresholds_log),
       cycling: latestThreshold(profile.physiological_thresholds?.cycling?.thresholds_log),
@@ -123,7 +145,7 @@ export interface PlanPromptInput {
 }
 
 /** Versione delle istruzioni fisse e della forma del messaggio: salvata con ogni generazione. */
-export const PLAN_PROMPT_VERSION = "2.2.0";
+export const PLAN_PROMPT_VERSION = "2.3.0";
 
 // Regole e formato fissi nel codice (ADR 0020, decisione del coach D-01): il coach modifica solo le
 // preferenze metodologiche, che non possono togliere a Claude i dati dell'atleta, i vincoli o il formato.
@@ -135,6 +157,7 @@ Regole:
 - "attivita_abituale" è ciò che l'atleta fa di solito quel giorno: usala come preferenza per disciplina e tipo di seduta, salvo indicazioni diverse del coach.
 - Rispetta il numero di sedute a settimana dell'atleta (constraints.sessions_per_week_target), se indicato.
 - Rispetta la distribuzione dell'intensità scelta per l'atleta (methodology_preferences.intensity_distribution_model).
+- Usa in ogni disciplina solo le zone da Z1 al numero indicato in "zone_per_disciplina": è il sistema di zone impostato per l'atleta, lo stesso del suo account Intervals.icu.
 - Rispetta la fase di ogni settimana e la variazione di carico indicate nel calendario ("fase", "variazione_carico"), in ogni disciplina: le percentuali sono quelle scelte dal coach per questo atleta.
 - Le settimane con fase "tapering" o "gara" preparano la gara indicata nel calendario (campo "gara" nel giorno della gara): rispetta la variazione di carico indicata e non pianificare altre sedute nel giorno della gara.
 - Le sedute già fissate nel periodo non vanno ripetute né spostate: pianifica intorno a queste, tenendone conto nel carico.
@@ -156,7 +179,7 @@ export interface PlanPrompt {
  */
 export function buildPlanPrompt(profile: AthleteTrainingProfile, input: PlanPromptInput, preferences: string): PlanPrompt {
   const toDate = addDaysISO(input.fromDate, input.weeks * 7 - 1);
-  const name = fullName(profile.identity) || "l'atleta";
+  const name = promptName(profile);
   const prefs = preferences.replaceAll("{{nome_atleta}}", name).trim();
   const system = prefs
     ? `${PLAN_RULES}

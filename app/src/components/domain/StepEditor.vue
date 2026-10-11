@@ -7,10 +7,16 @@ import { STEP_ROLES, peakZone } from "@shared/workouts/structure.ts";
 import { ROLE_LABELS } from "../../domain/workoutState";
 import { ArrowDown, ArrowUp, Plus, Repeat, Trash2 } from "lucide-vue-next";
 
-const props = defineProps<{ structure: WorkoutStructure; errors: Record<string, string>; readonly?: boolean }>();
+const props = defineProps<{ structure: WorkoutStructure; errors: Record<string, string>; readonly?: boolean; maxZone?: number }>();
 
 type Unit = "min" | "s" | "km" | "m";
-const ZONES = [1, 2, 3, 4, 5, 6, 7];
+// Solo le zone del sistema dell'atleta per la disciplina (D-UX-3); una zona gia' oltre resta visibile.
+const zoneMax = () => props.maxZone ?? 7;
+function zoneChoices(current: number | null | undefined): number[] {
+  const list = Array.from({ length: zoneMax() }, (_, i) => i + 1);
+  return current && current > zoneMax() ? [...list, current] : list;
+}
+const zoneText = (z: number) => (z > zoneMax() ? `Z${z}, oltre le ${zoneMax()} zone` : `Z${z}`);
 
 function unitOf(step: WorkoutStep): Unit {
   if (step.duration.type === "time") return step.duration.seconds % 60 === 0 ? "min" : "s";
@@ -125,12 +131,12 @@ function isRepeat(b: WorkoutBlock): b is Extract<WorkoutBlock, { kind: "repeat" 
             <select :value="step.target?.zone ?? ''" :disabled="readonly" aria-label="Zona" :class="{ invalid: errors[`step:${i}.${j}`] && !step.target }"
               @change="setZone(step, ($event.target as HTMLSelectElement).value)">
               <option value="">Zona…</option>
-              <option v-for="z in ZONES" :key="z" :value="z">Z{{ z }}</option>
+              <option v-for="z in zoneChoices(step.target?.zone)" :key="z" :value="z">{{ zoneText(z) }}</option>
             </select>
             <select :value="step.target?.zone_to ?? ''" :disabled="readonly || !step.target" aria-label="Fino alla zona"
               @change="setZoneTo(step, ($event.target as HTMLSelectElement).value)">
               <option value="">fino a…</option>
-              <option v-for="z in ZONES.filter((x) => x > (step.target?.zone ?? 7))" :key="z" :value="z">Z{{ z }}</option>
+              <option v-for="z in zoneChoices(step.target?.zone_to).filter((x) => x > (step.target?.zone ?? 7))" :key="z" :value="z">{{ zoneText(z) }}</option>
             </select>
             <input class="step-cue" :value="step.cue ?? ''" :disabled="readonly" placeholder="Indicazione per l'atleta" aria-label="Indicazione per l'atleta"
               @input="setCue(step, ($event.target as HTMLInputElement).value)" />
@@ -160,12 +166,12 @@ function isRepeat(b: WorkoutBlock): b is Extract<WorkoutBlock, { kind: "repeat" 
           <select :value="block.target?.zone ?? ''" :disabled="readonly" aria-label="Zona" :class="{ invalid: errors[`step:${i}`] && !block.target }"
             @change="setZone(block, ($event.target as HTMLSelectElement).value)">
             <option value="">Zona…</option>
-            <option v-for="z in ZONES" :key="z" :value="z">Z{{ z }}</option>
+            <option v-for="z in zoneChoices(block.target?.zone)" :key="z" :value="z">{{ zoneText(z) }}</option>
           </select>
           <select :value="block.target?.zone_to ?? ''" :disabled="readonly || !block.target" aria-label="Fino alla zona"
             @change="setZoneTo(block, ($event.target as HTMLSelectElement).value)">
             <option value="">fino a…</option>
-            <option v-for="z in ZONES.filter((x) => x > (block.target?.zone ?? 7))" :key="z" :value="z">Z{{ z }}</option>
+            <option v-for="z in zoneChoices(block.target?.zone_to).filter((x) => x > (block.target?.zone ?? 7))" :key="z" :value="z">{{ zoneText(z) }}</option>
           </select>
           <input class="step-cue" :value="block.cue ?? ''" :disabled="readonly" placeholder="Indicazione per l'atleta" aria-label="Indicazione per l'atleta"
             @input="setCue(block, ($event.target as HTMLInputElement).value)" />

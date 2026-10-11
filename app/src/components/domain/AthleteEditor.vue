@@ -454,6 +454,11 @@ function onExport() {
           <MetricLogList v-model="profile.physiological_thresholds!.cycling!.thresholds_log as never" :field-defs="BIKE_THRESHOLD_FIELDS" />
         </template>
         <MetricLogList v-else v-model="profile.physiological_thresholds!.swimming!.thresholds_log as never" :field-defs="SWIM_THRESHOLD_FIELDS" />
+        <p class="helper-text">
+          <template v-if="thresholdSport === 'swimming'">Il nuoto usa 7 zone.</template>
+          <template v-else>Le sedute di {{ thresholdSport === "running" ? "corsa" : "bici" }} usano solo le zone da Z1 a quella indicata, sia nella generazione sia nell'editor: devono coincidere con le zone impostate su Intervals.icu per l'atleta.</template>
+          Conta l'ultima rilevazione per data.
+        </p>
       </section>
 
       <section class="block">

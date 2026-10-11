@@ -17,7 +17,7 @@ import { showToast } from "../../composables/useToast";
 import { addDaysISO, DEFAULT_PLAN_PREFERENCES, formatDate, todayISO } from "../../constants";
 import { buildPlanPrompt, promptAsText } from "../../services/planPrompt";
 import { callClaudeProxy, copyToClipboardFallback, extractJsonBlock } from "../../services/claude";
-import { hasFtp } from "../../domain/athlete";
+import { hasFtp, zoneLimits } from "../../domain/athlete";
 import { continueFromDate, cycleAnchor, MAX_PLAN_WEEKS, parseLoadPattern, planMaxTokens, planWeeks, raceEvents } from "../../domain/planWeeks";
 import type { DiffDay, Proposal } from "../../domain/regeneration";
 import { buildApplyPayload, defaultKeep, diffCounts, isForcedKeep, parseProposal, regenerationCandidates, regenerationDiff } from "../../domain/regeneration";
@@ -118,7 +118,8 @@ const recentWorkouts = computed(() =>
 function parseOptions(from: string, w: number) {
   return {
     fromDate: from, weeks: w, hasFtp: hasFtp(profile.value), constraints: profile.value.constraints, fixed: keptWorkouts.value,
-    planWeeks: weeksOfPlan(from, w), progression: loadProgressionOf(profile.value.methodology_preferences)
+    planWeeks: weeksOfPlan(from, w), progression: loadProgressionOf(profile.value.methodology_preferences),
+    zoneLimits: zoneLimits(profile.value)
   };
 }
 

@@ -30,6 +30,14 @@ describe("proposta di Claude", () => {
     expect(p.warnings).toHaveLength(2);
   });
 
+  it("segna da verificare le sedute con zone oltre il sistema dell'atleta (D-UX-3)", () => {
+    const p = parseProposal(raw, { fromDate: "2026-10-14", weeks: 2, hasFtp: false, zoneLimits: { running: 7, cycling: 3, swimming: 7 } });
+    if ("error" in p) throw new Error(p.error);
+    expect(p.workouts[0].needs_review).toBeNull();
+    expect(p.workouts[1].needs_review).toBe("Usa la zona Z5, oltre le 3 zone impostate per la bici.");
+    expect(p.warnings.some((w) => w.includes("zone oltre il sistema"))).toBe(true);
+  });
+
   it("rifiuta una risposta senza elenco di sedute", () => {
     expect(parseProposal({ weeks: [] }, { fromDate: "2026-10-14", weeks: 1, hasFtp: true })).toHaveProperty("error");
   });

@@ -25,7 +25,7 @@ describe("buildPlanPrompt", () => {
 
   it("messaggio: periodo, motivo, sedute fisse, calendario e contesto dell'atleta", () => {
     const p = buildPlanPrompt(profile, { weeks: 2, fromDate: "2026-10-12", reason: "Affaticamento", fixed: [fixed], recent: [] }, DEFAULT_PLAN_PREFERENCES);
-    expect(p.user).toContain("Prepara le sedute di 2 settimane per Giulia Ferri, dal 2026-10-12 al 2026-10-25 compresi.");
+    expect(p.user).toContain("Prepara le sedute di 2 settimane per Giulia, dal 2026-10-12 al 2026-10-25 compresi.");
     expect(p.user).toContain("Affaticamento");
     expect(p.user).toContain('"title": "Lungo"');
     expect(p.user).toContain('"minutes": 90');
@@ -44,13 +44,13 @@ describe("buildPlanPrompt", () => {
 
   it("le preferenze possono citare il nome dell'atleta", () => {
     const p = buildPlanPrompt(profile, { weeks: 1, fromDate: "2026-10-12", reason: "", fixed: [], recent: [] }, "Per {{nome_atleta}}: niente corsa il lunedì.");
-    expect(p.system).toContain("Per Giulia Ferri: niente corsa il lunedì.");
+    expect(p.system).toContain("Per Giulia: niente corsa il lunedì.");
   });
 
   it("contesto dell'atleta: niente email ne' chiave Intervals.icu, si' profilo, vincoli e carico", () => {
     const full = {
       ...profile,
-      identity: { ...profile.identity, email: "giulia@example.test" },
+      identity: { ...profile.identity, email: "giulia@example.test", birth_year: 1990 },
       integrations: { intervals_icu_api_key: "CHIAVE-SEGRETA" },
       training_status: { ...profile.training_status, load_metrics_log: [{ date: todayISO(), source: "manual" as const, ctl: 40, atl: 45, tsb: -5 }] }
     };
@@ -59,8 +59,18 @@ describe("buildPlanPrompt", () => {
     expect(text).not.toContain("giulia@example.test");
     expect(text).not.toContain("CHIAVE-SEGRETA");
     expect(ctx.identity.nome).toBe("Giulia");
+    // D-UX-7: niente cognome ne' anno di nascita, ma l'eta'.
+    expect(text).not.toContain("Ferri");
+    expect(text).not.toContain("1990");
+    expect(ctx.identity.eta).toBe(Number(todayISO().slice(0, 4)) - 1990);
     expect(ctx.constraints.days_available).toHaveLength(7);
     expect(ctx.training_status.load_metrics_last_30_days).toHaveLength(1);
+  });
+
+  it("zone per disciplina dal sistema dell'atleta, con la regola nelle istruzioni (D-UX-3)", () => {
+    const fiveZones = { ...profile, physiological_thresholds: { ...profile.physiological_thresholds, running: { zone_system: "5-zone" as const, thresholds_log: [] } } };
+    expect(buildAthleteContextForPrompt(fiveZones).zone_per_disciplina).toEqual({ running: 5, cycling: 7, swimming: 7 });
+    expect(PLAN_RULES).toContain("zone_per_disciplina");
   });
 
   it("sedute recenti con esito, minuti svolti e RPE; valutazioni recenti solo come dati calcolati (D-09)", () => {

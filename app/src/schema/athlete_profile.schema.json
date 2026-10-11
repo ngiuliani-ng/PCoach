@@ -37,11 +37,11 @@
         "nome": { "type": "string" },
         "cognome": { "type": "string" },
         "email": { "type": "string", "format": "email", "description": "Usata per l'invio del feedback settimanale automatico, se attivo." },
-        "birth_year": { "type": "integer", "description": "Usato per stime età-correlate (es. FC max teorica), non l'età esatta." },
+        "birth_year": { "type": "integer", "description": "A Claude va solo l'età che ne deriva, non l'anno." },
         "biological_sex": {
           "type": "string",
           "enum": ["male", "female", "unspecified"],
-          "description": "Rilevante per formule fisiologiche standard (FC max, VO2max stimato). Opzionale."
+          "description": "Contesto per Claude nella generazione. Opzionale."
         },
         "height_cm": { "type": "number" },
         "weight_kg": { "type": "number", "description": "Utile per calcolo W/kg in bici e per monitorare variazioni di peso ai fini della performance." }
@@ -84,7 +84,7 @@
 
     "physiological_thresholds": {
       "type": "object",
-      "description": "Soglie per ciascuno sport. 'zone_system' è configurazione (cambia raramente); 'thresholds_log' è uno storico datato — il valore corrente è l'ultima voce per data, non un campo a sé da sovrascrivere.",
+      "description": "Soglie per ciascuno sport. 'zone_system' è il sistema di zone dell'atleta (3, 5 o 7): le sedute di quello sport usano solo le zone da Z1 a quel numero, come su Intervals.icu; 'thresholds_log' è uno storico datato — il valore corrente è l'ultima voce per data, non un campo a sé da sovrascrivere.",
       "properties": {
         "running": {
           "type": "object",

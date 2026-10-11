@@ -143,7 +143,7 @@ Regole del formato:
 - Scrivi il JSON compatto, senza indentazione, una seduta per riga, e ometti i campi null o vuoti (distance_m, zone_to, cue, duration_min): la risposta ha un limite di lunghezza.
 - date e day vengono dal calendario fornito: non calcolare tu il giorno della settimana di una data.
 - Ogni step ha duration_sec (secondi) oppure distance_m (metri), mai entrambi.
-- zone e zone_to sono zone da Z1 a Z7 (zone_to solo per un intervallo, ad esempio Z2-Z3). Niente percentuali, watt o passi assoluti: la metrica la sceglie PCoach (bici in potenza o frequenza cardiaca, corsa e nuoto in zone di passo).
+- zone e zone_to sono zone da Z1 alla zona massima della disciplina indicata in "zone_per_disciplina" (zone_to solo per un intervallo, ad esempio Z2-Z3). Niente percentuali, watt o passi assoluti: la metrica la sceglie PCoach (bici in potenza o frequenza cardiaca, corsa e nuoto in zone di passo).
 - weeks: una voce per ogni settimana del calendario (campo "settimana"), con week_start il lunedì di quella settimana e is_deload true se la fase è "scarico".
 - Una ripetuta (kind "repeat") contiene solo step, mai altre ripetute.
 - Anche le sedute a ritmo costante hanno steps (un solo step "steady").

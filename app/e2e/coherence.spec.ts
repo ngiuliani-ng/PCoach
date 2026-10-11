@@ -116,3 +116,19 @@ test("una valutazione in preparazione si aggiorna senza ricaricare la pagina", a
   await page.getByRole("button", { name: "Aggiorna ora" }).click();
   await expect(page.getByText("Da rivedere")).toBeVisible();
 });
+
+test("il sistema di zone dell'atleta limita l'editor e chiede conferma per approvare una seduta oltre", async ({ page }) => {
+  const state = createState();
+  profileOf(state).physiological_thresholds.cycling.zone_system = "3-zone";
+  await installMockBackend(page, state);
+  await page.goto(`./#/atleta/${ATHLETE_ID}/piano`);
+  await page.getByRole("button", { name: "Settimana successiva" }).click();
+  await page.getByRole("button", { name: /Apri VO2max/ }).click();
+  const drawer = page.getByRole("dialog");
+  await expect(drawer.getByText(/Usa la zona Z5, oltre le 3 zone impostate per la bici/)).toBeVisible();
+  // L'editor propone solo Z1-Z3, piu' la zona gia' presente segnalata.
+  const zone = drawer.getByRole("combobox", { name: "Zona", exact: true }).first();
+  await expect(zone.locator("option")).toHaveText(["Zona…", "Z1", "Z2", "Z3"]);
+  await drawer.getByRole("button", { name: "Approva" }).click();
+  await expect(page.getByRole("alertdialog")).toContainText("Usa la zona Z5, oltre le 3 zone impostate per la bici. Approvarla comunque?");
+});

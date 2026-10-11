@@ -15,7 +15,7 @@ import { confirmDialog } from "../../composables/useConfirmDialog";
 import { showToast } from "../../composables/useToast";
 import { disciplineIcon, disciplineLabel, formatDate, todayISO } from "../../constants";
 import { TARGET_LABELS, activitySummary, formatMinutes, formatMeters, execState, isPartlyDone } from "../../domain/workoutState";
-import { hasFtp } from "../../domain/athlete";
+import { hasFtp, zoneIssue, zoneLimits, type ZoneDiscipline } from "../../domain/athlete";
 import { availabilityIssues } from "../../domain/availability";
 import StepEditor from "./StepEditor.vue";
 import StructureBar from "./StructureBar.vue";
@@ -71,10 +71,16 @@ function onDisciplineChange(value: string) {
   }
 }
 
-// Disponibilita' dell'atleta ricontrollata sulla seduta modificata, con le altre sedute attive del giorno.
+// Zone del sistema dell'atleta (D-UX-3): l'editor propone solo quelle, il salvataggio le ricontrolla.
+const limits = computed(() => zoneLimits(athletes.athletes[original.value.athlete_id]));
+const maxZone = computed(() => limits.value[draft.discipline as ZoneDiscipline]);
+const currentZoneIssue = computed(() => zoneIssue(draft, limits.value));
+
+// Vincoli dell'atleta ricontrollati sulla seduta modificata: disponibilita' (con le altre sedute
+// attive del giorno) e sistema di zone.
 function availabilityIssue(): string | null {
   const sameDay = store.workouts.filter((w) => w.id !== props.workoutId && w.planned_date === draft.planned_date && (w.status === "draft" || w.status === "approved"));
-  return availabilityIssues([...sameDay, draft], athletes.athletes[original.value.athlete_id]?.constraints).get(sameDay.length) ?? null;
+  return availabilityIssues([...sameDay, draft], athletes.athletes[original.value.athlete_id]?.constraints).get(sameDay.length) ?? currentZoneIssue.value;
 }
 
 async function save(approve: boolean) {
@@ -238,7 +244,8 @@ const exec = computed(() => execState(original.value, todayISO()));
             </div>
           </div>
           <StructureBar :discipline="draft.discipline" :structure="draft.structure" />
-          <StepEditor v-if="draft.structure" :structure="draft.structure" :errors="errors" :readonly="!editable" />
+          <StepEditor v-if="draft.structure" :structure="draft.structure" :errors="errors" :readonly="!editable" :max-zone="maxZone" />
+          <p v-if="editable && currentZoneIssue" class="helper-text error-text">{{ currentZoneIssue }} Le zone devono essere quelle impostate per l'atleta nel Profilo e su Intervals.icu.</p>
           <p v-if="errors.structure" class="helper-text error-text">{{ errors.structure }}</p>
         </template>
       </section>
