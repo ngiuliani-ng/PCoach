@@ -8,6 +8,7 @@
 import { computed, nextTick, ref, watch } from "vue";
 import { useAthletesStore } from "../../stores/athletes";
 import { useWorkoutsStore } from "../../stores/workouts";
+import { useSettingsStore } from "../../stores/settings";
 import {
   TRAINING_SPORT_OPTIONS, LEVEL_OPTIONS, VOLUME_UNITS,
   OBJECTIVE_OPTIONS, SHARED_OBJECTIVE_OPTIONS, EVENT_DISCIPLINE_OPTIONS, EVENT_PRIORITIES,
@@ -165,8 +166,20 @@ async function onReloadRemote() {
 }
 
 // ---------- Sedute ----------
-// Le sedute vivono in tabelle proprie (ADR 0017): si caricano all'apertura della scheda.
-watch(() => athletes.currentId, (id) => void workouts.load(id), { immediate: true });
+// Le sedute vivono in tabelle proprie (ADR 0017): si caricano all'apertura della scheda. Subito
+// dopo, le sedute recenti abbinate con certezza a un'attivita' di Intervals.icu risultano svolte
+// senza aprire «Sincronizza settimana» (ADR 0019).
+const settings = useSettingsStore();
+watch(
+  () => athletes.currentId,
+  async (id) => {
+    await workouts.load(id);
+    if (id && id === athletes.currentId) {
+      await workouts.recordCompletions(athletes.athletes[id]?.integrations?.intervals_icu_api_key, settings.settings.feedback_params);
+    }
+  },
+  { immediate: true }
+);
 const thisWeek = computed(() => {
   const start = weekStartISO(todayISO());
   const end = addDaysISO(start, 6);

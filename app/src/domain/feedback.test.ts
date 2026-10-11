@@ -4,6 +4,7 @@
 import { describe, expect, it } from "vitest";
 import { buildFeedbackInput, type AnalysisInput } from "@shared/feedback/contract.ts";
 import { normalizeActivities } from "@shared/feedback/normalize.ts";
+import { recentCompletions } from "@shared/feedback/completion.ts";
 import { buildFeedbackTool, validateFeedbackOutput, buildFeedbackPrompt } from "@shared/feedback/output.ts";
 import { DEFAULT_FEEDBACK_PARAMS, loadProgressionOf, resolveFeedbackParams, validateFeedbackParams } from "@shared/feedback/params.ts";
 import { inScheduleWindow, localDayHour, reviewPeriod } from "@shared/feedback/period.ts";
@@ -242,6 +243,36 @@ describe("abbinamento e metriche", () => {
     expect(list.map((x) => x.discipline)).toEqual(["cycling", "other", "other"]);
     const r = buildFeedbackInput(input([wk("w1", "2026-10-14", "running", 30)], [act("c", "2026-10-13T10:00:00", "Padel", 30)]));
     expect(r.anomalies.find((a) => a.code === "unmapped_type")?.detail).toContain("Padel");
+  });
+});
+
+describe("sedute svolte all'apertura della scheda", () => {
+  const today = "2026-10-16";
+
+  it("segna solo gli abbinamenti certi: evento abbinato o coppia unica nello stesso giorno", () => {
+    const ws = [
+      wk("p", "2026-10-13", "running", 45, { remote_event_id: 7 }),
+      wk("s", "2026-10-14", "cycling", 60),
+      wk("d1", "2026-10-15", "running", 40, { slot: 0 }), wk("d2", "2026-10-15", "running", 30, { slot: 1 }),
+      wk("m", "2026-10-12", "running", 50),
+      wk("done", "2026-10-11", "running", 40, { completed_at: "2026-10-11T08:00:00Z" })
+    ];
+    const as = [
+      act("a1", "2026-10-13T18:00:00", "running", 44, { paired_event_id: 7 }),
+      act("a2", "2026-10-14T18:00:00", "cycling", 62),
+      act("a3", "2026-10-15T07:00:00", "running", 41), act("a4", "2026-10-15T18:00:00", "running", 29),
+      act("a5", "2026-10-13T07:00:00", "running", 50),
+      act("a6", "2026-10-11T08:00:00", "running", 40)
+    ];
+    const got = recentCompletions(ws, as, today);
+    expect(got.map((c) => [c.workout_id, c.activity_id])).toEqual([["p", "a1"], ["s", "a2"]]);
+    expect(got[0].completed_at).toBe("2026-10-13T16:00:00Z");
+  });
+
+  it("ignora le sedute fuori dagli ultimi 14 giorni e quelle non abbinate", () => {
+    const ws = [wk("old", "2026-09-30", "running", 40), wk("none", "2026-10-15", "swimming", 40)];
+    const as = [act("x", "2026-09-30T08:00:00", "running", 40)];
+    expect(recentCompletions(ws, as, today)).toEqual([]);
   });
 });
 

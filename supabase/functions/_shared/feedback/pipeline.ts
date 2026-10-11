@@ -10,6 +10,7 @@
 // Una nuova revisione (rigenerazione) rende "superseded" la precedente. Nessuna email parte
 // da una riga che il coach non ha approvato.
 import { addDaysISO } from "../workouts/calendar.ts";
+import { completionsFrom } from "./completion.ts";
 import { buildFeedbackInput, type FeedbackInput } from "./contract.ts";
 import { buildFeedbackPrompt, buildFeedbackTool, type FeedbackOutput, type FeedbackTool, validateFeedbackOutput } from "./output.ts";
 import { loadProgressionOf, resolveFeedbackParams } from "./params.ts";
@@ -179,17 +180,9 @@ export async function analyze(deps: Deps, row: ReviewRow, settings: FeedbackSett
     params: resolveFeedbackParams(settings.feedback_params)
   });
 
-  // Le sedute abbinate con certezza risultano svolte anche nel piano (prima solo l'anteprima di
-  // «Sincronizza settimana» le registrava).
-  const byId = new Map(workouts.map((w) => [w.id, w]));
-  for (const s of input.sessions) {
-    const w = byId.get(s.workout_id);
-    if (!w || w.completed_at || !s.activity_ids.length) continue;
-    if (!(s.confidence === "confirmed" || s.confidence === "high")) continue;
-    if (!["completed", "over", "partial", "short"].includes(s.outcome)) continue;
-    const act = input.activities.find((a) => a.activity_id === s.activity_ids[0]);
-    const raw = acts.data.find((a) => String(a.id) === s.activity_ids[0]);
-    await store.markCompleted(w.id, s.activity_ids[0], raw?.start_date ?? (act ? `${act.date}T12:00:00Z` : now.toISOString()));
+  // Le sedute abbinate con certezza risultano svolte anche nel piano.
+  for (const c of completionsFrom(input.sessions, workouts, acts.data)) {
+    await store.markCompleted(c.workout_id, c.activity_id, c.completed_at);
   }
 
   await store.update(row.id, "pending", {

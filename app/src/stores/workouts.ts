@@ -7,6 +7,10 @@ import { supabase } from "../services/supabase";
 import type { SyncRow, SyncableWorkout } from "@shared/workouts/sync.ts";
 import type { WorkoutContent } from "@shared/workouts/structure.ts";
 import type { ApplyPayload, WeekMeta } from "../domain/regeneration";
+import { RECENT_COMPLETION_DAYS, recentCompletions } from "@shared/feedback/completion.ts";
+import type { FeedbackParams } from "@shared/feedback/params.ts";
+import { addDaysISO, todayISO } from "@shared/workouts/calendar.ts";
+import { fetchActivities } from "../services/intervals";
 
 export interface WorkoutRecord extends SyncableWorkout {
   athlete_id: string;
@@ -123,6 +127,37 @@ export const useWorkoutsStore = defineStore("workouts", {
 
     async reload() {
       await this.load(this.athleteId);
+    },
+
+    /**
+     * Registra come svolte le sedute approvate degli ultimi giorni abbinate con certezza a
+     * un'attivita' di Intervals.icu (stessa regola dell'analisi del feedback, ADR 0019). Solo
+     * lettura su Intervals.icu; in caso di errore non cambia nulla. Restituisce quante ne ha segnate.
+     */
+    async recordCompletions(apiKey: string | null | undefined, params?: FeedbackParams): Promise<number> {
+      const athleteId = this.athleteId;
+      if (!athleteId || !apiKey?.trim() || !supabase) return 0;
+      const today = todayISO();
+      const res = await fetchActivities(apiKey.trim(), addDaysISO(today, -(RECENT_COMPLETION_DAYS - 1)), today);
+      if (!res.ok || this.athleteId !== athleteId) return 0;
+      const approved = this.workouts
+        .filter((w) => w.status === "approved")
+        .map((w) => ({ ...w, remote_event_id: this.syncRows[w.id]?.remote_event_id ?? null }));
+      let marked = 0;
+      for (const c of recentCompletions(approved, res.activities, today, params)) {
+        const { data } = await supabase
+          .from("workouts")
+          .update({ completed_at: c.completed_at, completed_activity_id: c.activity_id, completion_source: "intervals" })
+          .eq("id", c.workout_id)
+          .is("completed_at", null)
+          .select(WORKOUT_COLUMNS);
+        const row = data?.[0];
+        if (!row || this.athleteId !== athleteId) continue;
+        const i = this.workouts.findIndex((w) => w.id === c.workout_id);
+        if (i >= 0) this.workouts[i] = normalize(row as Record<string, unknown>);
+        marked++;
+      }
+      return marked;
     },
 
     /** Aggiorna una seduta solo se e' ancora alla revisione nota. */

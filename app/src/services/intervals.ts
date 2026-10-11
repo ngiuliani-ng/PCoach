@@ -4,6 +4,7 @@
 // (Edge Function weekly-feedback, ADR 0019).
 import { addDaysISO, todayISO } from "../constants";
 import type { AthleteTrainingProfile } from "../schema/types.generated";
+import type { RawActivity } from "@shared/feedback/types.ts";
 
 type LoadMetricsEntry = NonNullable<
   NonNullable<AthleteTrainingProfile["training_status"]>["load_metrics_log"]
@@ -88,5 +89,19 @@ export async function refreshFromIntervalsIcu(
     return { ok: true, updatedCount, log };
   } catch {
     return { ok: false, error: "Impossibile contattare Intervals.icu (rete o CORS)." };
+  }
+}
+
+/** Attivita' svolte fra due date (incluse), per registrare le sedute svolte all'apertura della scheda. */
+export async function fetchActivities(apiKey: string, oldest: string, newest: string): Promise<{ ok: true; activities: RawActivity[] } | { ok: false }> {
+  try {
+    const res = await fetch(`https://intervals.icu/api/v1/athlete/0/activities?oldest=${oldest}&newest=${newest}`, {
+      headers: { Authorization: "Basic " + btoa("API_KEY:" + apiKey) }
+    });
+    if (!res.ok) return { ok: false };
+    const data = await res.json();
+    return Array.isArray(data) ? { ok: true, activities: data as RawActivity[] } : { ok: false };
+  } catch {
+    return { ok: false };
   }
 }
