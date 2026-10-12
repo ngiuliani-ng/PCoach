@@ -19,6 +19,7 @@ export interface MockState {
   /** Impostazioni degli sport su Intervals.icu (zone_read / zones_apply). */
   icuSportSettings: Row[];
   zoneApplyCalls: Row[];
+  thresholdApplyCalls: Row[];
 }
 
 let seq = 1;
@@ -49,7 +50,7 @@ export function createState(): MockState {
       current_weekly_volume: { value: 30, unit: "km" }, peak_weekly_volume_last_12_months: { value: 50, unit: "km" }
     })),
     physiological_thresholds: {
-      running: { zone_system: "7-zone", thresholds_log: [] },
+      running: { zone_system: "7-zone", thresholds_log: [{ date: "2026-09-01", source: "manual", threshold_pace_per_km: "4:46" }] },
       cycling: { zone_system: "7-zone", thresholds_log: [{ date: "2026-09-01", source: "manual", ftp_watts: 230 }] },
       swimming: { thresholds_log: [] }
     },
@@ -109,6 +110,7 @@ export function createState(): MockState {
       { id: 12, types: ["Run", "TrailRun"], ftp: null, lthr: 170, max_hr: 190, threshold_pace: 3.5, power_zones: null, hr_zones: [144, 151, 160, 168, 173, 180, 190], pace_zones: [77.5, 87.7, 94.3, 100, 103.4, 111.5, 999] }
     ],
     zoneApplyCalls: [],
+    thresholdApplyCalls: [],
     rpcCalls: []
   };
 }
@@ -280,6 +282,12 @@ export async function installMockBackend(page: Page, state: MockState) {
     if (path === "/functions/v1/intervals-sync") {
       const body = req.postDataJSON() as Row;
       if (body.action === "zones_read") return fulfillJson(route, { settings: state.icuSportSettings });
+      if (body.action === "threshold_apply") {
+        state.thresholdApplyCalls.push(body);
+        const run = state.icuSportSettings.find((x) => (x.types as string[]).includes("Run"));
+        if (run) run.threshold_pace = 1000 / 240;
+        return fulfillJson(route, { ok: true, settings: run });
+      }
       if (body.action === "zones_apply") {
         state.zoneApplyCalls.push(body);
         const sport = state.icuSportSettings.find((x) => (x.types as string[]).includes(body.discipline === "running" ? "Run" : body.discipline === "cycling" ? "Ride" : "Swim"));

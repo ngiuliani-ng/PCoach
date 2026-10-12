@@ -86,9 +86,11 @@ Regole per chi modifica il layout:
 - **Scheda atleta: tre viste** a tab (`role="tablist"`, frecce sinistra/destra per cambiare):
   - **Panoramica**: carico e forma, la settimana in corso in sola lettura con «Apri il piano», feedback settimanale (vedi [sotto](#feedback-settimanale));
   - **Piano**: vedi [sotto](#tab-piano);
-  - **Profilo**: identità, Intervals.icu, discipline, soglie, stato di allenamento, obiettivi, vincoli, metodologia, note, esporta/elimina.
+  - **Profilo**: identità, Intervals.icu, discipline, soglie, stato di allenamento, obiettivi, vincoli, metodologia, note, esporta/elimina;
+  - **Anomalie** (solo per una scheda salvata): vedi [sotto](#tab-anomalie). L'etichetta della tab porta il numero di anomalie in un tondo `--warning`.
 
   Si apre sulla Panoramica; una bozza di nuovo atleta si apre sul Profilo e il suo primo salvataggio non cambia vista.
+- **Richiamo delle anomalie**: con almeno un'anomalia, fuori dalla tab Anomalie, una sola riga d'avviso (`.update-banner`) sopra le tab dice quante sono e cosa fermano («4 anomalie: 2 fermano il feedback settimanale, 2 l'invio a Intervals.icu.»), con «Vedi le anomalie». Sostituisce gli avvisi separati: in cima alla scheda resta solo l'avviso «Questa scheda è stata modificata altrove».
 - **Sezioni** (`<section class="block">`, stile in `base.css`): piatte, separate da un filetto superiore in `--border`, titolo `h3`. Le **unità** (`.unit`) sono l'unico livello di card: sfondo `--surface`, bordo, `--radius-md`, intestazione `.unit-head` con titolo e `IconButton` di rimozione.
 - **Soglie**: una sola sezione con un selettore a segmenti (`.segmented`, `aria-pressed`) Corsa / Bici / Nuoto.
 - **Campi**: `<label class="field">` che avvolge `<span class="field-label">` e il controllo, così ogni etichetta è associata al suo campo senza `id`. Le righe di campi (`.field-row`) sono una griglia `auto-fit` con colonne da almeno 150px.
@@ -128,6 +130,18 @@ Una sola vista, un pannello e due dialoghi, al posto di schermate separate (moti
 - **Dialoghi** di generazione («Genera il piano», «Prosegui il piano», «Ripianifica da una data») e «Sincronizza settimana». Nella generazione, «Genera la proposta» resta disattivato con «Preparo la richiesta…» fino alla chiamata a Claude; uno schema di carico non riconosciuto è segnalato nei parametri; nella proposta gli avvisi (sedute a settimana, variazione di volume, date riallineate o scartate) sono in un riquadro d'avviso con il conteggio. In generale: box centrato di 720px (a schermo intero sotto i 560px), con intestazione, corpo scorrevole e piede con le azioni a destra. Il pulsante di conferma dice cosa succede e quante sedute coinvolge («Applica la nuova programmazione», «Sincronizza 3 sedute, di cui 1 da rimuovere»). Le liste dentro i dialoghi (`.op-list`, `.keep-list`, differenze per giorno) sono unità con righe separate da filetti. Gli esiti per riga usano icona e testo: in corso in `--accent`, riuscita neutra, non riuscita in `--danger` con il motivo.
 - **Storico**: selettore del piano (attivo, chiusi con la data) e filtri a chip con conteggio: tutte, da revisionare, da verificare, approvate, su Intervals.icu, da aggiornare, errori, svolte, non registrate, in programma, annullate o sostituite. Le sedute sono raggruppate per settimana, dalla più recente.
 
+### Tab Anomalie
+
+`AnomaliesTab.vue`, elenco da `useAthleteAnomalies.ts`; decisione in [decisioni/0031](decisioni/0031-anomalie-dell-atleta-in-una-tab.md).
+
+- **Gruppi per ciò che fermano**, una sezione ciascuno, mostrata solo se ha anomalie:
+  - «Fermano il feedback settimanale»: zone o soglie diverse da Intervals.icu, soglia mancante, feedback non preparato o approvato ma non inviato (ultime 4 settimane);
+  - «Fermano l'invio a Intervals.icu»: chiave Intervals.icu non valida, sedute da verificare, invii non riusciti.
+  Sotto il titolo una riga dice la conseguenza.
+- **Ogni gruppo è un'unità** con una riga per anomalia, separata da filetti. Riga: icona (`TriangleAlert` in `--warning` per ciò che va sistemato, `CircleAlert` in `--danger` per ciò che è già fallito), titolo, dettaglio in `--text-muted`, azioni. Le azioni che scrivono (su Intervals.icu o nella scheda) sono pulsanti `secondary` con conferma; quelle che portano dove si sistema («Aggiungila nel Profilo», «Apri il feedback») sono link.
+- **Sedute**: sedute da verificare e invii non riusciti sono una sola anomalia con l'elenco delle sedute (data e nome come link che apre il pannello, motivo sotto). Nel conteggio ogni seduta vale uno. Dal pannello «indietro» torna alle anomalie.
+- **Vuota**: «Nessuna anomalia» e una frase su cosa compare qui. Durante la lettura da Intervals.icu: «Controllo zone e soglie su Intervals.icu…».
+
 ## Stati dei componenti
 
 Un valore fisso che ha senso mostrare accanto a campi modificabili (es. il sistema di zone del nuoto) è un campo `disabled`, con sfondo `--surface-2` e testo pieno, più una riga che dice perché non si cambia.
@@ -151,7 +165,7 @@ Ogni componente interattivo gestisce esplicitamente: default, hover, focus (visi
 - **Barra della struttura**: è l'elemento visivamente forte della tab Piano.
   - Mini (8px, piatta, decorativa) nelle righe delle sedute.
   - Grande nel pannello: 64px, larghezza proporzionale alla durata, altezza crescente con la zona, `role="img"` con un `aria-label` riassuntivo.
-  - Gli step a distanza sono proporzionati con una velocità di riferimento per disciplina, solo a scopo visivo.
+  - Gli step a distanza sono proporzionati con la durata stimata dal passo della zona, come i totali ([decisioni/0030](decisioni/0030-soglie-allineate-e-stima-della-durata.md)).
 - Icone ed etichette delle discipline da `constants.ts` (`disciplineIcon`, `disciplineLabel`), associate per chiave disciplina.
 - Il badge "Scarico" di una settimana è neutro (`--surface-2`): non è un avviso.
 

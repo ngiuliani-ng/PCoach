@@ -2,7 +2,7 @@
 // normalizzate, abbinamenti e contratto passato al modello e salvato con la valutazione.
 import type { Discipline, TargetMetric, WorkoutStructure } from "../workouts/structure.ts";
 
-export const ANALYSIS_VERSION = "1.1.0";
+export const ANALYSIS_VERSION = "1.2.0";
 
 export interface Period {
   start: string; // lunedi'

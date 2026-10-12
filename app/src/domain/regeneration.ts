@@ -8,6 +8,7 @@
 //    in un'unica transazione.
 import { addDaysISO, dayKey, isISODate, weekStartISO } from "@shared/workouts/calendar.ts";
 import type { Discipline, WorkoutContent } from "@shared/workouts/structure.ts";
+import type { PaceContext } from "@shared/workouts/thresholds.ts";
 import { defaultTargetMetric, isDiscipline, validateWorkout } from "@shared/workouts/structure.ts";
 import type { LoadProgression } from "@shared/feedback/params.ts";
 import { weeklyIssues } from "./planChecks";
@@ -56,6 +57,8 @@ export interface ParseOptions {
   progression?: LoadProgression;
   /** Zone del sistema dell'atleta per disciplina (D-UX-3): oltre, la seduta arriva "da verificare". */
   zoneLimits?: Record<ZoneDiscipline, number>;
+  /** Scale di passo dell'atleta: durata degli step a distanza come Intervals.icu (ADR 0030). */
+  pace?: PaceContext | null;
 }
 
 export function parseProposal(raw: unknown, opts: ParseOptions): Proposal | { error: string } {
@@ -105,7 +108,7 @@ export function parseProposal(raw: unknown, opts: ParseOptions): Proposal | { er
 
   if (opts.constraints) {
     const fixed = opts.fixed ?? [];
-    const issues = availabilityIssues([...fixed, ...workouts], opts.constraints);
+    const issues = availabilityIssues([...fixed, ...workouts], opts.constraints, opts.pace);
     let flagged = 0;
     workouts.forEach((w, i) => {
       const issue = issues.get(fixed.length + i);
@@ -145,7 +148,7 @@ export function parseProposal(raw: unknown, opts: ParseOptions): Proposal | { er
 
   // Settimane: numero di sedute e variazione di volume rispetto alla fase (D-02, solo avvisi).
   if (opts.planWeeks && opts.progression) {
-    warnings.push(...weeklyIssues(opts.planWeeks, [...(opts.fixed ?? []), ...workouts], opts.constraints?.sessions_per_week_target, opts.progression));
+    warnings.push(...weeklyIssues(opts.planWeeks, [...(opts.fixed ?? []), ...workouts], opts.constraints?.sessions_per_week_target, opts.progression, opts.pace));
   }
 
   // Una voce per settimana, anche se Claude ne ripete una.

@@ -16,7 +16,8 @@ import { buildFeedbackInput, type FeedbackInput } from "./contract.ts";
 import { buildFeedbackPrompt, buildFeedbackTool, DEFAULT_FEEDBACK_STYLE, type FeedbackOutput, type FeedbackTool, validateFeedbackOutput } from "./output.ts";
 import { loadProgressionOf, resolveFeedbackParams } from "./params.ts";
 import { zoneCountsOf } from "../workouts/zones.ts";
-import { type IcuSportSettings, zoneChecks } from "../workouts/zoneModels.ts";
+import { type IcuSportSettings, resolveZoneModels, zoneChecks } from "../workouts/zoneModels.ts";
+import { missingThresholds, paceContextOf, thresholdChecks } from "../workouts/thresholds.ts";
 import { inScheduleWindow, localDayHour, reviewPeriod, safeTimeZone } from "./period.ts";
 import type { CoachChange, Period, PlannedWorkout, PlanWindow, RawActivity, RawWellness } from "./types.ts";
 
@@ -58,6 +59,7 @@ export interface FeedbackSettings {
   weekly_feedback_time: string;
   weekly_feedback_email_enabled: boolean;
   feedback_params: unknown;
+  zone_models?: unknown;
 }
 
 // La scheda atleta e' un jsonb libero: si leggono solo i campi usati, con controlli.
@@ -162,6 +164,17 @@ export async function analyze(deps: Deps, row: ReviewRow, settings: FeedbackSett
     const detail = misaligned.map((c) => `${c.label}: ${c.pcoach} zone in PCoach, ${c.intervals ?? "nessuna"} su Intervals.icu`).join("; ");
     return fail(`Zone non allineate con Intervals.icu (${detail}). Allineale dalla scheda dell'atleta, poi premi «Riprova».`, true);
   }
+  // Stessa regola per le soglie (ADR 0030): il tempo nelle zone di Intervals.icu dipende dalla sua
+  // soglia, e senza soglia nella scheda i minuti previsti degli step a distanza sono solo stimati.
+  const missing = missingThresholds(profile);
+  if (missing.length) {
+    return fail(`Soglia mancante nella scheda (${missing.join(", ")}). Aggiungila nel Profilo, poi premi «Riprova».`, true);
+  }
+  const thresholdsOff = thresholdChecks(profile, sports.data).filter((c) => !c.aligned);
+  if (thresholdsOff.length) {
+    const detail = thresholdsOff.map((c) => `${c.label}: ${c.format(c.pcoach!)} in PCoach, ${c.intervals === null ? "nessuna" : c.format(c.intervals)} su Intervals.icu`).join("; ");
+    return fail(`Soglie non allineate con Intervals.icu (${detail}). Aggiorna Intervals.icu dalla scheda dell'atleta, poi premi «Riprova».`, true);
+  }
 
   const prevStart = addDaysISO(period.start, -7);
   const [acts, well] = await Promise.all([
@@ -200,6 +213,7 @@ export async function analyze(deps: Deps, row: ReviewRow, settings: FeedbackSett
     plans,
     activities: acts.data,
     wellness: well.data,
+    pace: paceContextOf(profile.physiological_thresholds, resolveZoneModels(settings.zone_models)),
     params: resolveFeedbackParams(settings.feedback_params)
   });
 

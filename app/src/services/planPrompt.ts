@@ -5,6 +5,7 @@ import { zoneLimits } from "../domain/athlete";
 import type { AthleteTrainingProfile } from "../schema/types.generated";
 import { workoutTotals, zoneLabel, flattenSteps } from "@shared/workouts/structure.ts";
 import type { WorkoutContent } from "@shared/workouts/structure.ts";
+import type { PaceContext } from "@shared/workouts/thresholds.ts";
 import { dayName, planningCalendar } from "../domain/availability";
 import type { PlanWeek } from "../domain/planWeeks";
 import { loadProgressionOf } from "@shared/feedback/params.ts";
@@ -25,8 +26,8 @@ function esito(w: PromptWorkout): string {
   return w.planned_date < todayISO() ? "nessuna attività registrata" : "in programma";
 }
 
-function summarize(w: PromptWorkout) {
-  const totals = workoutTotals(w);
+function summarize(w: PromptWorkout, pace?: PaceContext | null) {
+  const totals = workoutTotals(w, pace);
   const zones = [...new Set(flattenSteps(w.structure).map((s) => zoneLabel(s.target)).filter(Boolean))];
   return {
     date: w.planned_date,
@@ -100,7 +101,7 @@ function promptIdentity(profile: AthleteTrainingProfile) {
   };
 }
 
-export function buildAthleteContextForPrompt(profile: AthleteTrainingProfile, recent: PromptWorkout[] = [], reviews: RecentReview[] = []) {
+export function buildAthleteContextForPrompt(profile: AthleteTrainingProfile, recent: PromptWorkout[] = [], reviews: RecentReview[] = [], pace?: PaceContext | null) {
   const cutoff = addDaysISO(todayISO(), -30);
   const latestThreshold = <T extends { date: string }>(log: T[] | undefined): T | undefined =>
     log && log.length ? [...log].sort((a, b) => a.date.localeCompare(b.date)).at(-1) : undefined;
@@ -125,7 +126,7 @@ export function buildAthleteContextForPrompt(profile: AthleteTrainingProfile, re
     constraints: profile.constraints,
     methodology_preferences: profile.methodology_preferences,
     notes_free_text: profile.notes_free_text,
-    recent_workouts: recent.map(summarize),
+    recent_workouts: recent.map((w) => summarize(w, pace)),
     recent_reviews: reviews.map(reviewSummaryForPrompt).filter((x) => x !== null)
   };
 }
@@ -142,6 +143,8 @@ export interface PlanPromptInput {
   recent: PromptWorkout[];
   /** Ultime analisi settimanali prima della data di inizio. */
   reviews?: RecentReview[];
+  /** Scale di passo dell'atleta, per i minuti delle sedute con step a distanza (ADR 0030). */
+  pace?: PaceContext | null;
 }
 
 /** Versione delle istruzioni fisse e della forma del messaggio: salvata con ogni generazione. */
@@ -192,7 +195,7 @@ ${prefs}`
   const user = `Prepara le sedute di ${input.weeks} ${input.weeks === 1 ? "settimana" : "settimane"} per ${name}, dal ${input.fromDate} al ${toDate} compresi.
 
 Dati dell'atleta (profilo, soglie, carico recente, sedute approvate delle ultime due settimane con l'esito, ultime valutazioni settimanali):
-${JSON.stringify(buildAthleteContextForPrompt(profile, input.recent, input.reviews ?? []), null, 2)}
+${JSON.stringify(buildAthleteContextForPrompt(profile, input.recent, input.reviews ?? [], input.pace), null, 2)}
 
 Motivo della pianificazione indicato dal coach:
 ${input.reason.trim() || "Nessun motivo indicato."}
@@ -201,7 +204,7 @@ Calendario del periodo, già calcolato: per ogni data il giorno della settimana,
 ${JSON.stringify(calendar)}
 
 Sedute già fissate nel periodo, da NON ripetere né spostare:
-${JSON.stringify(input.fixed.map(summarize), null, 2)}`;
+${JSON.stringify(input.fixed.map((w) => summarize(w, input.pace)), null, 2)}`;
   return { system, user, version: PLAN_PROMPT_VERSION };
 }
 

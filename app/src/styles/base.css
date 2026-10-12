@@ -288,11 +288,47 @@ button:focus-visible, a:focus-visible {
   font-size: var(--fs-sm);
 }
 .update-banner .link-btn { font-weight: 600; margin-left: var(--sp-1); }
-.zone-align p { margin: 0 0 var(--sp-1); }
-.zone-align ul { margin: 0; padding-left: var(--sp-4); }
-.zone-align li { display: flex; flex-wrap: wrap; gap: 0 var(--sp-3); align-items: baseline; }
-.zone-align-actions { display: inline-flex; flex-wrap: wrap; gap: 0 var(--sp-3); }
-.zone-align-actions .link-btn { margin-left: 0; }
+/* Richiamo delle anomalie sopra le tab (ADR 0031): una riga, il dettaglio e' nella tab. */
+.anomaly-callout { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-2); }
+.anomaly-callout svg { flex-shrink: 0; }
+.anomaly-callout .link-btn { margin-left: 0; }
+.tab-count {
+  margin-left: var(--sp-1);
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--warning);
+  background: var(--warning-bg);
+}
+
+/* ---------- Tab Anomalie: un'unita' per gruppo, righe separate da filetti ---------- */
+.anomaly-unit {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.anomaly {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border-top: 1px solid var(--border);
+}
+.anomaly:first-child { border-top: 0; }
+.anomaly-icon { margin-top: 3px; color: var(--warning); }
+.anomaly.err .anomaly-icon { color: var(--danger); }
+.anomaly-main { min-width: 0; }
+.anomaly-title { margin: 0; font-weight: 600; }
+.anomaly-detail { margin: 2px 0 0; max-width: 70ch; font-size: var(--fs-sm); color: var(--text-muted); }
+.anomaly-items { list-style: none; margin: var(--sp-2) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); font-size: var(--fs-sm); }
+.anomaly-items li { display: flex; flex-direction: column; align-items: flex-start; }
+.anomaly-reason { max-width: 70ch; color: var(--text-muted); }
+.anomaly-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); margin-top: var(--sp-3); }
 .link-btn {
   border: none;
   background: transparent;

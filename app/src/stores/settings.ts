@@ -61,7 +61,9 @@ export const useSettingsStore = defineStore("settings", {
     baseline: JSON.stringify(defaults())
   }),
   getters: {
-    isDirty: (s) => JSON.stringify(s.settings) !== s.baseline
+    isDirty: (s) => JSON.stringify(s.settings) !== s.baseline,
+    /** Modelli di zone salvati (non le modifiche in corso in Impostazioni): quelli che legge il server. */
+    savedZoneModels: (s): ZoneModels => resolveZoneModels((JSON.parse(s.baseline) as Partial<AppSettings>).zone_models)
   },
   actions: {
     /** Scarta le modifiche non salvate: tornano i valori letti o salvati per ultimi. */

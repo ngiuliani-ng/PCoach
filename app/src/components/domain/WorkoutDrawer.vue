@@ -45,7 +45,8 @@ const hasErrors = computed(() => Object.keys(errors.value).length > 0);
 const changed = computed(
   () => JSON.stringify({ ...contentOf(draft), locked: draft.locked }) !== JSON.stringify({ ...contentOf(original.value), locked: original.value.locked })
 );
-const totals = computed(() => workoutTotals(draft));
+const pace = computed(() => athletes.paceContexts[original.value.athlete_id] ?? null);
+const totals = computed(() => workoutTotals(draft, pace.value));
 const syncRow = computed(() => store.syncRows[props.workoutId] ?? null);
 const syncState = computed(() => localSyncState(original.value, syncRow.value));
 const intervalsText = computed(() => intervalsDescription(draft));
@@ -81,7 +82,7 @@ const currentZoneIssue = computed(() => zoneIssue(draft, limits.value));
 // attive del giorno) e sistema di zone.
 function availabilityIssue(): string | null {
   const sameDay = store.workouts.filter((w) => w.id !== props.workoutId && w.planned_date === draft.planned_date && (w.status === "draft" || w.status === "approved"));
-  return availabilityIssues([...sameDay, draft], athletes.athletes[original.value.athlete_id]?.constraints).get(sameDay.length) ?? currentZoneIssue.value;
+  return availabilityIssues([...sameDay, draft], athletes.athletes[original.value.athlete_id]?.constraints, pace.value).get(sameDay.length) ?? currentZoneIssue.value;
 }
 
 async function save(approve: boolean) {
@@ -250,7 +251,7 @@ const exec = computed(() => execState(original.value, todayISO()));
             </div>
             <FieldHelp field="workout.primary_target" />
           </div>
-          <StructureBar :discipline="draft.discipline" :structure="draft.structure" />
+          <StructureBar :discipline="draft.discipline" :structure="draft.structure" :pace="pace" />
           <StepEditor v-if="draft.structure" :structure="draft.structure" :errors="errors" :readonly="!editable" :max-zone="maxZone" />
           <p v-if="editable && currentZoneIssue" class="helper-text error-text">{{ currentZoneIssue }} Le zone devono essere quelle impostate per l'atleta nel Profilo e su Intervals.icu.</p>
           <p v-if="errors.structure" class="helper-text error-text">{{ errors.structure }}</p>

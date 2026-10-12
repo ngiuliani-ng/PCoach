@@ -3,6 +3,7 @@
 // (sedute a settimana, variazione di carico della fase); la decisione resta al coach.
 import { addDaysISO } from "@shared/workouts/calendar.ts";
 import type { WorkoutContent } from "@shared/workouts/structure.ts";
+import type { PaceContext } from "@shared/workouts/thresholds.ts";
 import { workoutTotals } from "@shared/workouts/structure.ts";
 import type { LoadProgression } from "@shared/feedback/params.ts";
 import type { PlanWeek } from "./planWeeks";
@@ -23,10 +24,10 @@ function isFull(w: PlanWeek): boolean {
  * l'atleta, e variazione di volume fra due settimane consecutive del ciclo fuori da quella attesa
  * (con le percentuali dell'atleta e una tolleranza). Tapering, gara e raccordo non si controllano.
  */
-export function weeklyIssues(weeks: PlanWeek[], workouts: Planned[], sessionsTarget: number | null | undefined, progression: LoadProgression): string[] {
+export function weeklyIssues(weeks: PlanWeek[], workouts: Planned[], sessionsTarget: number | null | undefined, progression: LoadProgression, pace?: PaceContext | null): string[] {
   const issues: string[] = [];
   const inWeek = (w: PlanWeek) => workouts.filter((x) => x.planned_date >= w.from && x.planned_date <= w.to);
-  const minutes = (w: PlanWeek) => Math.round(inWeek(w).reduce((t, x) => t + workoutTotals(x).seconds, 0) / 60);
+  const minutes = (w: PlanWeek) => Math.round(inWeek(w).reduce((t, x) => t + workoutTotals(x, pace).seconds, 0) / 60);
   const regular = (w: PlanWeek) => isFull(w) && !w.race && w.phase !== "raccordo";
 
   for (const w of weeks.filter(regular)) {

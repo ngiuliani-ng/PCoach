@@ -6,6 +6,19 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
+**2026-10-12 — Tab «Anomalie» della scheda atleta**
+- Nuova tab «Anomalie», con il conteggio nell'etichetta. Raggruppa le anomalie per ciò che fermano: il feedback settimanale (zone o soglie diverse da Intervals.icu, soglia mancante, feedback non preparato o non inviato) o l'invio a Intervals.icu (chiave non valida, sedute da verificare, invii non riusciti). Ogni anomalia ha la sua azione. Sopra le tab, una riga di richiamo con «Vedi le anomalie» sostituisce gli avvisi separati di zone e soglie (`ZoneAlignBanner.vue` rimosso, logica in `useAthleteAnomalies.ts`).
+- Motivazione: gli avvisi in cima alla scheda stavano diventando troppi; il coach ha chiesto di raggrupparli per atleta.
+- Test: 186 unitari, 58 end-to-end.
+- Docs: decisioni/0031 (nuova), design-ui (tab Anomalie, richiamo), integrazioni, decisioni/0030.
+
+**2026-10-12 — Durata degli step a distanza dalla soglia; soglie allineate con Intervals.icu**
+- La durata degli step a distanza di corsa e nuoto si stima dal passo della zona, a partire dall'ultima soglia della scheda (passo di soglia, CSS) e dal modello di zone, come Intervals.icu. Le zone intermedie valgono il loro centro, Z1 il limite superiore, l'ultima zona quello inferiore. Prima si usava una velocità fissa (5:30/km, 2:00/100 m), che resta solo senza soglia e per la bici. La nuova stima vale per totali, barra, durata massima del giorno, controlli della generazione, prompt, abbinamento delle attività e feedback (`ANALYSIS_VERSION` 1.2.0).
+- La scheda confronta passo di soglia, CSS e FTP con Intervals.icu (tolleranza 1 s/km, 1 s/100 m, 1 W) e propone «Aggiorna Intervals.icu» (azione `threshold_apply` di `intervals-sync`). Il feedback settimanale si ferma con soglie diverse o mancanti. «Soglia mancante» per corsa e nuoto praticati senza soglia.
+- Motivazione: con ripetute a distanza veloci la stima fissa era troppo lunga (8×800 m a 4:00/km di soglia: 67' invece di circa 56') e segnava per errore le sedute «Da verificare» per la durata massima del giorno.
+- Test: 186 unitari, 56 end-to-end.
+- Docs: decisioni/0030 (nuova), integrazioni, backend, design-ui, limiti-roadmap.
+
 **2026-10-12 — «Segna verificata» per le sedute già approvate «Da verificare»**
 - Il pannello di una seduta già approvata con un avviso («Da verificare») mostra «Segna verificata» (o «Salva e segna verificata»). Il vincolo viene ricalcolato: se è ancora violato chiede conferma, altrimenti chiude l'avviso.
 - Motivazione: il pulsante di approvazione esisteva solo per le bozze. Una seduta approvata, modificata e finita oltre la durata massima del giorno restava bloccata in «Da verificare», e quindi non si poteva più inviare a Intervals.icu.

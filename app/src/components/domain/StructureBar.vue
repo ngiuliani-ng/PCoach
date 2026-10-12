@@ -5,17 +5,18 @@
 import { computed } from "vue";
 import type { Discipline, WorkoutStructure } from "@shared/workouts/structure.ts";
 import { flattenSteps, peakZone, stepSeconds } from "@shared/workouts/structure.ts";
+import type { PaceContext } from "@shared/workouts/thresholds.ts";
 import { formatMinutes } from "../../domain/workoutState";
 
-const props = defineProps<{ discipline: Discipline; structure: WorkoutStructure | null; variant?: "mini" | "full" }>();
+const props = defineProps<{ discipline: Discipline; structure: WorkoutStructure | null; pace?: PaceContext | null; variant?: "mini" | "full" }>();
 
 const segments = computed(() => {
   const steps = flattenSteps(props.structure);
-  const total = steps.reduce((sum, s) => sum + stepSeconds(s, props.discipline), 0) || 1;
+  const total = steps.reduce((sum, s) => sum + stepSeconds(s, props.discipline, props.pace), 0) || 1;
   return steps.map((s) => {
     const zone = peakZone(s.target);
     return {
-      grow: (stepSeconds(s, props.discipline) / total) * 100,
+      grow: (stepSeconds(s, props.discipline, props.pace) / total) * 100,
       color: zone ? `var(--zone-${zone})` : "var(--zone-unknown)",
       height: zone ? 18 + zone * 12 : 14
     };
@@ -23,7 +24,7 @@ const segments = computed(() => {
 });
 const label = computed(() => {
   const steps = flattenSteps(props.structure);
-  const total = steps.reduce((sum, s) => sum + stepSeconds(s, props.discipline), 0);
+  const total = steps.reduce((sum, s) => sum + stepSeconds(s, props.discipline, props.pace), 0);
   return `Struttura: ${steps.length} step, ${formatMinutes(total)}`;
 });
 </script>

@@ -6,6 +6,7 @@
 // l'RPE, che la generazione successiva passa a Claude.
 import { addDaysISO } from "../workouts/calendar.ts";
 import { matchWeek } from "./match.ts";
+import type { PaceContext } from "../workouts/thresholds.ts";
 import { normalizeActivities } from "./normalize.ts";
 import { DEFAULT_FEEDBACK_PARAMS, type FeedbackParams } from "./params.ts";
 import type { PlannedWorkout, RawActivity, SessionResult } from "./types.ts";
@@ -82,11 +83,11 @@ export function completionsFrom(sessions: SessionResult[], workouts: PlannedWork
 /** Completamenti certi delle sedute approvate in un intervallo di giorni (fino a oggi). */
 export function completionsIn(
   workouts: PlannedWorkout[], activities: RawActivity[], window: { start: string; end: string }, today: string,
-  params: FeedbackParams = DEFAULT_FEEDBACK_PARAMS
+  params: FeedbackParams = DEFAULT_FEEDBACK_PARAMS, pace?: PaceContext | null
 ): Completion[] {
   const inWindow = workouts.filter((w) => w.planned_date >= window.start && w.planned_date <= window.end);
   const { sessions } = matchWeek({
-    workouts: inWindow, activities: normalizeActivities(activities, window), today, params, inPlan: () => true
+    workouts: inWindow, activities: normalizeActivities(activities, window), today, params, pace, inPlan: () => true
   });
   return completionsFrom(sessions, inWindow, activities);
 }
@@ -96,9 +97,10 @@ export const RECENT_COMPLETION_DAYS = 14;
 
 /** Completamenti certi delle sedute approvate degli ultimi giorni, da oggi all'indietro. */
 export function recentCompletions(
-  workouts: PlannedWorkout[], activities: RawActivity[], today: string, params: FeedbackParams = DEFAULT_FEEDBACK_PARAMS
+  workouts: PlannedWorkout[], activities: RawActivity[], today: string, params: FeedbackParams = DEFAULT_FEEDBACK_PARAMS,
+  pace?: PaceContext | null
 ): Completion[] {
-  return completionsIn(workouts, activities, { start: addDaysISO(today, -(RECENT_COMPLETION_DAYS - 1)), end: today }, today, params);
+  return completionsIn(workouts, activities, { start: addDaysISO(today, -(RECENT_COMPLETION_DAYS - 1)), end: today }, today, params, pace);
 }
 
 /** Seduta gia' registrata come svolta, con i dati dell'attivita' salvati. */

@@ -29,14 +29,15 @@ Errori gestiti esplicitamente: chiave non valida (401), altri errori HTTP, error
 
 ## Intervals.icu: zone dell'atleta
 
-All'apertura della scheda `ZoneAlignBanner.vue` legge le zone dell'atleta su Intervals.icu (`intervals-sync`, azione `zones_read`, contratto in [backend.md](backend.md#intervals-sync-edge-function)) e le confronta con il profilo salvato (`zoneChecks` in `_shared/workouts/zoneModels.ts`). Decisioni in [decisioni/0029](decisioni/0029-zone-allineate-con-intervals.md).
+All'apertura della scheda `useAthleteAnomalies.ts` legge le zone dell'atleta su Intervals.icu (`intervals-sync`, azione `zones_read`, contratto in [backend.md](backend.md#intervals-sync-edge-function)) e le confronta con il profilo salvato (`zoneChecks` in `_shared/workouts/zoneModels.ts`). Decisioni in [decisioni/0029](decisioni/0029-zone-allineate-con-intervals.md).
 
 - **Cosa si confronta**: per ogni disciplina praticata, il numero di zone della misura con cui PCoach prescrive le sedute (bici: potenza con l'FTP, altrimenti FC; corsa e nuoto: passo) e il sistema di zone della scheda (il nuoto ne ha sempre 7).
-- **Avviso**: se una disciplina non coincide, la scheda mostra «Zone diverse da Intervals.icu» con due azioni, ciascuna dopo una conferma:
+- **Anomalia**: se una disciplina non coincide, la tab «Anomalie» della scheda ([design-ui.md](design-ui.md#tab-anomalie)) mostra «Zone della corsa diverse da Intervals.icu» (o della bici, del nuoto) con due azioni, ciascuna dopo una conferma:
   - «Usa N zone in PCoach» cambia il sistema di zone della scheda e la salva. È possibile solo con 3, 5 o 7 zone su Intervals.icu, non per il nuoto, e non con modifiche della scheda non salvate;
   - «Porta Intervals.icu a N zone» scrive su Intervals.icu i limiti del modello scelto in Impostazioni («Zone su Intervals.icu»), mostrati nella conferma (azione `zones_apply`). La FC si calcola in bpm dalla FC di soglia e dalla FC massima registrate su Intervals.icu.
-- **Errori**: se la lettura non riesce, l'avviso non compare; se la scrittura non riesce, l'avviso resta e compare il messaggio di Intervals.icu.
-- **Feedback settimanale**: parte solo con le zone allineate; altrimenti la valutazione si ferma con il dettaglio delle discipline e riparte con «Riprova» ([backend.md](backend.md#weekly-feedback-edge-function)).
+- **Errori**: se la lettura non riesce, zone e soglie non compaiono tra le anomalie (una chiave non valida ha la sua); se la scrittura non riesce, l'anomalia resta e compare il messaggio di Intervals.icu.
+- **Feedback settimanale**: parte solo con zone e soglie allineate e con le soglie della scheda presenti; altrimenti la valutazione si ferma con il dettaglio delle discipline e riparte con «Riprova» ([backend.md](backend.md#weekly-feedback-edge-function)).
+- **Soglie** ([decisioni/0030](decisioni/0030-soglie-allineate-e-stima-della-durata.md)): con le zone, la scheda confronta l'ultima rilevazione della scheda con la soglia su Intervals.icu (`thresholdChecks` in `_shared/workouts/thresholds.ts`). Corsa: passo di soglia; nuoto: CSS; bici: FTP, se la scheda lo ha. Tolleranza: 1 s/km, 1 s/100 m, 1 W. Se non coincidono l'anomalia «Soglia della corsa diversa da Intervals.icu» (o della bici, del nuoto) ha «Aggiorna Intervals.icu», che dopo una conferma scrive il valore della scheda (azione `threshold_apply`). Se per uno sport praticato la scheda non ha il passo di soglia o la CSS, l'anomalia «Manca …» porta alle soglie nel Profilo, anche senza chiave Intervals.icu.
 - **Cambio del sistema di zone in PCoach** (dal Profilo o con «Usa N zone in PCoach»): se ci sono sedute da svolgere della disciplina da oggi compreso, una conferma dice quante sono. Se il coach procede, tornano «Da verificare» con il motivo, e le loro zone vanno adattate a mano (`useZoneChange.ts`, `domain/zoneChange.ts`).
 
 ## Intervals.icu: sincronizzazione delle sedute

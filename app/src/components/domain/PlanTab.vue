@@ -76,7 +76,7 @@ const toSyncCount = computed(() =>
     return (w.status === "approved" && !w.completed_at && (s === "none" || s === "outdated" || s === "error")) || s === "pending_delete";
   }).length
 );
-const weekSeconds = computed(() => activeInWeek.value.reduce((sum, w) => sum + workoutTotals(w).seconds, 0));
+const weekSeconds = computed(() => activeInWeek.value.reduce((sum, w) => sum + workoutTotals(w, athletes.paceContexts[w.athlete_id]).seconds, 0));
 const weekPlan = computed(() => {
   const ids = new Set(activeInWeek.value.map((w) => w.plan_id).filter(Boolean));
   return store.plans.find((p) => ids.has(p.id) && p.status === "active") ?? store.plans.find((p) => ids.has(p.id)) ?? null;

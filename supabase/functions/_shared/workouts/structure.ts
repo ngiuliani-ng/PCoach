@@ -3,6 +3,7 @@
 // La conversione verso Intervals.icu vive in intervals.ts: il testo del workout e' un
 // formato di esportazione, non il modello su cui si lavora.
 import { isISODate } from "./calendar.ts";
+import { distanceSeconds, type PaceContext } from "./thresholds.ts";
 
 export const DISCIPLINES = ["running", "cycling", "swimming", "strength"] as const;
 export type Discipline = (typeof DISCIPLINES)[number];
@@ -112,8 +113,9 @@ export function flattenSteps(structure: WorkoutStructure | null | undefined): Wo
   return out;
 }
 
-// Velocita' di riferimento per stimare la durata degli step a distanza (solo per mostrare
-// un totale indicativo e proporzionare la barra; Intervals.icu calcola i propri tempi).
+// Velocita' di riserva per stimare la durata degli step a distanza quando la scheda non ha la
+// soglia della disciplina (la bici non ne ha una di passo). Con la soglia la stima usa il passo
+// della zona, come Intervals.icu (ADR 0030).
 const SECONDS_PER_METER: Record<Discipline, number> = {
   running: 0.33, // 5:30/km
   cycling: 0.12, // 30 km/h
@@ -121,8 +123,10 @@ const SECONDS_PER_METER: Record<Discipline, number> = {
   strength: 0.33
 };
 
-export function stepSeconds(step: WorkoutStep, discipline: Discipline): number {
-  return step.duration.type === "time" ? step.duration.seconds : step.duration.meters * SECONDS_PER_METER[discipline];
+export function stepSeconds(step: WorkoutStep, discipline: Discipline, pace?: PaceContext | null): number {
+  if (step.duration.type === "time") return step.duration.seconds;
+  const scale = discipline === "running" || discipline === "swimming" ? pace?.[discipline] : undefined;
+  return distanceSeconds(step.duration.meters, step.target, scale) ?? step.duration.meters * SECONDS_PER_METER[discipline];
 }
 
 export interface WorkoutTotals {
@@ -137,7 +141,9 @@ export interface WorkoutTotals {
   allDistance: boolean;
 }
 
-export function workoutTotals(content: Pick<WorkoutContent, "discipline" | "duration_min" | "structure">): WorkoutTotals {
+/** Totali di una seduta. `pace` (scale di passo dell'atleta, `paceContextOf`) rende la stima degli
+ * step a distanza quella di Intervals.icu; senza, si usa una velocita' fissa. */
+export function workoutTotals(content: Pick<WorkoutContent, "discipline" | "duration_min" | "structure">, pace?: PaceContext | null): WorkoutTotals {
   const steps = flattenSteps(content.structure);
   if (!steps.length) {
     const seconds = (content.duration_min ?? 0) * 60;
@@ -147,7 +153,7 @@ export function workoutTotals(content: Pick<WorkoutContent, "discipline" | "dura
   let meters = 0;
   let timeCount = 0;
   for (const s of steps) {
-    seconds += stepSeconds(s, content.discipline);
+    seconds += stepSeconds(s, content.discipline, pace);
     if (s.duration.type === "distance") meters += s.duration.meters;
     else timeCount++;
   }

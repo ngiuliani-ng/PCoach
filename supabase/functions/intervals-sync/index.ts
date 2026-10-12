@@ -8,6 +8,7 @@
 //   pagina chiusa a meta' lascia uno stato coerente.
 // - zones_read: legge le zone dell'atleta su Intervals.icu (sport-settings), per confrontarle con la scheda.
 // - zones_apply: porta le zone di uno sport al modello scelto in Impostazioni, su richiesta del coach.
+// - threshold_apply: porta la soglia di uno sport su Intervals.icu al valore della scheda (ADR 0030).
 // Il database e' letto e scritto con il JWT del coach (RLS attiva). La chiave Intervals.icu e'
 // letta dalla scheda dell'atleta e non compare mai nei log ne' nelle risposte.
 //
@@ -24,6 +25,7 @@ import { resolveFeedbackParams } from "../_shared/feedback/params.ts";
 import type { PlannedWorkout, RawActivity } from "../_shared/feedback/types.ts";
 import { type IcuSportSettings, icuZoneCount, icuZonesUpdate, resolveZoneModels, sportSettingsFor, ZONE_MODEL_KEYS, type ZoneModelKey } from "../_shared/workouts/zoneModels.ts";
 import type { ZoneCount, ZoneDiscipline } from "../_shared/workouts/zones.ts";
+import { paceContextOf, thresholdChecks } from "../_shared/workouts/thresholds.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -129,7 +131,7 @@ async function logEvent(db: SupabaseClient, w: WorkoutRow, type: string, note: s
 }
 
 // ---------- preview ----------
-async function preview(db: SupabaseClient, athleteId: string, weekStart: string, timezone: string, feedbackParams: unknown) {
+async function preview(db: SupabaseClient, athleteId: string, weekStart: string, timezone: string, feedbackParams: unknown, zoneModels: unknown) {
   const apiKey = await athleteKey(db, athleteId);
   if (!apiKey) return jsonResponse({ error: "Questo atleta non ha una chiave Intervals.icu: aggiungila nel Profilo." }, 400);
   const weekEnd = addDaysISO(weekStart, 6);
@@ -175,7 +177,11 @@ async function preview(db: SupabaseClient, athleteId: string, weekStart: string,
     if (planned.some((w) => !w.completed_at)) {
       const acts = await icu(apiKey, "GET", `/activities?oldest=${weekStart}&newest=${until}`);
       if (acts.ok && Array.isArray(acts.data)) {
-        for (const c of completionsIn(planned, acts.data as RawActivity[], { start: weekStart, end: until }, today, resolveFeedbackParams(feedbackParams))) {
+        // Durata degli step a distanza dalla soglia dell'atleta, come Intervals.icu (ADR 0030).
+        const { data: athlete } = await db.from("athletes").select("data").eq("id", athleteId).maybeSingle();
+        const thresholds = (athlete as { data?: { physiological_thresholds?: Parameters<typeof paceContextOf>[0] } } | null)?.data?.physiological_thresholds;
+        const pace = paceContextOf(thresholds, resolveZoneModels(zoneModels));
+        for (const c of completionsIn(planned, acts.data as RawActivity[], { start: weekStart, end: until }, today, resolveFeedbackParams(feedbackParams), pace)) {
           const { data: upd } = await db.from("workouts").update(completionColumns(c)).eq("id", c.workout_id).is("completed_at", null).select("id");
           completed += upd?.length ?? 0;
         }
@@ -329,6 +335,30 @@ async function zonesApply(db: SupabaseClient, athleteId: string, discipline: Zon
   return jsonResponse({ ok: true, settings: saved });
 }
 
+/** Scrive su Intervals.icu la soglia della scheda (passo, CSS o FTP) e controlla il valore salvato. */
+async function thresholdApply(db: SupabaseClient, athleteId: string, discipline: ZoneDiscipline) {
+  const { data } = await db.from("athletes").select("data").eq("id", athleteId).maybeSingle();
+  const profile = (data as { data?: Parameters<typeof thresholdChecks>[0] & { integrations?: { intervals_icu_api_key?: string } } } | null)?.data;
+  const apiKey = profile?.integrations?.intervals_icu_api_key?.trim();
+  if (!apiKey) return jsonResponse({ error: "Questo atleta non ha una chiave Intervals.icu." }, 400);
+  const list = await icu(apiKey, "GET", "/sport-settings");
+  if (!list.ok) return jsonResponse({ error: list.error }, 502);
+  const sports = pickZones(list.data);
+  const check = thresholdChecks(profile, sports).find((c) => c.discipline === discipline);
+  if (!check?.body || check.pcoach === null) return jsonResponse({ error: "La scheda non ha una soglia per questo sport." }, 400);
+  const sport = sportSettingsFor(sports, discipline)!;
+  const res = await icu(apiKey, "PUT", `/sport-settings/${sport.id}?recalcHrZones=false`, check.body);
+  if (!res.ok) {
+    const error = res.status === 401 || res.status === 403 ? "Chiave Intervals.icu senza permesso di modificare le impostazioni." : res.uncertain ? `${res.error} Ricontrolla la soglia: la modifica potrebbe essere avvenuta.` : res.error;
+    return jsonResponse({ ok: false, error });
+  }
+  // Verifica: Intervals.icu restituisce le impostazioni salvate.
+  const saved = pickZones([res.data]);
+  const after = thresholdChecks(profile, saved).find((c) => c.discipline === discipline);
+  if (!after?.aligned) return jsonResponse({ ok: false, error: "Intervals.icu non ha salvato la soglia richiesta: controlla le impostazioni dell'atleta." });
+  return jsonResponse({ ok: true, settings: saved[0] });
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS_HEADERS });
   if (req.method !== "POST") return jsonResponse({ error: "Metodo non supportato." }, 405);
@@ -357,9 +387,9 @@ Deno.serve(async (req: Request) => {
   try {
     if (body.action === "preview") {
       if (!isISODate(body.week_start)) return jsonResponse({ error: "Settimana non valida." }, 400);
-      const { data: settings } = await db.from("app_settings").select("weekly_feedback_timezone, feedback_params").eq("id", 1).maybeSingle();
-      const cfg = settings as { weekly_feedback_timezone?: string; feedback_params?: unknown } | null;
-      return await preview(db, athleteId, body.week_start, cfg?.weekly_feedback_timezone || "Europe/Rome", cfg?.feedback_params);
+      const { data: settings } = await db.from("app_settings").select("weekly_feedback_timezone, feedback_params, zone_models").eq("id", 1).maybeSingle();
+      const cfg = settings as { weekly_feedback_timezone?: string; feedback_params?: unknown; zone_models?: unknown } | null;
+      return await preview(db, athleteId, body.week_start, cfg?.weekly_feedback_timezone || "Europe/Rome", cfg?.feedback_params, cfg?.zone_models);
     }
     if (body.action === "apply") {
       const op = body.op as ApplyOp;
@@ -368,6 +398,11 @@ Deno.serve(async (req: Request) => {
       return await apply(db, athleteId, body.workout_id, op, body.expected_revision);
     }
     if (body.action === "zones_read") return await zonesRead(db, athleteId);
+    if (body.action === "threshold_apply") {
+      const discipline = body.discipline as ZoneDiscipline;
+      if (!["running", "cycling", "swimming"].includes(discipline)) return jsonResponse({ error: "Richiesta di allineamento non valida." }, 400);
+      return await thresholdApply(db, athleteId, discipline);
+    }
     if (body.action === "zones_apply") {
       const discipline = body.discipline as ZoneDiscipline;
       const key = body.key as ZoneModelKey;

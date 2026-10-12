@@ -4,6 +4,7 @@
 import { addDaysISO, daysBetween, weekdayName } from "../workouts/calendar.ts";
 import type { Discipline, TargetMetric, WorkoutStep } from "../workouts/structure.ts";
 import { flattenSteps, stepSeconds } from "../workouts/structure.ts";
+import type { PaceContext } from "../workouts/thresholds.ts";
 import { matchWeek } from "./match.ts";
 import { isUnmappedType, normalizeActivities } from "./normalize.ts";
 import type { ZoneCount, ZoneDiscipline } from "../workouts/zones.ts";
@@ -44,6 +45,8 @@ export interface AnalysisInput {
   /** Benessere dai 35 giorni prima dell'inizio alla fine del periodo. */
   wellness: RawWellness[];
   params: FeedbackParams;
+  /** Scale di passo dell'atleta per la durata degli step a distanza (ADR 0030). */
+  pace?: PaceContext | null;
 }
 
 const ENDURANCE: Discipline[] = ["running", "cycling", "swimming"];
@@ -78,13 +81,13 @@ export function domainsLabel(b: ZoneBands): string {
   return `${b.zones} zone: bassa ≤ Z${b.low_max}, media Z${b.low_max + 1}-Z${b.moderate_max}${high}`;
 }
 
-function plannedDomains(steps: WorkoutStep[], discipline: Discipline, b: ZoneBands): number[] {
+function plannedDomains(steps: WorkoutStep[], discipline: Discipline, b: ZoneBands, pace?: PaceContext | null): number[] {
   const out = [0, 0, 0];
   for (const s of steps) {
     if (!s.target) continue;
     const from = s.target.zone;
     const to = Math.max(from, s.target.zone_to ?? from);
-    const sec = stepSeconds(s, discipline) / (to - from + 1);
+    const sec = stepSeconds(s, discipline, pace) / (to - from + 1);
     for (let z = from; z <= to; z++) out[domainOf(z, b)] += sec;
   }
   return out;
@@ -129,7 +132,7 @@ export function buildFeedbackInput(a: AnalysisInput) {
 
   const current = normalizeActivities(a.activities, a.period);
   const previous = normalizeActivities(a.activities, { start: prevStart, end: prevEnd });
-  const { sessions, activities } = matchWeek({ workouts: a.workouts, activities: current, today: a.today, params: p, zones: a.athlete.zone_counts, inPlan });
+  const { sessions, activities } = matchWeek({ workouts: a.workouts, activities: current, today: a.today, params: p, zones: a.athlete.zone_counts, pace: a.pace, inPlan });
   const actById = new Map(current.map((x) => [x.id, x]));
   const observedActs = activities.filter((r) => OBSERVED.has(r.classification)).map((r) => actById.get(r.activity_id)!);
 
@@ -189,7 +192,7 @@ export function buildFeedbackInput(a: AnalysisInput) {
     const plannedSteps = a.workouts
       .filter((w) => w.discipline === d && w.primary_target === metric && sessions.find((s) => s.workout_id === w.id)?.outcome !== "pending")
       .flatMap((w) => flattenSteps(w.structure));
-    const planned = plannedDomains(plannedSteps, d, bands);
+    const planned = plannedDomains(plannedSteps, d, bands, a.pace);
     const observed = [0, 0, 0];
     let basisSec = 0;
     for (const x of acts) {

@@ -6,6 +6,7 @@ import { computed } from "vue";
 import type { SyncRow } from "@shared/workouts/sync.ts";
 import { validateWorkout, workoutTotals } from "@shared/workouts/structure.ts";
 import type { WorkoutRecord } from "../../stores/workouts";
+import { useAthletesStore } from "../../stores/athletes";
 import { disciplineIcon, disciplineLabel, formatDate } from "../../constants";
 import { formatMeters, formatMinutes } from "../../domain/workoutState";
 import { isActiveStatus } from "../../domain/regeneration";
@@ -16,7 +17,9 @@ import { Check } from "lucide-vue-next";
 const props = defineProps<{ workout: WorkoutRecord; sync?: SyncRow | null; showDate?: boolean; readonly?: boolean }>();
 const emit = defineEmits<{ (e: "open", id: string): void; (e: "approve", id: string): void }>();
 
-const totals = computed(() => workoutTotals(props.workout));
+const athletes = useAthletesStore();
+const pace = computed(() => athletes.paceContexts[props.workout.athlete_id] ?? null);
+const totals = computed(() => workoutTotals(props.workout, pace.value));
 const active = computed(() => isActiveStatus(props.workout.status));
 const canApprove = computed(
   () => !props.readonly && props.workout.status === "draft" && !props.workout.needs_review && !Object.keys(validateWorkout(props.workout)).length
@@ -45,7 +48,7 @@ const dayText = computed(() => {
           <span v-if="totals.meters">{{ formatMeters(totals.meters) }}</span>
           <span v-if="workout.objective">{{ workout.objective }}</span>
         </span>
-        <StructureBar v-if="workout.structure" :discipline="workout.discipline" :structure="workout.structure" variant="mini" />
+        <StructureBar v-if="workout.structure" :discipline="workout.discipline" :structure="workout.structure" :pace="pace" variant="mini" />
         <WorkoutBadges :workout="workout" :sync="sync" />
       </span>
     </button>

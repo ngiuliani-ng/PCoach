@@ -111,6 +111,7 @@ Scrive le sedute sul calendario Intervals.icu dell'atleta, e ne legge e allinea 
 
   Risponde `{ ok, outcome, warning }` oppure `{ ok: false, error }`.
 - **Richiesta `{ action: "zones_read", athlete_id }`**: legge `GET /sport-settings` e risponde `{ settings }` con, per ogni sport, solo `id`, `types`, `ftp`, `lthr`, `max_hr`, `threshold_pace`, `power_zones`, `hr_zones` e `pace_zones`. Non scrive nulla.
+- **Richiesta `{ action: "threshold_apply", athlete_id, discipline }`**: legge la scheda salvata e `GET /sport-settings`, scrive la soglia della scheda (`threshold_pace` in m/s per corsa e nuoto, `ftp` per la bici; `thresholdChecks` in `_shared/workouts/thresholds.ts`) con `PUT /sport-settings/{id}?recalcHrZones=false` e controlla che il valore salvato coincida entro la tolleranza. Risponde `{ ok: true, settings }` oppure `{ ok: false, error }`.
 - **Richiesta `{ action: "zones_apply", athlete_id, discipline, key, zones }`**, con `key` della stessa disciplina (`cycling_power`, `cycling_hr`, `running_pace`, `swimming_pace`) e `zones` pari a 3, 5 o 7. Legge i modelli salvati in `app_settings.zone_models`, calcola le zone (`icuZonesUpdate` in `_shared/workouts/zoneModels.ts`), le scrive con `PUT /sport-settings/{id}?recalcHrZones=false` e controlla il numero di zone salvato. Risponde `{ ok: true, settings }` oppure `{ ok: false, error }`.
 - **Trasporto**: timeout di 10 s e fino a 2 nuovi tentativi su 429, 5xx ed errori di rete (attesa di 1 s, poi 3 s, oppure `Retry-After`, al massimo 10 s). I messaggi d'errore sono riformulati senza header né chiavi.
 
@@ -132,7 +133,7 @@ Adattatore della pipeline in `supabase/functions/_shared/feedback/pipeline.ts`, 
 
 **Passi di una valutazione**:
 1. **Analisi** (`pending` → `analyzed`):
-   - legge le zone dell'atleta su Intervals.icu (`sport-settings`) e le confronta con la scheda (`zoneChecks`): se una disciplina non coincide, la valutazione va subito in `analysis_failed` con il dettaglio, e riparte con «Riprova» dopo l'allineamento ([decisioni/0029](decisioni/0029-zone-allineate-con-intervals.md));
+   - legge le zone dell'atleta su Intervals.icu (`sport-settings`) e le confronta con la scheda (`zoneChecks`): se una disciplina non coincide, la valutazione va subito in `analysis_failed` con il dettaglio, e riparte con «Riprova» dopo l'allineamento ([decisioni/0029](decisioni/0029-zone-allineate-con-intervals.md)). Allo stesso modo si ferma se manca la soglia di uno sport praticato («Soglia mancante nella scheda…», `missingThresholds`) o se le soglie sono diverse («Soglie non allineate con Intervals.icu…», `thresholdChecks`) ([decisioni/0030](decisioni/0030-soglie-allineate-e-stima-della-durata.md));
    - legge le sedute approvate della settimana con il legame all'evento Intervals.icu, il numero di bozze, le modifiche del coach (`workout_events`) e i piani;
    - legge le attività dal lunedì precedente alla domenica e il benessere dei 35 giorni precedenti;
    - costruisce il contratto `feedback_input` ([integrazioni.md § Claude (feedback settimanale)](integrazioni.md#claude-feedback-settimanale));

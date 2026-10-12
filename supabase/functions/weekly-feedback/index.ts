@@ -37,7 +37,7 @@ class SupabaseStore implements FeedbackStore {
 
   async settings(): Promise<FeedbackSettings | null> {
     const { data } = await this.db.from("app_settings")
-      .select("claude_api_key, claude_model, weekly_feedback_prompt_template, weekly_feedback_timezone, weekly_feedback_day, weekly_feedback_time, weekly_feedback_email_enabled, feedback_params")
+      .select("claude_api_key, claude_model, weekly_feedback_prompt_template, weekly_feedback_timezone, weekly_feedback_day, weekly_feedback_time, weekly_feedback_email_enabled, feedback_params, zone_models")
       .eq("id", 1).maybeSingle();
     return (data as FeedbackSettings | null) ?? null;
   }

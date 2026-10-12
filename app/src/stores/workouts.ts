@@ -11,6 +11,7 @@ import { completionColumns, RECENT_COMPLETION_DAYS, recentCompletions, snapshotR
 import type { FeedbackParams } from "@shared/feedback/params.ts";
 import { addDaysISO, todayISO } from "@shared/workouts/calendar.ts";
 import { fetchActivities } from "../services/intervals";
+import { useAthletesStore } from "./athletes";
 
 export interface WorkoutRecord extends SyncableWorkout, Partial<ActivitySnapshot> {
   athlete_id: string;
@@ -166,7 +167,8 @@ export const useWorkoutsStore = defineStore("workouts", {
         const i = this.workouts.findIndex((w) => w.id === updated.id);
         if (i >= 0) this.workouts[i] = updated;
       };
-      for (const c of recentCompletions(approved, res.activities, today, params)) {
+      const pace = useAthletesStore().paceContexts[athleteId] ?? null;
+      for (const c of recentCompletions(approved, res.activities, today, params, pace)) {
         const { data } = await supabase.from("workouts").update(completionColumns(c))
           .eq("id", c.workout_id).is("completed_at", null).select(WORKOUT_COLUMNS);
         const row = data?.[0];

@@ -114,12 +114,15 @@ const recentWorkouts = computed(() =>
   store.workouts.filter((w) => w.status === "approved" && w.planned_date < fromDate.value && w.planned_date >= addDaysISO(fromDate.value, -14))
 );
 
+// Scale di passo dell'atleta: durata degli step a distanza come Intervals.icu (ADR 0030).
+const pace = computed(() => athletes.paceContexts[athleteId.value] ?? null);
+
 // Vincoli dell'atleta e sedute mantenute: la proposta viene ricontrollata contro entrambi.
 function parseOptions(from: string, w: number) {
   return {
     fromDate: from, weeks: w, hasFtp: hasFtp(profile.value), constraints: profile.value.constraints, fixed: keptWorkouts.value,
     planWeeks: weeksOfPlan(from, w), progression: loadProgressionOf(profile.value.methodology_preferences),
-    zoneLimits: zoneLimits(profile.value)
+    zoneLimits: zoneLimits(profile.value), pace: pace.value
   };
 }
 
@@ -157,7 +160,7 @@ async function startGeneration() {
   const reviews = await useReviewsStore().analysesBefore(athleteId.value, fromDate.value);
   const prompt = buildPlanPrompt(
     profile.value,
-    { weeks: w, fromDate: fromDate.value, reason: reason.value, fixed: keptWorkouts.value, recent: recentWorkouts.value, reviews, planWeeks: weeksOfPlan(fromDate.value, w) },
+    { weeks: w, fromDate: fromDate.value, reason: reason.value, fixed: keptWorkouts.value, recent: recentWorkouts.value, reviews, planWeeks: weeksOfPlan(fromDate.value, w), pace: pace.value },
     preferences
   );
   const maxTokens = planMaxTokens(w);
@@ -329,8 +332,8 @@ function dayLabel(date: string) {
               <div class="diff-items">
                 <div v-for="(i, n) in d.items" :key="n" class="diff-item">
                   <template v-if="i.kind === 'keep'"><span class="kind keep">Mantenuta</span><span>{{ i.old.title }}</span></template>
-                  <template v-else-if="i.kind === 'add'"><span class="kind add">Aggiunta</span><span>{{ i.neu.title }}, {{ formatMinutes(workoutTotals(i.neu).seconds) }}</span><span v-if="i.neu.needs_review" class="diff-warn">{{ i.neu.needs_review }}</span></template>
-                  <template v-else-if="i.kind === 'replace'"><span class="kind add">Sostituita</span><span class="old">{{ i.old.title }}</span><span>{{ i.neu.title }}, {{ formatMinutes(workoutTotals(i.neu).seconds) }}</span><span v-if="i.neu.needs_review" class="diff-warn">{{ i.neu.needs_review }}</span></template>
+                  <template v-else-if="i.kind === 'add'"><span class="kind add">Aggiunta</span><span>{{ i.neu.title }}, {{ formatMinutes(workoutTotals(i.neu, pace).seconds) }}</span><span v-if="i.neu.needs_review" class="diff-warn">{{ i.neu.needs_review }}</span></template>
+                  <template v-else-if="i.kind === 'replace'"><span class="kind add">Sostituita</span><span class="old">{{ i.old.title }}</span><span>{{ i.neu.title }}, {{ formatMinutes(workoutTotals(i.neu, pace).seconds) }}</span><span v-if="i.neu.needs_review" class="diff-warn">{{ i.neu.needs_review }}</span></template>
                   <template v-else><span class="kind rem">Tolta</span><span class="old">{{ i.old.title }}</span></template>
                 </div>
               </div>

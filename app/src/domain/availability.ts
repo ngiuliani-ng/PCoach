@@ -4,6 +4,7 @@
 // e ogni proposta viene ricontrollata qui, in modo deterministico, contro i vincoli dell'atleta.
 import { addDaysISO, dayIndex, daysBetween, DAY_KEYS, weekdayName, type DayKeyName } from "@shared/workouts/calendar.ts";
 import type { WorkoutContent } from "@shared/workouts/structure.ts";
+import type { PaceContext } from "@shared/workouts/thresholds.ts";
 import { workoutTotals } from "@shared/workouts/structure.ts";
 import type { AthleteTrainingProfile } from "../schema/types.generated";
 import { loadChangeText, weekOf, type PlanWeek } from "./planWeeks";
@@ -81,12 +82,13 @@ export function planningCalendar(constraints: Constraints, fromDate: string, toD
  * giorno non disponibile, oppure durata complessiva del giorno oltre il massimo. */
 export function availabilityIssues(
   workouts: Pick<WorkoutContent, "planned_date" | "discipline" | "structure" | "duration_min">[],
-  constraints: Constraints
+  constraints: Constraints,
+  pace?: PaceContext | null
 ): Map<number, string> {
   const rules = rulesByDay(constraints);
   const minutesByDate = new Map<string, number>();
   workouts.forEach((w) => {
-    minutesByDate.set(w.planned_date, (minutesByDate.get(w.planned_date) ?? 0) + Math.round(workoutTotals(w).seconds / 60));
+    minutesByDate.set(w.planned_date, (minutesByDate.get(w.planned_date) ?? 0) + Math.round(workoutTotals(w, pace).seconds / 60));
   });
   const issues = new Map<number, string>();
   workouts.forEach((w, i) => {

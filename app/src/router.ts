@@ -14,7 +14,7 @@ import { showResultToast } from "./composables/useToast";
 import { useZoneChange } from "./composables/useZoneChange";
 import { fullName } from "./constants";
 
-export type AthleteTab = "panoramica" | "piano" | "profilo";
+export type AthleteTab = "panoramica" | "piano" | "profilo" | "anomalie";
 
 export const router = createRouter({
   history: createWebHashHistory(),
@@ -22,7 +22,7 @@ export const router = createRouter({
     { path: "/", name: "home", component: EmptyState },
     { path: "/impostazioni", name: "settings", component: SettingsPanel },
     { path: "/atleta/nuovo", name: "new-athlete", component: AthleteEditor },
-    { path: "/atleta/:id/:tab(panoramica|piano|profilo)?", name: "athlete", component: AthleteEditor },
+    { path: "/atleta/:id/:tab(panoramica|piano|profilo|anomalie)?", name: "athlete", component: AthleteEditor },
     { path: "/:pathMatch(.*)*", redirect: "/" }
   ]
 });

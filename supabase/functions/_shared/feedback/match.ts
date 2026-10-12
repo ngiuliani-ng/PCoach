@@ -4,6 +4,7 @@
 // o "in programma". Nei casi che le regole non separano l'esito e' "ambiguo".
 import { addDaysISO, daysBetween, weekdayName } from "../workouts/calendar.ts";
 import { flattenSteps, stepSeconds, workoutTotals } from "../workouts/structure.ts";
+import type { PaceContext } from "../workouts/thresholds.ts";
 import { zoneCountsOf, type ZoneCount, type ZoneDiscipline } from "../workouts/zones.ts";
 import { zoneBands, type FeedbackParams } from "./params.ts";
 import type {
@@ -21,6 +22,8 @@ export interface MatchInput {
   /** Data della valutazione (oggi nel fuso del coach): le sedute da oggi in poi sono "in programma". */
   today: string;
   params: FeedbackParams;
+  /** Scale di passo dell'atleta per la durata degli step a distanza (ADR 0030); senza, stima fissa. */
+  pace?: PaceContext | null;
   /** Sistema di zone dell'atleta per disciplina; senza, 7 zone ovunque. */
   zones?: Record<ZoneDiscipline, ZoneCount>;
   /** true se il giorno e' coperto da un piano. */
@@ -32,16 +35,16 @@ export interface MatchResult {
   activities: ActivityResult[];
 }
 
-function plannedOf(w: PlannedWorkout) {
-  const totals = workoutTotals(w);
+function plannedOf(w: PlannedWorkout, pace?: PaceContext | null) {
+  const totals = workoutTotals(w, pace);
   return {
     minutes: Math.round(totals.seconds / 60),
     meters: totals.allDistance && totals.meters > 0 ? totals.meters : null
   };
 }
 
-function ratioOf(w: PlannedWorkout, acts: NormalizedActivity[]): { ratio: number | null; basis: "time" | "distance" | null } {
-  const planned = plannedOf(w);
+function ratioOf(w: PlannedWorkout, acts: NormalizedActivity[], pace?: PaceContext | null): { ratio: number | null; basis: "time" | "distance" | null } {
+  const planned = plannedOf(w, pace);
   if (planned.meters) {
     const meters = acts.reduce((s, a) => s + (a.meters ?? 0), 0);
     if (meters > 0) return { ratio: round2(meters / planned.meters), basis: "distance" };
@@ -73,12 +76,12 @@ export function qualityZone(w: PlannedWorkout, p: FeedbackParams, zones: Record<
   return work.length ? Math.min(...work) : null;
 }
 
-function quality(w: PlannedWorkout, acts: NormalizedActivity[], p: FeedbackParams, zones: Record<ZoneDiscipline, ZoneCount>): SessionResult["quality"] {
+function quality(w: PlannedWorkout, acts: NormalizedActivity[], p: FeedbackParams, zones: Record<ZoneDiscipline, ZoneCount>, pace?: PaceContext | null): SessionResult["quality"] {
   const from = qualityZone(w, p, zones);
   if (from === null) return null;
   const plannedSec = flattenSteps(w.structure)
     .filter((s) => s.target && s.target.zone >= from)
-    .reduce((sum, s) => sum + stepSeconds(s, w.discipline), 0);
+    .reduce((sum, s) => sum + stepSeconds(s, w.discipline, pace), 0);
   const base = { metric: w.primary_target, from_zone: from, planned_min: Math.round(plannedSec / 60) };
   if (!acts.length) return { ...base, done_min: null, ratio: null };
   const metric = w.primary_target;
@@ -99,6 +102,7 @@ function quality(w: PlannedWorkout, acts: NormalizedActivity[], p: FeedbackParam
 export function matchWeek(input: MatchInput): MatchResult {
   const { params: p, today } = input;
   const zones = input.zones ?? ALL_SEVEN;
+  const pace = input.pace;
   const workouts = [...input.workouts].sort((a, b) => a.planned_date.localeCompare(b.planned_date) || a.slot - b.slot);
   const usable = input.activities.filter((a) => a.status === "ok" && a.discipline !== "other");
   const freeActs = new Set(usable.map((a) => a.id));
@@ -107,7 +111,7 @@ export function matchWeek(input: MatchInput): MatchResult {
   const substitutes = new Map<string, string>();
 
   const base = (w: PlannedWorkout): SessionResult => {
-    const planned = plannedOf(w);
+    const planned = plannedOf(w, pace);
     return {
       workout_id: w.id, revision: w.revision, date: w.planned_date, weekday: weekdayName(w.planned_date), discipline: w.discipline, title: w.title,
       outcome: "not_recorded", activity_ids: [], method: null, confidence: null,
@@ -116,7 +120,7 @@ export function matchWeek(input: MatchInput): MatchResult {
     };
   };
   const assign = (w: PlannedWorkout, acts: NormalizedActivity[], method: MatchMethod, confidence: Confidence, outcome?: SessionOutcome) => {
-    const { ratio, basis } = ratioOf(w, acts);
+    const { ratio, basis } = ratioOf(w, acts, pace);
     acts.forEach((a) => freeActs.delete(a.id));
     results.set(w.id, {
       ...base(w),
@@ -125,7 +129,7 @@ export function matchWeek(input: MatchInput): MatchResult {
       method, confidence,
       done_minutes: Math.round(acts.reduce((s, a) => s + a.minutes, 0)),
       ratio, ratio_basis: basis,
-      quality: quality(w, acts, p, zones)
+      quality: quality(w, acts, p, zones, pace)
     });
   };
   const isFree = (w: PlannedWorkout) => !results.has(w.id);
@@ -153,10 +157,10 @@ export function matchWeek(input: MatchInput): MatchResult {
       assign(ws[0], acts, "same_day", "high");
     } else if (ws.length === acts.length) {
       const ordered = [...ws].sort((a, b) => a.slot - b.slot);
-      if (ordered.every((w, i) => compatible(ratioOf(w, [acts[i]]).ratio))) ordered.forEach((w, i) => assign(w, [acts[i]], "same_day_order", "medium"));
+      if (ordered.every((w, i) => compatible(ratioOf(w, [acts[i]], pace).ratio))) ordered.forEach((w, i) => assign(w, [acts[i]], "same_day_order", "medium"));
       else markAmbiguous(ws, acts);
     } else if (ws.length === 1) {
-      const { ratio } = ratioOf(ws[0], acts);
+      const { ratio } = ratioOf(ws[0], acts, pace);
       if (ratio === null || (ratio >= p.partial_min_pct / 100 && ratio <= p.completed_max_pct / 100)) assign(ws[0], acts, "split", "medium");
       else markAmbiguous(ws, acts);
     } else {
@@ -174,10 +178,10 @@ export function matchWeek(input: MatchInput): MatchResult {
       .filter((a) => freeActs.has(a.id) && a.discipline === w.discipline && a.date !== w.planned_date)
       .filter((a) => Math.abs(daysBetween(w.planned_date, a.date)) <= MOVE_WINDOW_DAYS)
       .filter((a) => !workouts.some((o) => o.id !== w.id && isFree(o) && o.planned_date === a.date && o.discipline === a.discipline))
-      .filter((a) => compatible(ratioOf(w, [a]).ratio))
+      .filter((a) => compatible(ratioOf(w, [a], pace).ratio))
       .sort((a, b) =>
         Math.abs(daysBetween(w.planned_date, a.date)) - Math.abs(daysBetween(w.planned_date, b.date)) ||
-        Math.abs(1 - (ratioOf(w, [a]).ratio ?? 1)) - Math.abs(1 - (ratioOf(w, [b]).ratio ?? 1))
+        Math.abs(1 - (ratioOf(w, [a], pace).ratio ?? 1)) - Math.abs(1 - (ratioOf(w, [b], pace).ratio ?? 1))
       );
     if (candidates.length) assign(w, [candidates[0]], "moved", "low", "moved");
   }

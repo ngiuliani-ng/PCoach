@@ -7,6 +7,8 @@ import { supabase, configured } from "../services/supabase";
 import { blankProfile, fullName, todayISO } from "../constants";
 import { hasNewerRemoteVersion, snapshotForCompare } from "../composables/useDirtyState";
 import type { AthleteTrainingProfile } from "../schema/types.generated";
+import { paceContextOf, type PaceContext } from "@shared/workouts/thresholds.ts";
+import { useSettingsStore } from "./settings";
 
 const NOT_SAVED = "Scheda non salvata: il server non ha risposto. Le modifiche restano qui: riprova a salvare.";
 
@@ -43,6 +45,12 @@ export const useAthletesStore = defineStore("athletes", {
     isDirty(state): boolean {
       if (!state.currentProfile || state.baselineSnapshot === null) return false;
       return snapshotForCompare(state.currentProfile) !== state.baselineSnapshot;
+    },
+    /** Scale di passo di ogni atleta (soglie salvate e modelli di zone), per stimare la durata
+     * degli step a distanza come Intervals.icu (ADR 0030). */
+    paceContexts(state): Record<string, PaceContext> {
+      const models = useSettingsStore().savedZoneModels;
+      return Object.fromEntries(Object.entries(state.athletes).map(([id, p]) => [id, paceContextOf(p.physiological_thresholds, models)]));
     },
     hasRemoteUpdate(state): boolean {
       return hasNewerRemoteVersion(state.currentId, state.rowVersions, state.currentBaseVersion);

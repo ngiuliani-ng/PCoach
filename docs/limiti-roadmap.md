@@ -55,6 +55,7 @@ Limiti noti dell'analisi ([decisioni/0019](decisioni/0019-feedback-analisi-deter
 - **Attività importate da Strava**: via API arrivano senza dati, quindi le sedute di quei giorni risultano «dato non disponibile».
 - **Soglie operative**: le soglie di classificazione sono regole pratiche modificabili in Impostazioni, non valori fisiologici.
 - **Zone diverse fra scheda e Intervals.icu**: la scheda le segnala all'apertura e il feedback non parte finché non sono allineate ([decisioni/0029](decisioni/0029-zone-allineate-con-intervals.md)). Si confrontano solo le zone con cui PCoach prescrive le sedute (non la FC della corsa). Con 4 o 6 zone su Intervals.icu si può allineare solo Intervals.icu. Dopo l'allineamento il feedback fermo riparte con «Riprova», non da solo.
+- **Stima della durata degli step a distanza** ([decisioni/0030](decisioni/0030-soglie-allineate-e-stima-della-durata.md)): usa i limiti delle zone del modello di Impostazioni, non quelli letti da Intervals.icu, di cui si confronta solo il numero. Le soglie confrontate sono il passo di soglia della corsa, la CSS e l'FTP: la bici senza FTP (in FC) non ha una soglia da confrontare. Senza soglia nella scheda, e per la bici, la stima usa una velocità fissa per disciplina.
 
 ## Zone del nuoto
 

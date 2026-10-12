@@ -201,8 +201,8 @@ describe("pipeline del feedback", () => {
 
   it("zone non allineate con Intervals.icu: il feedback non parte finché non si allineano", async () => {
     const store = new MemoryStore();
-    store.profile = { ...store.profile, disciplines: [{ sport: "running" }], physiological_thresholds: { running: { zone_system: "5-zone" } } };
-    store.icuSports = [{ id: 2, types: ["Run"], pace_zones: [77.5, 87.7, 94.3, 100, 103.4, 111.5, 999] }];
+    store.profile = { ...store.profile, disciplines: [{ sport: "running" }], physiological_thresholds: { running: { zone_system: "5-zone", thresholds_log: [{ date: "2026-09-30", threshold_pace_per_km: "4:00" }] } } };
+    store.icuSports = [{ id: 2, types: ["Run"], threshold_pace: 1000 / 240, pace_zones: [77.5, 87.7, 94.3, 100, 103.4, 111.5, 999] }];
     const { d } = deps(store);
     await runScheduled(d);
     const row = store.rows[0];
@@ -211,6 +211,40 @@ describe("pipeline del feedback", () => {
     expect(store.completed).toEqual([]);
     // Il coach allinea le zone e riprova.
     store.profile.physiological_thresholds.running.zone_system = "7-zone";
+    Object.assign(row, { status: "pending", attempts: 0, error: null });
+    await processReview(d, row.id);
+    expect(store.rows[0].status).toBe("draft");
+  });
+
+  it("soglie diverse da Intervals.icu: il feedback non parte finché non si aggiorna Intervals.icu", async () => {
+    const store = new MemoryStore();
+    store.profile = {
+      ...store.profile, disciplines: [{ sport: "running" }],
+      physiological_thresholds: { running: { zone_system: "7-zone", thresholds_log: [{ date: "2026-09-30", threshold_pace_per_km: "4:00" }] } }
+    };
+    store.icuSports = [{ id: 2, types: ["Run"], threshold_pace: 1000 / 250, pace_zones: [77.5, 87.7, 94.3, 100, 103.4, 111.5, 999] }];
+    const { d } = deps(store);
+    await runScheduled(d);
+    const row = store.rows[0];
+    expect(row.status).toBe("analysis_failed");
+    expect(row.error).toBe("Soglie non allineate con Intervals.icu (Corsa, passo di soglia: 4:00/km in PCoach, 4:10/km su Intervals.icu). Aggiorna Intervals.icu dalla scheda dell'atleta, poi premi «Riprova».");
+    // Il coach aggiorna Intervals.icu e riprova.
+    store.icuSports[0].threshold_pace = 1000 / 240;
+    Object.assign(row, { status: "pending", attempts: 0, error: null });
+    await processReview(d, row.id);
+    expect(store.rows[0].status).toBe("draft");
+  });
+
+  it("soglia mancante per uno sport praticato: il feedback non parte finché non si aggiunge nel Profilo", async () => {
+    const store = new MemoryStore();
+    store.profile = { ...store.profile, disciplines: [{ sport: "running" }], physiological_thresholds: { running: { zone_system: "7-zone", thresholds_log: [] } } };
+    store.icuSports = [{ id: 2, types: ["Run"], threshold_pace: 1000 / 240, pace_zones: [77.5, 87.7, 94.3, 100, 103.4, 111.5, 999] }];
+    const { d } = deps(store);
+    await runScheduled(d);
+    const row = store.rows[0];
+    expect(row.status).toBe("analysis_failed");
+    expect(row.error).toBe("Soglia mancante nella scheda (il passo di soglia della corsa). Aggiungila nel Profilo, poi premi «Riprova».");
+    store.profile.physiological_thresholds.running.thresholds_log = [{ date: "2026-09-30", threshold_pace_per_km: "4:00" }];
     Object.assign(row, { status: "pending", attempts: 0, error: null });
     await processReview(d, row.id);
     expect(store.rows[0].status).toBe("draft");

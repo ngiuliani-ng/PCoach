@@ -137,7 +137,7 @@ async function onRetry(r: ReviewRecord) {
 </script>
 
 <template>
-  <section class="block">
+  <section class="block" id="sec-feedback">
     <h3>Feedback settimanale</h3>
     <p class="helper-text">
       Ogni lunedì PCoach confronta la settimana appena finita con le sedute approvate e Claude scrive un feedback. Lo rivedi qui: parte verso l'atleta solo quando lo approvi.

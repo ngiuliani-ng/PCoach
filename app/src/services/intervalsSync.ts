@@ -43,6 +43,11 @@ export function readZones(athleteId: string) {
   return call<{ settings: IcuSportSettings[] }>({ action: "zones_read", athlete_id: athleteId });
 }
 
+/** Porta la soglia di uno sport su Intervals.icu al valore della scheda (ADR 0030). */
+export function applyThreshold(athleteId: string, discipline: ZoneDiscipline) {
+  return call<{ ok: boolean; error?: string; settings?: IcuSportSettings }>({ action: "threshold_apply", athlete_id: athleteId, discipline });
+}
+
 /** Porta le zone di uno sport su Intervals.icu al modello di Impostazioni. */
 export function applyZones(athleteId: string, discipline: ZoneDiscipline, key: ZoneModelKey, zones: ZoneCount) {
   return call<{ ok: boolean; error?: string; settings?: IcuSportSettings }>({ action: "zones_apply", athlete_id: athleteId, discipline, key, zones });

@@ -31,10 +31,11 @@ import WeeklyReviews from "./WeeklyReviews.vue";
 import PasswordField from "../ui/PasswordField.vue";
 import type { AthleteTab } from "../../router";
 import IconButton from "../ui/IconButton.vue";
-import ZoneAlignBanner from "./ZoneAlignBanner.vue";
+import AnomaliesTab from "./AnomaliesTab.vue";
+import { useAthleteAnomalies } from "../../composables/useAthleteAnomalies";
 import { useZoneChange } from "../../composables/useZoneChange";
 import FieldHelp from "../ui/FieldHelp.vue";
-import { Download, Plus, Trash2 } from "lucide-vue-next";
+import { Download, Plus, Trash2, TriangleAlert } from "lucide-vue-next";
 
 const athletes = useAthletesStore();
 const workouts = useWorkoutsStore();
@@ -67,7 +68,11 @@ const profile = computed(() => athletes.currentProfile!);
 
 // ---------- Viste (Panoramica / Piano / Profilo) ----------
 type Tab = AthleteTab;
-const TABS: [Tab, string][] = [["panoramica", "Panoramica"], ["piano", "Piano"], ["profilo", "Profilo"]];
+// «Anomalie» solo per una scheda salvata: una bozza non ha sedute, feedback ne' Intervals.icu.
+const TABS = computed<[Tab, string][]>(() => [
+  ["panoramica", "Panoramica"], ["piano", "Piano"], ["profilo", "Profilo"],
+  ...(athletes.currentId ? [["anomalie", "Anomalie"] as [Tab, string]] : [])
+]);
 // Una bozza non ha ancora dati da consultare: si parte dal Profilo.
 const draftTab = ref<Tab>("profilo");
 const tab = computed<Tab>({
@@ -80,8 +85,9 @@ const tab = computed<Tab>({
 function onTabKeydown(event: KeyboardEvent) {
   if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
   event.preventDefault();
-  const i = TABS.findIndex(([key]) => key === tab.value);
-  tab.value = TABS[(i + (event.key === "ArrowRight" ? 1 : TABS.length - 1)) % TABS.length][0];
+  const list = TABS.value;
+  const i = list.findIndex(([key]) => key === tab.value);
+  tab.value = list[(i + (event.key === "ArrowRight" ? 1 : list.length - 1)) % list.length][0];
   nextTick(() => document.getElementById(`tab-${tab.value}`)?.focus());
 }
 async function goToSection(sectionId: string) {
@@ -250,6 +256,32 @@ async function onDelete() {
 function onExport() {
   athletes.exportCurrent();
 }
+
+// ---------- Anomalie (ADR 0031) ----------
+const anomalies = useAthleteAnomalies({
+  openThresholds: (discipline) => {
+    thresholdSport.value = discipline;
+    void goToSection("sec-soglie");
+  },
+  openIntervalsKey: () => void goToSection("sec-intervals"),
+  openFeedback: async () => {
+    tab.value = "panoramica";
+    await nextTick();
+    document.getElementById("sec-feedback")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  },
+  // push e non replace: «indietro» chiude il pannello e torna alle anomalie.
+  openWorkout: (id) => void router.push({ name: "athlete", params: { id: routeId.value, tab: "piano" }, query: { seduta: id } })
+});
+const anomalyCount = anomalies.count;
+const anomalySummary = computed(() => {
+  const n = anomalyCount.value;
+  const feedback = anomalies.countIn("feedback");
+  const sync = anomalies.countIn("sync");
+  const what = n === 1 ? "Un'anomalia" : `${n} anomalie`;
+  const verb = n === 1 ? "ferma" : "fermano";
+  if (feedback && sync) return `${what}: ${feedback} ${feedback === 1 ? "ferma" : "fermano"} il feedback settimanale, ${sync} l'invio a Intervals.icu.`;
+  return `${what} ${verb} ${feedback ? "il feedback settimanale" : "l'invio a Intervals.icu"}.`;
+});
 </script>
 
 <template>
@@ -267,12 +299,17 @@ function onExport() {
       Questa scheda è stata modificata altrove.
       <button type="button" class="link-btn" @click="onReloadRemote">Ricarica i dati più recenti</button>
     </p>
-    <ZoneAlignBanner v-if="athletes.currentId" />
     <p class="page-sub">
       <span v-if="disciplinesText">{{ disciplinesText }}</span>
       <span v-if="nextEvent">Prossimo evento: {{ nextEvent.name || "senza nome" }}, {{ formatDate(nextEvent.date) }}</span>
       <span v-if="athletes.currentId">Aggiornata il {{ formatDate(profile.meta.updated_at) }}</span>
       <span v-else>Bozza non ancora salvata</span>
+    </p>
+
+    <p v-if="anomalyCount && tab !== 'anomalie'" class="update-banner anomaly-callout" role="status">
+      <TriangleAlert :size="16" aria-hidden="true" />
+      <span>{{ anomalySummary }}</span>
+      <button type="button" class="link-btn" @click="tab = 'anomalie'">Vedi le anomalie</button>
     </p>
 
     <div class="tabs" role="tablist" aria-label="Sezioni della scheda" @keydown="onTabKeydown">
@@ -287,7 +324,7 @@ function onExport() {
         :aria-controls="`panel-${key}`"
         :tabindex="tab === key ? 0 : -1"
         @click="tab = key"
-      >{{ label }}</button>
+      >{{ label }}<span v-if="key === 'anomalie' && anomalyCount" class="tab-count" :aria-label="`, ${anomalyCount} da sistemare`">{{ anomalyCount }}</span></button>
     </div>
 
     <!-- ===================== Panoramica ===================== -->
@@ -328,6 +365,11 @@ function onExport() {
     <div v-if="tab === 'piano'" id="panel-piano" role="tabpanel" aria-labelledby="tab-piano">
       <PlanTab v-if="athletes.currentId" @go-profile="goToSection" />
       <p v-else class="helper-text">Salva la scheda per pianificare le sedute.</p>
+    </div>
+
+    <!-- ===================== Anomalie ===================== -->
+    <div v-if="tab === 'anomalie'" id="panel-anomalie" role="tabpanel" aria-labelledby="tab-anomalie">
+      <AnomaliesTab :anomalies="anomalies.anomalies.value" :checking="anomalies.checking.value" :busy="anomalies.busy.value" />
     </div>
 
     <!-- ===================== Profilo ===================== -->
@@ -425,7 +467,7 @@ function onExport() {
         <button type="button" class="add-row" @click="addDiscipline"><Plus :size="16" aria-hidden="true" />Aggiungi disciplina</button>
       </section>
 
-      <section class="block">
+      <section class="block" id="sec-soglie">
         <h3>Soglie e zone fisiologiche</h3>
         <div class="segmented" role="group" aria-label="Disciplina delle soglie">
           <button
