@@ -72,6 +72,7 @@ supabase/
   migrations/0007_weekly_reviews.sql  valutazioni settimanali, rigenerazione, soglie del feedback
   migrations/0008_generation_trace.sql  tracciabilità delle generazioni, rifiuto delle date passate, claude_key_configured
   migrations/0009_completion_details.sql  esito e dati dell'attività (RPE compreso) sulle sedute svolte
+  migrations/0010_weekly_feedback_cron_timeout.sql  job orario del feedback, con attesa della risposta fino a 150 s
 .github/workflows/deploy.yml  Build + pubblicazione su GitHub Pages
 ```
 

@@ -6,6 +6,12 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
+**2026-10-12 — Job del feedback versionato, attesa della risposta a 150 s**
+- Il job `weekly-feedback-hourly` è ora definito in una migrazione (`0010`) e aspetta la risposta della funzione fino a 150 s invece di 5.
+
+*Motivazione*: al primo feedback reale (lunedì 12 ottobre, circa 35 s di lavoro, riuscito) la risposta risultava «Timeout of 5000 ms» in `net._http_response`, e l'esito del lunedì non era leggibile dal database.
+*Docs aggiornati*: [backend.md](docs/backend.md), [architettura.md](docs/architettura.md).
+
 **2026-10-11 — Contrasti, conferme e rifiniture**
 - Testo d'avviso del tema chiaro più scuro (`--warning` `#8A5E00`, 5:1 sul suo sfondo) e nuovo token `--border-control` per i bordi dei campi (almeno 3:1); un test verifica i contrasti dei due temi.
 - Le conferme non distruttive («Approva comunque», «Rigenera») hanno il pulsante primario, non rosso.

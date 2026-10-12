@@ -146,7 +146,7 @@ Adattatore della pipeline in `supabase/functions/_shared/feedback/pipeline.ts`, 
 
 **Risposta all'invocazione schedulata**: `{ ranAt, planned, processed: [{ id, status }] }`.
 
-Configurazione di `pg_cron` e Vault in [decisioni/0008](decisioni/0008-feedback-automatico-schedulato.md).
+Configurazione di `pg_cron` e Vault in [decisioni/0008](decisioni/0008-feedback-automatico-schedulato.md). Il job `weekly-feedback-hourly` (`5 * * * *`) è definito in `migrations/0010_weekly_feedback_cron_timeout.sql`. `net.http_post` aspetta la risposta fino a 150 s (`timeout_milliseconds`), il limite di una Edge Function, così `net._http_response` registra l'esito reale anche il lunedì, quando la funzione lavora più a lungo. Le risposte restano in quella tabella per 6 ore (`pg_net.ttl`).
 
 ## `EmailSender`
 
