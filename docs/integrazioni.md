@@ -27,6 +27,16 @@ Errori gestiti esplicitamente: chiave non valida (401), altri errori HTTP, error
 
 **Limite noto**: nessun retry/backoff sui rate limit di Intervals.icu nelle letture del carico — vedi [limiti-roadmap.md](limiti-roadmap.md). La scrittura delle sedute invece li ha (sezione seguente).
 
+## Intervals.icu: zone dell'atleta
+
+All'apertura della scheda `ZoneAlignBanner.vue` legge le zone dell'atleta su Intervals.icu (`intervals-sync`, azione `zones_read`, contratto in [backend.md](backend.md#intervals-sync-edge-function)) e le confronta con il profilo salvato (`zoneChecks` in `_shared/workouts/zoneModels.ts`). Decisioni in [decisioni/0029](decisioni/0029-zone-allineate-con-intervals.md).
+
+- **Cosa si confronta**: per ogni disciplina praticata, il numero di zone della misura con cui PCoach prescrive le sedute (bici: potenza con l'FTP, altrimenti FC; corsa e nuoto: passo) e il sistema di zone della scheda (il nuoto ne ha sempre 7).
+- **Avviso**: se una disciplina non coincide, la scheda mostra «Zone diverse da Intervals.icu» con due azioni, ciascuna dopo una conferma:
+  - «Usa N zone in PCoach» cambia il sistema di zone della scheda e la salva. È possibile solo con 3, 5 o 7 zone su Intervals.icu, non per il nuoto, e non con modifiche della scheda non salvate;
+  - «Porta Intervals.icu a N zone» scrive su Intervals.icu i limiti del modello scelto in Impostazioni («Zone su Intervals.icu»), mostrati nella conferma (azione `zones_apply`). La FC si calcola in bpm dalla FC di soglia e dalla FC massima registrate su Intervals.icu.
+- **Errori**: se la lettura non riesce, l'avviso non compare; se la scrittura non riesce, l'avviso resta e compare il messaggio di Intervals.icu.
+
 ## Intervals.icu: sincronizzazione delle sedute
 
 Il pulsante «Sincronizza settimana» della tab Piano invia le sedute approvate al calendario Intervals.icu dell'atleta, attraverso la Edge Function `intervals-sync` (contratto in [backend.md](backend.md#intervals-sync-edge-function)).

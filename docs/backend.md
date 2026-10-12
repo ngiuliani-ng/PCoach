@@ -12,10 +12,12 @@ Lo schema è versionato in `supabase/migrations/`, da eseguire in ordine numeric
 - `0006`: tipo di generazione `continue` in `plan_generations.kind`;
 - `0007`: tabella `weekly_reviews`, funzione `regenerate_weekly_review`, colonna `app_settings.feedback_params`;
 - `0008`: colonne di tracciabilità di `plan_generations`, rifiuto delle proposte con data di partenza passata, funzione `claude_key_configured`;
-- `0009`: esito e dati dell'attività sulle sedute svolte (`workouts.completion_outcome`, `completion_ratio`, `activity_*`).
+- `0009`: esito e dati dell'attività sulle sedute svolte (`workouts.completion_outcome`, `completion_ratio`, `activity_*`);
+- `0010`: job orario del feedback, con attesa della risposta fino a 150 s;
+- `0011`: colonna `app_settings.zone_models`.
 
 - **`athletes`**: `id` (text, chiave primaria: l'identificativo di 8 caratteri generato dall'app), `data` (jsonb, l'intero `AthleteTrainingProfile` — vedi [modello-dati.md](modello-dati.md)), `updated_at` (timestamptz, usato per il controllo di concorrenza ottimistico).
-- **`app_settings`**: riga singola (`id = 1`), contiene configurazione globale del coach: `claude_api_key` (scritta dall'app solo quando il coach ne inserisce una nuova, mai riletta: l'app sa solo se c'è, con `claude_key_configured()`), `claude_model` (uno dei modelli ammessi), preferenze del piano e tono del feedback (vuoti = predefiniti nel codice), `weekly_feedback_*` (timezone, giorno, ora, `email_enabled`), `feedback_params` (soglie dell'analisi del feedback, jsonb, con una coppia di soglie d'intensità per sistema di zone; i valori assenti prendono i predefiniti di `_shared/feedback/params.ts`, e le vecchie chiavi `low_zone_max`/`moderate_zone_max` valgono come quelle a 7 zone).
+- **`app_settings`**: riga singola (`id = 1`), contiene configurazione globale del coach: `claude_api_key` (scritta dall'app solo quando il coach ne inserisce una nuova, mai riletta: l'app sa solo se c'è, con `claude_key_configured()`), `claude_model` (uno dei modelli ammessi), preferenze del piano e tono del feedback (vuoti = predefiniti nel codice), `weekly_feedback_*` (timezone, giorno, ora, `email_enabled`), `feedback_params` (soglie dell'analisi del feedback, jsonb, con una coppia di soglie d'intensità per sistema di zone; i valori assenti prendono i predefiniti di `_shared/feedback/params.ts`, e le vecchie chiavi `low_zone_max`/`moderate_zone_max` valgono come quelle a 7 zone), `zone_models` (modelli di zone per allineare Intervals.icu a PCoach, jsonb; i valori assenti o non validi prendono i predefiniti di `_shared/workouts/zoneModels.ts`).
 - **`training_plans`, `plan_generations`, `workouts`, `workout_sync`, `workout_events`**: le sedute e ciò che le riguarda. Colonne, vincoli e stati in [modello-dati.md § Sedute e piani](modello-dati.md#sedute-e-piani).
 - **`weekly_reviews`**: le valutazioni settimanali. Colonne e stati in [modello-dati.md § Valutazioni settimanali](modello-dati.md#valutazioni-settimanali).
 
@@ -94,7 +96,7 @@ Proxy verso `api.anthropic.com` per la generazione delle sedute, necessario perc
 
 ## `intervals-sync` (Edge Function)
 
-Scrive le sedute sul calendario Intervals.icu dell'atleta. Regole di sincronizzazione e formato in [integrazioni.md](integrazioni.md#intervalsicu-sincronizzazione-delle-sedute).
+Scrive le sedute sul calendario Intervals.icu dell'atleta, e ne legge e allinea le zone. Regole di sincronizzazione e formato in [integrazioni.md](integrazioni.md#intervalsicu-sincronizzazione-delle-sedute), zone in [integrazioni.md](integrazioni.md#intervalsicu-zone-dellatleta).
 
 - **Autenticazione del chiamante**: JWT di sessione del coach, verificato con `auth.getUser()`; la sola anon key non basta. Il database è letto e scritto con lo stesso JWT (la chiave pubblica inviata dal client nell'header `apikey`, perché la anon key legacy del progetto è disattivata, più il JWT del coach), quindi vale la RLS.
 - **Richiesta `{ action: "preview", athlete_id, week_start }`**:
@@ -108,6 +110,8 @@ Scrive le sedute sul calendario Intervals.icu dell'atleta. Regole di sincronizza
   - salva subito l'esito in `workout_sync` e in `workout_events`.
 
   Risponde `{ ok, outcome, warning }` oppure `{ ok: false, error }`.
+- **Richiesta `{ action: "zones_read", athlete_id }`**: legge `GET /sport-settings` e risponde `{ settings }` con, per ogni sport, solo `id`, `types`, `ftp`, `lthr`, `max_hr`, `threshold_pace`, `power_zones`, `hr_zones` e `pace_zones`. Non scrive nulla.
+- **Richiesta `{ action: "zones_apply", athlete_id, discipline, key, zones }`**, con `key` della stessa disciplina (`cycling_power`, `cycling_hr`, `running_pace`, `swimming_pace`) e `zones` pari a 3, 5 o 7. Legge i modelli salvati in `app_settings.zone_models`, calcola le zone (`icuZonesUpdate` in `_shared/workouts/zoneModels.ts`), le scrive con `PUT /sport-settings/{id}?recalcHrZones=false` e controlla il numero di zone salvato. Risponde `{ ok: true, settings }` oppure `{ ok: false, error }`.
 - **Trasporto**: timeout di 10 s e fino a 2 nuovi tentativi su 429, 5xx ed errori di rete (attesa di 1 s, poi 3 s, oppure `Retry-After`, al massimo 10 s). I messaggi d'errore sono riformulati senza header né chiavi.
 
 ## `weekly-feedback` (Edge Function)

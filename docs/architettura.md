@@ -57,7 +57,7 @@ app/
   src/router.ts             Rotte e guardie di navigazione (modifiche non salvate)
 supabase/
   functions/claude-proxy/     Edge Function: proxy verso l'API Claude
-  functions/intervals-sync/   Edge Function: anteprima e invio delle sedute al calendario Intervals.icu
+  functions/intervals-sync/   Edge Function: anteprima e invio delle sedute al calendario Intervals.icu, lettura e allineamento delle zone
   functions/weekly-feedback/  Edge Function del feedback settimanale: schedulata e azioni del coach
   functions/_shared/          EmailSender astratto + implementazione Resend
   functions/_shared/workouts/ Moduli puri condivisi con l'app (alias @shared): calendario, struttura della seduta, conversione per Intervals.icu, classificazione della sincronizzazione
@@ -73,6 +73,7 @@ supabase/
   migrations/0008_generation_trace.sql  tracciabilità delle generazioni, rifiuto delle date passate, claude_key_configured
   migrations/0009_completion_details.sql  esito e dati dell'attività (RPE compreso) sulle sedute svolte
   migrations/0010_weekly_feedback_cron_timeout.sql  job orario del feedback, con attesa della risposta fino a 150 s
+  migrations/0011_zone_models.sql  modelli di zone per allineare Intervals.icu a PCoach
 .github/workflows/deploy.yml  Build + pubblicazione su GitHub Pages
 ```
 
@@ -104,7 +105,7 @@ App.vue
      │         ├─ domain/MetricLogList.vue      (rilevazioni delle soglie per corsa/bici/nuoto)
      │         └─ identità, discipline, stato, obiettivi, vincoli, metodologia, note, esporta/elimina
      ├─ domain/EmptyState.vue     (/: nessun atleta aperto, indica di sceglierne o crearne uno dall'elenco)
-     └─ domain/SettingsPanel.vue  (/impostazioni: Claude, prompt, tono e soglie del feedback, orario)
+     └─ domain/SettingsPanel.vue  (/impostazioni: Claude, prompt, tono e soglie del feedback, modelli di zone, orario)
   ui/ConfirmDialog.vue + ui/ToastHost.vue  (montati una volta in App.vue, pilotati da composables condivisi)
 ```
 

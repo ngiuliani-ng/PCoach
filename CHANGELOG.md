@@ -6,6 +6,15 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
+**2026-10-12 — Zone allineate fra PCoach e Intervals.icu**
+- All'apertura della scheda PCoach legge le zone dell'atleta su Intervals.icu. Se il numero di zone non coincide con la scheda, mostra un avviso con due scelte, entrambe con conferma: «Usa N zone in PCoach» oppure «Porta Intervals.icu a N zone».
+- Nuova sezione «Zone su Intervals.icu» in Impostazioni: per potenza e FC della bici, passo di corsa e di nuoto, e per 3, 5 e 7 zone, un preset dalla letteratura (Coggan, Friel, Seiler) o limiti propri. I predefiniti sono i modelli più usati.
+- `intervals-sync`: azioni `zones_read` e `zones_apply`. Migrazione `0011` (`app_settings.zone_models`).
+- Test: 170 unitari, 48 end-to-end.
+
+*Motivazione*: richiesta del coach di verificare, con la chiave di ogni atleta, che PCoach e Intervals.icu usino le stesse zone.
+*Docs aggiornati*: [decisioni/0029](docs/decisioni/0029-zone-allineate-con-intervals.md), [integrazioni.md](docs/integrazioni.md), [backend.md](docs/backend.md), [architettura.md](docs/architettura.md), [modello-dati.md](docs/modello-dati.md), [sicurezza.md](docs/sicurezza.md), [limiti-roadmap.md](docs/limiti-roadmap.md), [sviluppo-deploy.md](docs/sviluppo-deploy.md).
+
 **2026-10-12 — Domini d'intensità del feedback per sistema di zone**
 - `feedback_params` ha una coppia di soglie (intensità bassa e media) per ciascun sistema di zone: 3 zone Z1/Z2, 5 zone Z2/Z3, 7 zone Z2/Z4. Si modificano in Impostazioni, nel riquadro «Intensità bassa, media e alta per sistema di zone».
 - L'analisi usa la coppia del sistema dell'atleta per disciplina, sia per la distribuzione dell'intensità sia per riconoscere le sedute di qualità; il contratto salva i domini usati. `ANALYSIS_VERSION` 1.1.0.
