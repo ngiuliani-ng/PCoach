@@ -288,6 +288,11 @@ button:focus-visible, a:focus-visible {
   font-size: var(--fs-sm);
 }
 .update-banner .link-btn { font-weight: 600; margin-left: var(--sp-1); }
+.zone-align p { margin: 0 0 var(--sp-1); }
+.zone-align ul { margin: 0; padding-left: var(--sp-4); }
+.zone-align li { display: flex; flex-wrap: wrap; gap: 0 var(--sp-3); align-items: baseline; }
+.zone-align-actions { display: inline-flex; flex-wrap: wrap; gap: 0 var(--sp-3); }
+.zone-align-actions .link-btn { margin-left: 0; }
 .link-btn {
   border: none;
   background: transparent;
@@ -858,6 +863,12 @@ button.ghost.danger-text { color: var(--danger); }
 .review-sessions summary { cursor: pointer; color: var(--text-muted); }
 .review-sessions ul { list-style: none; padding: 0; margin: var(--sp-2) 0 0; }
 .review-sessions li { display: flex; flex-wrap: wrap; gap: 0 var(--sp-3); padding: var(--sp-1) 0; border-top: 1px solid var(--border); }
+.zone-models summary .helper-text { font-size: inherit; }
+.zone-model { margin: var(--sp-3) 0; }
+.zone-model > .field { max-width: 320px; }
+.zone-bounds { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: var(--sp-2); align-items: end; }
+.zone-bounds .field { margin: 0; }
+.zone-bounds-last { padding-bottom: var(--sp-2); }
 .review-session-date { min-width: 52px; color: var(--text-muted); }
 .review-caution { color: var(--warning); }
 .review-muted { color: var(--text-muted); }

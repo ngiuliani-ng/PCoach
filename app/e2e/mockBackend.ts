@@ -16,6 +16,9 @@ export interface MockState {
   failOnceIds: Set<string>;
   applyCalls: { workout_id: string; op: string }[];
   rpcCalls: { name: string; body: unknown }[];
+  /** Impostazioni degli sport su Intervals.icu (zone_read / zones_apply). */
+  icuSportSettings: Row[];
+  zoneApplyCalls: Row[];
 }
 
 let seq = 1;
@@ -100,6 +103,12 @@ export function createState(): MockState {
     claudeResponse: null,
     failOnceIds: new Set(),
     applyCalls: [],
+    // Zone allineate alla scheda (7 zone): nessun avviso, salvo i test che le cambiano.
+    icuSportSettings: [
+      { id: 11, types: ["Ride", "VirtualRide"], ftp: 230, lthr: 165, max_hr: 190, threshold_pace: null, power_zones: [55, 75, 90, 105, 120, 150, 999], hr_zones: [133, 146, 153, 163, 168, 175, 190], pace_zones: null },
+      { id: 12, types: ["Run", "TrailRun"], ftp: null, lthr: 170, max_hr: 190, threshold_pace: 3.5, power_zones: null, hr_zones: [144, 151, 160, 168, 173, 180, 190], pace_zones: [77.5, 87.7, 94.3, 100, 103.4, 111.5, 999] }
+    ],
+    zoneApplyCalls: [],
     rpcCalls: []
   };
 }
@@ -270,6 +279,14 @@ export async function installMockBackend(page: Page, state: MockState) {
     }
     if (path === "/functions/v1/intervals-sync") {
       const body = req.postDataJSON() as Row;
+      if (body.action === "zones_read") return fulfillJson(route, { settings: state.icuSportSettings });
+      if (body.action === "zones_apply") {
+        state.zoneApplyCalls.push(body);
+        const sport = state.icuSportSettings.find((x) => (x.types as string[]).includes(body.discipline === "running" ? "Run" : body.discipline === "cycling" ? "Ride" : "Swim"));
+        const field = String(body.key).endsWith("power") ? "power_zones" : String(body.key).endsWith("hr") ? "hr_zones" : "pace_zones";
+        if (sport) sport[field] = Array.from({ length: Number(body.zones) }, (_, i) => (i + 1) * 10);
+        return fulfillJson(route, { ok: true, settings: sport });
+      }
       if (body.action === "preview") {
         return fulfillJson(route, { remote: { events: [{ id: 501, updated: "t1" }, { id: 502, updated: "t1" }, { id: 503, updated: "t1" }], missingIds: [] }, completed: 0 });
       }

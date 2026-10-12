@@ -1,11 +1,13 @@
-// Sincronizzazione delle sedute con il calendario Intervals.icu (ADR 0017).
-// Due azioni, entrambe autenticate con il JWT di sessione del coach (come claude-proxy):
+// Sincronizzazione delle sedute con il calendario Intervals.icu (ADR 0017) e delle zone (ADR 0029).
+// Azioni autenticate con il JWT di sessione del coach (come claude-proxy):
 // - preview: legge lo stato remoto della settimana (eventi, eventi spariti) e registra come
 //   svolte le sedute abbinate con certezza a un'attivita' (evento abbinato, o stesso giorno e
 //   disciplina con una sola coppia). Non scrive nulla su Intervals.icu.
 // - apply: esegue UNA operazione su UNA seduta (create, update, overwrite, recreate, delete).
 //   Il client invoca apply una seduta alla volta: l'avanzamento e' visibile riga per riga e una
 //   pagina chiusa a meta' lascia uno stato coerente.
+// - zones_read: legge le zone dell'atleta su Intervals.icu (sport-settings), per confrontarle con la scheda.
+// - zones_apply: porta le zone di uno sport al modello scelto in Impostazioni, su richiesta del coach.
 // Il database e' letto e scritto con il JWT del coach (RLS attiva). La chiave Intervals.icu e'
 // letta dalla scheda dell'atleta e non compare mai nei log ne' nelle risposte.
 //
@@ -20,6 +22,8 @@ import { validateWorkout } from "../_shared/workouts/structure.ts";
 import { completionColumns, completionsIn } from "../_shared/feedback/completion.ts";
 import { resolveFeedbackParams } from "../_shared/feedback/params.ts";
 import type { PlannedWorkout, RawActivity } from "../_shared/feedback/types.ts";
+import { type IcuSportSettings, icuZoneCount, icuZonesUpdate, resolveZoneModels, sportSettingsFor, ZONE_MODEL_KEYS, type ZoneModelKey } from "../_shared/workouts/zoneModels.ts";
+import type { ZoneCount, ZoneDiscipline } from "../_shared/workouts/zones.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -286,6 +290,45 @@ async function apply(db: SupabaseClient, athleteId: string, workoutId: string, o
   return jsonResponse({ ok: true, outcome: targetId == null ? "created" : "updated", warning });
 }
 
+// ---------- zone ----------
+const ZONE_FIELDS = ["id", "types", "ftp", "lthr", "max_hr", "threshold_pace", "power_zones", "hr_zones", "pace_zones"] as const;
+
+function pickZones(raw: unknown): IcuSportSettings[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((x) => Object.fromEntries(ZONE_FIELDS.map((k) => [k, (x as Record<string, unknown>)?.[k] ?? null])) as unknown as IcuSportSettings);
+}
+
+async function zonesRead(db: SupabaseClient, athleteId: string) {
+  const apiKey = await athleteKey(db, athleteId);
+  if (!apiKey) return jsonResponse({ error: "Questo atleta non ha una chiave Intervals.icu." }, 400);
+  const res = await icu(apiKey, "GET", "/sport-settings");
+  if (!res.ok) return jsonResponse({ error: res.status === 401 || res.status === 403 ? "Chiave Intervals.icu non valida." : res.error }, 502);
+  return jsonResponse({ settings: pickZones(res.data) });
+}
+
+async function zonesApply(db: SupabaseClient, athleteId: string, discipline: ZoneDiscipline, key: ZoneModelKey, zones: ZoneCount) {
+  const apiKey = await athleteKey(db, athleteId);
+  if (!apiKey) return jsonResponse({ error: "Questo atleta non ha una chiave Intervals.icu." }, 400);
+  const { data: cfg } = await db.from("app_settings").select("zone_models").eq("id", 1).maybeSingle();
+  const models = resolveZoneModels((cfg as { zone_models?: unknown } | null)?.zone_models);
+  const list = await icu(apiKey, "GET", "/sport-settings");
+  if (!list.ok) return jsonResponse({ error: list.error }, 502);
+  const sport = sportSettingsFor(pickZones(list.data), discipline);
+  if (!sport) return jsonResponse({ error: "Su Intervals.icu non ci sono impostazioni per questo sport." }, 400);
+  const update = icuZonesUpdate(key, zones, models, sport);
+  if (!update.ok) return jsonResponse({ error: update.error }, 400);
+  const res = await icu(apiKey, "PUT", `/sport-settings/${sport.id}?recalcHrZones=false`, update.body);
+  if (!res.ok) {
+    const error = res.status === 401 || res.status === 403 ? "Chiave Intervals.icu senza permesso di modificare le impostazioni." : res.uncertain ? `${res.error} Ricontrolla le zone: la modifica potrebbe essere avvenuta.` : res.error;
+    return jsonResponse({ ok: false, error });
+  }
+  // Verifica: Intervals.icu restituisce le impostazioni salvate.
+  const saved = pickZones([res.data])[0];
+  const count = saved ? icuZoneCount(saved, key) : null;
+  if (count !== zones) return jsonResponse({ ok: false, error: `Intervals.icu ha salvato ${count ?? "nessuna"} zone invece di ${zones}: controlla le impostazioni dell'atleta.` });
+  return jsonResponse({ ok: true, settings: saved });
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS_HEADERS });
   if (req.method !== "POST") return jsonResponse({ error: "Metodo non supportato." }, 405);
@@ -323,6 +366,16 @@ Deno.serve(async (req: Request) => {
       if (!["create", "update", "overwrite", "recreate", "delete"].includes(op)) return jsonResponse({ error: "Operazione non valida." }, 400);
       if (typeof body.workout_id !== "string" || typeof body.expected_revision !== "number") return jsonResponse({ error: "Seduta mancante." }, 400);
       return await apply(db, athleteId, body.workout_id, op, body.expected_revision);
+    }
+    if (body.action === "zones_read") return await zonesRead(db, athleteId);
+    if (body.action === "zones_apply") {
+      const discipline = body.discipline as ZoneDiscipline;
+      const key = body.key as ZoneModelKey;
+      const zones = body.zones as ZoneCount;
+      if (!["running", "cycling", "swimming"].includes(discipline) || !ZONE_MODEL_KEYS.includes(key) || !key.startsWith(`${discipline}_`) || ![3, 5, 7].includes(zones)) {
+        return jsonResponse({ error: "Richiesta di allineamento non valida." }, 400);
+      }
+      return await zonesApply(db, athleteId, discipline, key, zones);
     }
     return jsonResponse({ error: "Azione non valida." }, 400);
   } catch (err) {

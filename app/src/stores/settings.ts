@@ -9,6 +9,7 @@ import { DEFAULT_PLAN_PREFERENCES, DEFAULT_FEEDBACK_PROMPT, isLegacyPlanTemplate
 import { DEFAULT_FEEDBACK_PARAMS, resolveFeedbackParams, validateFeedbackParams, type FeedbackParams } from "@shared/feedback/params.ts";
 import { resolveModel } from "@shared/claude/models.ts";
 import { isValidTimeZone } from "@shared/feedback/period.ts";
+import { defaultZoneModels, resolveZoneModels, zoneModelsErrors, type ZoneModels } from "@shared/workouts/zoneModels.ts";
 
 export interface AppSettings {
   /** Nuova chiave inserita dal coach in questa sessione; vuota = invariata. */
@@ -23,9 +24,11 @@ export interface AppSettings {
   weekly_feedback_email_enabled: boolean;
   /** Soglie dell'analisi del feedback (ADR 0019). */
   feedback_params: FeedbackParams;
+  /** Modelli di zone usati per allineare Intervals.icu a PCoach (ADR 0029). */
+  zone_models: ZoneModels;
 }
 
-const COLUMNS = "claude_model, plan_generation_prompt_template, weekly_feedback_prompt_template, weekly_feedback_day, weekly_feedback_time, weekly_feedback_timezone, weekly_feedback_email_enabled, feedback_params";
+const COLUMNS = "claude_model, plan_generation_prompt_template, weekly_feedback_prompt_template, weekly_feedback_day, weekly_feedback_time, weekly_feedback_timezone, weekly_feedback_email_enabled, feedback_params, zone_models";
 
 function defaults(): AppSettings {
   return {
@@ -37,7 +40,8 @@ function defaults(): AppSettings {
     weekly_feedback_time: "08:00",
     weekly_feedback_timezone: "Europe/Rome",
     weekly_feedback_email_enabled: false,
-    feedback_params: { ...DEFAULT_FEEDBACK_PARAMS }
+    feedback_params: { ...DEFAULT_FEEDBACK_PARAMS },
+    zone_models: defaultZoneModels()
   };
 }
 
@@ -84,7 +88,8 @@ export const useSettingsStore = defineStore("settings", {
         weekly_feedback_time: `${(row.weekly_feedback_time ?? fallback.weekly_feedback_time).slice(0, 2)}:00`,
         weekly_feedback_timezone: row.weekly_feedback_timezone ?? fallback.weekly_feedback_timezone,
         weekly_feedback_email_enabled: row.weekly_feedback_email_enabled ?? fallback.weekly_feedback_email_enabled,
-        feedback_params: resolveFeedbackParams(row.feedback_params)
+        feedback_params: resolveFeedbackParams(row.feedback_params),
+        zone_models: resolveZoneModels(row.zone_models)
       };
       this.hasClaudeKey = key.data === true;
       this.baseline = JSON.stringify(this.settings);
@@ -99,6 +104,9 @@ export const useSettingsStore = defineStore("settings", {
       }
       if (Object.keys(validateFeedbackParams(this.settings.feedback_params)).length) {
         return { ok: false, message: "Correggi le soglie del feedback prima di salvare." };
+      }
+      if (Object.keys(zoneModelsErrors(this.settings.zone_models)).length) {
+        return { ok: false, message: "Correggi i modelli di zone prima di salvare." };
       }
       if (!isValidTimeZone(this.settings.weekly_feedback_timezone)) {
         return { ok: false, message: "Scegli un fuso orario dall'elenco prima di salvare." };

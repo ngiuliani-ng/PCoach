@@ -12,6 +12,7 @@ import { isValidTimeZone } from "@shared/feedback/period.ts";
 import { ZONE_COUNTS } from "@shared/workouts/zones.ts";
 import PasswordField from "../ui/PasswordField.vue";
 import FieldHelp from "../ui/FieldHelp.vue";
+import ZoneModelsEditor from "./ZoneModelsEditor.vue";
 
 const settings = useSettingsStore();
 const paramErrors = computed(() => validateFeedbackParams(settings.settings.feedback_params));
@@ -138,6 +139,10 @@ async function onSave() {
         </div>
       </details>
       <button type="button" class="link-btn" @click="resetParams">Ripristina i valori predefiniti</button>
+    </section>
+    <section class="block">
+      <h3>Zone su Intervals.icu</h3>
+      <ZoneModelsEditor />
     </section>
     <section class="block">
       <h3>Feedback settimanale automatico</h3>

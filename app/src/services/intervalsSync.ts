@@ -2,6 +2,8 @@
 // operazione per seduta. Stesso schema di autenticazione di claude.ts (token di sessione).
 import { supabase, supabaseUrl, supabaseAnonKey } from "./supabase";
 import type { RemoteSnapshot } from "@shared/workouts/sync.ts";
+import type { IcuSportSettings, ZoneModelKey } from "@shared/workouts/zoneModels.ts";
+import type { ZoneCount, ZoneDiscipline } from "@shared/workouts/zones.ts";
 
 export type ApplyOp = "create" | "update" | "overwrite" | "recreate" | "delete";
 
@@ -34,4 +36,14 @@ export function applyOperation(athleteId: string, workoutId: string, op: ApplyOp
   return call<{ ok: boolean; outcome?: string; warning?: string | null; error?: string }>({
     action: "apply", athlete_id: athleteId, workout_id: workoutId, op, expected_revision: expectedRevision
   });
+}
+
+/** Zone dell'atleta su Intervals.icu (sola lettura, ADR 0029). */
+export function readZones(athleteId: string) {
+  return call<{ settings: IcuSportSettings[] }>({ action: "zones_read", athlete_id: athleteId });
+}
+
+/** Porta le zone di uno sport su Intervals.icu al modello di Impostazioni. */
+export function applyZones(athleteId: string, discipline: ZoneDiscipline, key: ZoneModelKey, zones: ZoneCount) {
+  return call<{ ok: boolean; error?: string; settings?: IcuSportSettings }>({ action: "zones_apply", athlete_id: athleteId, discipline, key, zones });
 }

@@ -31,6 +31,7 @@ import WeeklyReviews from "./WeeklyReviews.vue";
 import PasswordField from "../ui/PasswordField.vue";
 import type { AthleteTab } from "../../router";
 import IconButton from "../ui/IconButton.vue";
+import ZoneAlignBanner from "./ZoneAlignBanner.vue";
 import FieldHelp from "../ui/FieldHelp.vue";
 import { Download, Plus, Trash2 } from "lucide-vue-next";
 
@@ -263,6 +264,7 @@ function onExport() {
       Questa scheda è stata modificata altrove.
       <button type="button" class="link-btn" @click="onReloadRemote">Ricarica i dati più recenti</button>
     </p>
+    <ZoneAlignBanner v-if="athletes.currentId" />
     <p class="page-sub">
       <span v-if="disciplinesText">{{ disciplinesText }}</span>
       <span v-if="nextEvent">Prossimo evento: {{ nextEvent.name || "senza nome" }}, {{ formatDate(nextEvent.date) }}</span>
