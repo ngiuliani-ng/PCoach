@@ -147,8 +147,8 @@ Chiamata lato server dentro `weekly-feedback` (contratto in [backend.md](backend
 - **Metriche**:
   - conteggi e tasso di completamento con numeratore, denominatore e flag di comunicabilità;
   - volume e carico per disciplina;
-  - distribuzione dell'intensità in 3 domini, con la stessa metrica della prescrizione;
-  - lavoro nelle zone alte per le sedute di qualità;
+  - distribuzione dell'intensità in 3 domini (bassa, media, alta), con la stessa metrica della prescrizione; i domini dipendono dal sistema di zone dell'atleta per quella disciplina, con le soglie per sistema di `feedback_params` ([decisioni/0028](decisioni/0028-domini-d-intensita-per-sistema-di-zone.md));
+  - lavoro oltre l'intensità bassa per le sedute di qualità, con le stesse soglie;
   - confronto con la settimana precedente, confrontabile solo se entrambe le settimane sono concluse e dentro un piano, con la variazione attesa ricavata dalle percentuali dell'atleta;
   - CTL e ATL;
   - RPE, HRV, frequenza a riposo e sonno con la loro copertura.

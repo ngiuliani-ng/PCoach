@@ -130,6 +130,8 @@ Una sola vista, un pannello e due dialoghi, al posto di schermate separate (moti
 
 ## Stati dei componenti
 
+Un valore fisso che ha senso mostrare accanto a campi modificabili (es. il sistema di zone del nuoto) è un campo `disabled`, con sfondo `--surface-2` e testo pieno, più una riga che dice perché non si cambia.
+
 Ogni componente interattivo gestisce esplicitamente: default, hover, focus (visibile via `:focus-visible`, mai rimosso con `outline: none` senza sostituto), disabled, loading (dove rilevante, es. salvataggio o generazione in corso), errore. Attenzione alla specificità: le classi dei pulsanti (`button.primary`, `button.secondary`, …) hanno specificità elemento+classe, quindi una regola che deve nasconderli o sovrascriverli ha bisogno di almeno due classi.
 
 ## Accessibilità

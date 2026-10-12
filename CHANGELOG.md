@@ -6,6 +6,16 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
+**2026-10-12 — Domini d'intensità del feedback per sistema di zone**
+- `feedback_params` ha una coppia di soglie (intensità bassa e media) per ciascun sistema di zone: 3 zone Z1/Z2, 5 zone Z2/Z3, 7 zone Z2/Z4. Si modificano in Impostazioni, nel riquadro «Intensità bassa, media e alta per sistema di zone».
+- L'analisi usa la coppia del sistema dell'atleta per disciplina, sia per la distribuzione dell'intensità sia per riconoscere le sedute di qualità; il contratto salva i domini usati. `ANALYSIS_VERSION` 1.1.0.
+- Le soglie salvate prima valgono come quelle a 7 zone: per gli atleti attuali, tutti a 7 zone, il feedback non cambia.
+- Nel Profilo il nuoto mostra «Sistema di zone: 7 zone» come campo non modificabile.
+- Test: 157 unitari, 40 end-to-end.
+
+*Motivazione*: decisione del coach di rendere le soglie modulari per atleta; con 3 zone la Z3 contava come intensità media.
+*Docs aggiornati*: [decisioni/0028](docs/decisioni/0028-domini-d-intensita-per-sistema-di-zone.md), [integrazioni.md](docs/integrazioni.md), [backend.md](docs/backend.md), [modello-dati.md](docs/modello-dati.md), [limiti-roadmap.md](docs/limiti-roadmap.md), [design-ui.md](docs/design-ui.md).
+
 **2026-10-12 — Job del feedback versionato, attesa della risposta a 150 s**
 - Il job `weekly-feedback-hourly` è ora definito in una migrazione (`0010`) e aspetta la risposta della funzione fino a 150 s invece di 5.
 
