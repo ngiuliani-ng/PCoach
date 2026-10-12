@@ -6,6 +6,12 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
+**2026-10-12 — «Segna verificata» per le sedute già approvate «Da verificare»**
+- Il pannello di una seduta già approvata con un avviso («Da verificare») mostra «Segna verificata» (o «Salva e segna verificata»). Il vincolo viene ricalcolato: se è ancora violato chiede conferma, altrimenti chiude l'avviso.
+- Motivazione: il pulsante di approvazione esisteva solo per le bozze. Una seduta approvata, modificata e finita oltre la durata massima del giorno restava bloccata in «Da verificare», e quindi non si poteva più inviare a Intervals.icu.
+- Test: 174 unitari, 52 end-to-end.
+- Docs: design-ui (piede del pannello), modello-dati (`needs_review`).
+
 **2026-10-12 — Feedback solo con zone allineate; sedute da verificare dopo un cambio di zone**
 - Il feedback settimanale controlla le zone su Intervals.icu prima dell'analisi. Se non coincidono con la scheda si ferma («Zone non allineate con Intervals.icu…») e riparte con «Riprova».
 - Cambiare il sistema di zone con un piano in corso chiede conferma. Se il coach procede, le sedute da svolgere della disciplina, da oggi compreso, tornano «Da verificare» con il motivo. Vale per ogni salvataggio della scheda: Profilo, uscita, «Salva e genera», «Usa N zone in PCoach».

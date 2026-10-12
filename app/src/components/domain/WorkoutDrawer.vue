@@ -87,8 +87,13 @@ function availabilityIssue(): string | null {
 async function save(approve: boolean) {
   if (hasErrors.value || saving.value) return;
   const issue = availabilityIssue();
-  // Approvare con un vincolo non rispettato e' una scelta del coach, chiesta esplicitamente.
-  if (approve && issue && !(await confirmDialog(`${issue} Approvarla comunque?`, { confirmLabel: "Approva comunque", cancelLabel: "Continua a modificare", tone: "primary" }))) return;
+  // Approvare (o, se gia' approvata, segnare verificata) con un vincolo non rispettato e' una scelta
+  // del coach, chiesta esplicitamente.
+  const wasApproved = original.value.status === "approved";
+  if (approve && issue && !(await confirmDialog(
+    wasApproved ? `${issue} Segnarla verificata comunque?` : `${issue} Approvarla comunque?`,
+    { confirmLabel: wasApproved ? "Segna verificata" : "Approva comunque", cancelLabel: "Continua a modificare", tone: "primary" }
+  ))) return;
   saving.value = true;
   const patch: Record<string, unknown> = { ...clone(contentOf(draft)), locked: draft.locked };
   if (draft.planned_date !== original.value.planned_date) patch.slot = store.freeSlot(draft.planned_date, props.workoutId);
@@ -108,7 +113,7 @@ async function save(approve: boolean) {
     return;
   }
   const outdated = localSyncState(result.value, store.syncRows[props.workoutId]) === "outdated";
-  showToast(approve ? "Seduta approvata." : outdated ? "Modifiche salvate: da aggiornare su Intervals.icu." : "Modifiche salvate.");
+  showToast(approve ? (wasApproved ? "Seduta verificata." : "Seduta approvata.") : outdated ? "Modifiche salvate: da aggiornare su Intervals.icu." : "Modifiche salvate.");
   emit("close");
 }
 
@@ -298,6 +303,9 @@ const exec = computed(() => execState(original.value, todayISO()));
         <button type="button" class="secondary" :disabled="!changed || hasErrors || saving" @click="save(false)">Salva modifiche</button>
         <button v-if="original.status === 'draft'" type="button" class="primary" :disabled="hasErrors || saving" @click="save(true)">
           <Check :size="16" aria-hidden="true" />{{ changed ? "Salva e approva" : "Approva" }}
+        </button>
+        <button v-else-if="original.needs_review" type="button" class="primary" :disabled="hasErrors || saving" @click="save(true)">
+          <Check :size="16" aria-hidden="true" />{{ changed ? "Salva e segna verificata" : "Segna verificata" }}
         </button>
       </template>
       <template v-else>

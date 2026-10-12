@@ -133,6 +133,21 @@ test("il sistema di zone dell'atleta limita l'editor e chiede conferma per appro
   await expect(page.getByRole("alertdialog")).toContainText("Usa la zona Z5, oltre le 3 zone impostate per la bici. Approvarla comunque?");
 });
 
+test("una seduta già approvata ma da verificare si segna verificata dal pannello", async ({ page }) => {
+  const state = createState();
+  const tempo = state.tables.workouts.find((w) => w.title === "Tempo")!;
+  // Avviso rimasto da un controllo precedente: ricalcolato al salvataggio, il vincolo non c'e' piu'.
+  tempo.needs_review = "Il giovedì l'atleta ha al massimo 60 minuti: le sedute del giorno ne fanno 67.";
+  await installMockBackend(page, state);
+  await page.goto(`./#/atleta/${ATHLETE_ID}/piano`);
+  await page.getByRole("button", { name: "Settimana successiva" }).click();
+  await page.getByRole("button", { name: /Apri Tempo/ }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Segna verificata" }).click();
+  await expect(page.getByText("Seduta verificata.")).toBeVisible();
+  expect(tempo.needs_review).toBeNull();
+  expect(tempo.status).toBe("approved");
+});
+
 test("le intensità del feedback si impostano per sistema di zone; il nuoto mostra 7 zone fisse", async ({ page }) => {
   const state = createState();
   await installMockBackend(page, state);
