@@ -32,6 +32,7 @@ import PasswordField from "../ui/PasswordField.vue";
 import type { AthleteTab } from "../../router";
 import IconButton from "../ui/IconButton.vue";
 import ZoneAlignBanner from "./ZoneAlignBanner.vue";
+import { useZoneChange } from "../../composables/useZoneChange";
 import FieldHelp from "../ui/FieldHelp.vue";
 import { Download, Plus, Trash2 } from "lucide-vue-next";
 
@@ -224,9 +225,11 @@ const thisWeek = computed(() => {
 });
 
 // ---------- Azioni sulla scheda ----------
+const { saveProfile } = useZoneChange();
 async function onSave() {
   const wasNew = athletes.currentId === null;
-  const result = await athletes.saveCurrent();
+  const result = await saveProfile();
+  if (result.cancelled) return;
   showResultToast(result);
   // Il primo salvataggio assegna l'id: la bozza diventa la scheda dell'atleta, nella stessa vista.
   if (result.ok && wasNew && athletes.currentId) {

@@ -9,6 +9,7 @@ import { hasFtp } from "../../domain/athlete";
 import { applyZones, readZones } from "../../services/intervalsSync";
 import { showResultToast, showToast } from "../../composables/useToast";
 import { confirmDialog } from "../../composables/useConfirmDialog";
+import { useZoneChange } from "../../composables/useZoneChange";
 import {
   icuZonesUpdate, presetsFor, resolveZoneModels, sportSettingsFor, ZONE_MODEL_INFO, ZONE_PRESETS, zoneChecks,
   type IcuSportSettings, type ZoneCheck
@@ -17,6 +18,7 @@ import type { ZoneCount } from "@shared/workouts/zones.ts";
 
 const athletes = useAthletesStore();
 const settings = useSettingsStore();
+const zoneChange = useZoneChange();
 
 const icu = ref<IcuSportSettings[] | null>(null);
 const busy = ref(false);
@@ -47,16 +49,18 @@ async function usePCoach(c: ZoneCheck) {
     showToast("Salva o annulla prima le modifiche della scheda.");
     return;
   }
+  if (c.discipline === "swimming") return;
   const n = c.intervals as ZoneCount;
+  // Con un piano in corso le sedute da svolgere tornano da verificare: l'avviso e' nella stessa conferma.
+  const warning = zoneChange.warningFor([{ discipline: c.discipline, from: c.pcoach, to: n }]);
   const ok = await confirmDialog(
-    `Impostare ${n} zone per ${disciplineWord(c)} in PCoach, come su Intervals.icu? Da ora generazione, editor e feedback usano Z1-Z${n}. Le sedute già pianificate non cambiano: quelle con zone oltre Z${n} risultano da verificare quando le apri.`,
+    `Impostare ${n} zone per ${disciplineWord(c)} in PCoach, come su Intervals.icu? Da ora generazione, editor e feedback usano Z1-Z${n}.${warning ? " " + warning : ""}`,
     { confirmLabel: `Usa ${n} zone in PCoach`, tone: "primary" }
   );
   const profile = athletes.currentProfile;
-  if (!ok || !profile || c.discipline === "swimming") return;
-  const thresholds = profile.physiological_thresholds![c.discipline]!;
-  thresholds.zone_system = `${n}-zone`;
-  showResultToast(await athletes.saveCurrent());
+  if (!ok || !profile) return;
+  profile.physiological_thresholds![c.discipline]!.zone_system = `${n}-zone`;
+  showResultToast(await zoneChange.saveProfile(true));
 }
 
 function describe(c: ZoneCheck, bounds: number[]): string {

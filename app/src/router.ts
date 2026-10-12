@@ -11,6 +11,7 @@ import { useAthletesStore } from "./stores/athletes";
 import { useSettingsStore } from "./stores/settings";
 import { choiceDialog } from "./composables/useConfirmDialog";
 import { showResultToast } from "./composables/useToast";
+import { useZoneChange } from "./composables/useZoneChange";
 import { fullName } from "./constants";
 
 export type AthleteTab = "panoramica" | "piano" | "profilo";
@@ -54,7 +55,8 @@ export async function confirmLeaveProfile(): Promise<boolean> {
     return true;
   }
   if (choice === "save") {
-    const result = await athletes.saveCurrent();
+    const result = await useZoneChange().saveProfile();
+    if (result.cancelled) return false;
     showResultToast(result);
     return result.ok;
   }

@@ -230,6 +230,30 @@ export const useWorkoutsStore = defineStore("workouts", {
       return slot;
     },
 
+    /** Sedute ancora da svolgere di una disciplina, da una data compresa in poi (bozze e approvate). */
+    upcoming(discipline: string, from: string): WorkoutRecord[] {
+      return this.workouts.filter((w) => w.discipline === discipline && w.planned_date >= from && !w.completed_at && (w.status === "draft" || w.status === "approved"));
+    },
+
+    /**
+     * Dopo un cambio del sistema di zone (ADR 0029) le sedute da svolgere della disciplina tornano
+     * «Da verificare»: le loro zone vanno adattate a mano al nuovo sistema. Il motivo non e'
+     * contenuto della seduta: revisione e copia su Intervals.icu non cambiano.
+     */
+    async markForReview(athleteId: string, discipline: string, from: string, reason: string): Promise<Result<number>> {
+      if (!supabase) return { ok: false, message: "Supabase non configurato." };
+      const { data, error } = await supabase
+        .from("workouts")
+        .update({ needs_review: reason })
+        .eq("athlete_id", athleteId).eq("discipline", discipline).gte("planned_date", from)
+        .in("status", ["draft", "approved"]).is("completed_at", null)
+        .select(WORKOUT_COLUMNS);
+      if (error) return { ok: false, message: "Le sedute non sono state segnate da verificare: riprova dal Piano." };
+      const updated = new Map((data ?? []).map((r) => { const w = normalize(r as Record<string, unknown>); return [w.id, w]; }));
+      this.workouts = this.workouts.map((w) => updated.get(w.id) ?? w);
+      return { ok: true, value: updated.size };
+    },
+
     async approve(ids: string[]): Promise<Result<number>> {
       let done = 0;
       for (const id of ids) {

@@ -16,6 +16,7 @@ import { buildFeedbackInput, type FeedbackInput } from "./contract.ts";
 import { buildFeedbackPrompt, buildFeedbackTool, DEFAULT_FEEDBACK_STYLE, type FeedbackOutput, type FeedbackTool, validateFeedbackOutput } from "./output.ts";
 import { loadProgressionOf, resolveFeedbackParams } from "./params.ts";
 import { zoneCountsOf } from "../workouts/zones.ts";
+import { type IcuSportSettings, zoneChecks } from "../workouts/zoneModels.ts";
 import { inScheduleWindow, localDayHour, reviewPeriod, safeTimeZone } from "./period.ts";
 import type { CoachChange, Period, PlannedWorkout, PlanWindow, RawActivity, RawWellness } from "./types.ts";
 
@@ -94,6 +95,8 @@ export interface FeedbackStore {
 export interface IntervalsPort {
   activities(apiKey: string, oldest: string, newest: string): Promise<Result<RawActivity[]>>;
   wellness(apiKey: string, oldest: string, newest: string): Promise<Result<RawWellness[]>>;
+  /** Impostazioni degli sport (zone) dell'atleta. */
+  sportSettings(apiKey: string): Promise<Result<IcuSportSettings[]>>;
 }
 
 export type LlmResult =
@@ -149,6 +152,17 @@ export async function analyze(deps: Deps, row: ReviewRow, settings: FeedbackSett
     await store.update(row.id, "pending", { status: "skipped", skip_reason: "no_assigned_workouts", error: null });
     return "skipped";
   }
+  // Il feedback parte solo con le zone allineate fra scheda e Intervals.icu (ADR 0029): altrimenti
+  // sedute prescritte e tempo nelle zone misurato non si possono confrontare.
+  const sports = await deps.intervals.sportSettings(apiKey);
+  if (!sports.ok) return fail(`Intervals.icu (zone): ${sports.error}`);
+  const ftp = Number(latest(profile.physiological_thresholds?.cycling?.thresholds_log)?.ftp_watts) || 0;
+  const misaligned = zoneChecks(profile, ftp > 0, sports.data).filter((c) => !c.aligned);
+  if (misaligned.length) {
+    const detail = misaligned.map((c) => `${c.label}: ${c.pcoach} zone in PCoach, ${c.intervals ?? "nessuna"} su Intervals.icu`).join("; ");
+    return fail(`Zone non allineate con Intervals.icu (${detail}). Allineale dalla scheda dell'atleta, poi premi «Riprova».`, true);
+  }
+
   const prevStart = addDaysISO(period.start, -7);
   const [acts, well] = await Promise.all([
     deps.intervals.activities(apiKey, prevStart, period.end),

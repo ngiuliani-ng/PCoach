@@ -6,6 +6,7 @@ import {
   type Profile, type ReviewRow, type ReviewStatus, runScheduled
 } from "@shared/feedback/pipeline.ts";
 import type { Period, PlannedWorkout, RawActivity } from "@shared/feedback/types.ts";
+import type { IcuSportSettings } from "@shared/workouts/zoneModels.ts";
 
 const PERIOD: Period = { start: "2026-10-12", end: "2026-10-18" };
 const MONDAY_0805 = new Date("2026-10-19T06:05:00Z");
@@ -24,6 +25,8 @@ class MemoryStore implements FeedbackStore {
   locks = new Map<string, number>();
   completed: string[] = [];
   workouts = [workout()];
+  /** Zone dell'atleta su Intervals.icu. */
+  icuSports: IcuSportSettings[] = [];
   cfg: Partial<FeedbackSettings>;
   profile: Profile = { identity: { nome: "Elia", email: "elia@example.com" }, integrations: { intervals_icu_api_key: "k" }, methodology_preferences: {} };
   constructor(cfg: Partial<FeedbackSettings> = {}) {
@@ -84,7 +87,8 @@ function deps(store: MemoryStore, opts: { intervalsFails?: boolean; llm?: LlmRes
     store,
     intervals: {
       activities: async () => (opts.intervalsFails ? { ok: false, error: "503" } : { ok: true, data: [ACTIVITY] }),
-      wellness: async () => (opts.intervalsFails ? { ok: false, error: "503" } : { ok: true, data: [] })
+      wellness: async () => (opts.intervalsFails ? { ok: false, error: "503" } : { ok: true, data: [] }),
+      sportSettings: async () => ({ ok: true as const, data: store.icuSports })
     },
     llm: { generate: async () => llmQueue.shift() ?? { ok: true, toolInput: VALID, stopReason: "tool_use", model: "m" } },
     mail: opts.mail === false ? null : { send: async (m) => { sent.push(m.to); return opts.mailOk === false ? { ok: false, error: "500" } : { ok: true }; } },
@@ -193,6 +197,23 @@ describe("pipeline del feedback", () => {
     const { d } = deps(store, { llm: [{ ok: false, error: "non doveva essere chiamato", transient: false }] });
     await runScheduled(d);
     expect(store.rows[0]).toMatchObject({ status: "skipped", skip_reason: "no_assigned_workouts" });
+  });
+
+  it("zone non allineate con Intervals.icu: il feedback non parte finché non si allineano", async () => {
+    const store = new MemoryStore();
+    store.profile = { ...store.profile, disciplines: [{ sport: "running" }], physiological_thresholds: { running: { zone_system: "5-zone" } } };
+    store.icuSports = [{ id: 2, types: ["Run"], pace_zones: [77.5, 87.7, 94.3, 100, 103.4, 111.5, 999] }];
+    const { d } = deps(store);
+    await runScheduled(d);
+    const row = store.rows[0];
+    expect(row.status).toBe("analysis_failed");
+    expect(row.error).toBe("Zone non allineate con Intervals.icu (Corsa (passo): 5 zone in PCoach, 7 su Intervals.icu). Allineale dalla scheda dell'atleta, poi premi «Riprova».");
+    expect(store.completed).toEqual([]);
+    // Il coach allinea le zone e riprova.
+    store.profile.physiological_thresholds.running.zone_system = "7-zone";
+    Object.assign(row, { status: "pending", attempts: 0, error: null });
+    await processReview(d, row.id);
+    expect(store.rows[0].status).toBe("draft");
   });
 
   it("approvazione del coach: invia il testo approvato", async () => {

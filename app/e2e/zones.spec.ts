@@ -20,9 +20,14 @@ test("zone diverse: «Usa 7 zone in PCoach» aggiorna e salva la scheda", async 
   await expect(page.getByText("Corsa (passo): 5 zone in PCoach, 7 zone su Intervals.icu.")).toBeVisible();
   await page.getByRole("button", { name: "Usa 7 zone in PCoach" }).click();
   await expect(page.getByRole("alertdialog")).toContainText("Impostare 7 zone per corsa in PCoach");
+  // Con un piano in corso la stessa conferma avvisa delle sedute da ricontrollare.
+  await expect(page.getByRole("alertdialog")).toContainText("le 3 sedute di corsa (da 5 a 7 zone) da oggi in poi tornano «Da verificare»");
   await page.getByRole("alertdialog").getByRole("button", { name: "Usa 7 zone in PCoach" }).click();
+  await expect(page.getByText("3 sedute sono da verificare")).toBeVisible();
   await expect(page.getByText("Zone diverse da Intervals.icu.")).toHaveCount(0);
   expect(profileOf(state).physiological_thresholds.running.zone_system).toBe("7-zone");
+  const runs = state.tables.workouts.filter((w) => w.discipline === "running" && String(w.planned_date) >= "2026-10-10");
+  expect(runs.map((w) => w.needs_review)).toEqual(Array(3).fill("Il sistema di zone della corsa è passato da 5 a 7 zone il 10/10/2026: adatta le zone della seduta."));
   expect(state.zoneApplyCalls).toHaveLength(0);
 });
 
@@ -57,4 +62,28 @@ test("in Impostazioni si sceglie il modello di zone da un preset o con limiti pr
   await page.getByRole("button", { name: "Salva impostazioni" }).click();
   await expect(page.getByText("Impostazioni salvate.")).toBeVisible();
   expect((state.tables.app_settings[0].zone_models as Record<string, any>).cycling_power[3]).toEqual({ preset: "custom", bounds: [70, 100] });
+});
+
+test("cambiare il sistema di zone nel Profilo con un piano in corso: conferma, poi le sedute da oggi tornano da verificare", async ({ page }) => {
+  const state = createState();
+  // Intervals.icu allineato al nuovo sistema, per non mostrare anche l'avviso sulle zone.
+  state.icuSportSettings[1].pace_zones = [77.5, 87.7, 94.3, 100, 999];
+  await installMockBackend(page, state);
+  await page.goto(`./#/atleta/${ATHLETE_ID}/profilo`);
+  await page.getByRole("combobox", { name: "Sistema di zone" }).selectOption("5-zone");
+  await page.getByRole("button", { name: "Salva", exact: true }).click();
+  const dialog = page.getByRole("alertdialog");
+  await expect(dialog).toContainText("Stai cambiando il sistema di zone. Se procedi, le 3 sedute di corsa (da 7 a 5 zone) da oggi in poi tornano «Da verificare»");
+
+  // «Non salvare» lascia tutto com'era.
+  await dialog.getByRole("button", { name: "Non salvare" }).click();
+  expect(profileOf(state).physiological_thresholds.running.zone_system).toBe("7-zone");
+  expect(state.tables.workouts.every((w) => !w.needs_review)).toBe(true);
+
+  await page.getByRole("button", { name: "Salva", exact: true }).click();
+  await dialog.getByRole("button", { name: "Salva e segna le sedute" }).click();
+  await expect(page.getByText("Scheda salvata. 3 sedute sono da verificare")).toBeVisible();
+  expect(profileOf(state).physiological_thresholds.running.zone_system).toBe("5-zone");
+  const marked = state.tables.workouts.filter((w) => w.needs_review).map((w) => w.title);
+  expect(marked.sort()).toEqual(["Corsa rigenerativa", "Lungo", "Tempo"]);
 });

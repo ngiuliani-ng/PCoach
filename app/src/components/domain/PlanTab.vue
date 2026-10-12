@@ -12,6 +12,7 @@ import { showResultToast, showToast } from "../../composables/useToast";
 import { choiceDialog } from "../../composables/useConfirmDialog";
 import { DAY_LABELS, formatDate, todayISO } from "../../constants";
 import { useQueryLayer } from "../../composables/useQueryLayer";
+import { useZoneChange } from "../../composables/useZoneChange";
 import { execState, formatMinutes, isPartlyDone } from "../../domain/workoutState";
 import { isActiveStatus } from "../../domain/regeneration";
 import WorkoutRow from "./WorkoutRow.vue";
@@ -37,6 +38,7 @@ const genKind = computed<GenerationKind>(() => DIALOG_KINDS[dialogLayer.value.va
 const dialog = computed<"regen" | "sync" | null>(() =>
   dialogLayer.value.value === "sincronizza" ? "sync" : dialogLayer.value.value && dialogLayer.value.value in DIALOG_KINDS ? "regen" : null
 );
+const { saveProfile } = useZoneChange();
 // Claude riceve la scheda salvata (decisione D-UX-4): con modifiche non salvate si sceglie prima se salvarle.
 async function openGeneration(kind: GenerationKind) {
   if (athletes.isDirty) {
@@ -49,7 +51,8 @@ async function openGeneration(kind: GenerationKind) {
     );
     if (!choice) return;
     if (choice === "save") {
-      const result = await athletes.saveCurrent();
+      const result = await saveProfile();
+      if (result.cancelled) return;
       showResultToast(result);
       if (!result.ok) return;
     }

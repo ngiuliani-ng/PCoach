@@ -16,6 +16,7 @@ import { periodOf, safeTimeZone } from "../_shared/feedback/period.ts";
 import { type Completion, completionColumns } from "../_shared/feedback/completion.ts";
 import type { CoachChange, Period, PlannedWorkout, PlanWindow, RawActivity, RawWellness } from "../_shared/feedback/types.ts";
 import { addDaysISO, isISODate, todayISO, weekStartISO } from "../_shared/workouts/calendar.ts";
+import type { IcuSportSettings } from "../_shared/workouts/zoneModels.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -178,6 +179,7 @@ async function icuGet<T>(apiKey: string, path: string): Promise<Result<T>> {
 const intervals: IntervalsPort = {
   activities: (apiKey, oldest, newest) => icuGet<RawActivity[]>(apiKey, `/activities?oldest=${oldest}&newest=${newest}`),
   wellness: (apiKey, oldest, newest) => icuGet<RawWellness[]>(apiKey, `/wellness?oldest=${oldest}&newest=${newest}`),
+  sportSettings: (apiKey) => icuGet<IcuSportSettings[]>(apiKey, "/sport-settings"),
 };
 
 // ---------- Claude ----------
