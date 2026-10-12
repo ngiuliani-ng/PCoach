@@ -2,6 +2,7 @@
 // non soglie fisiologiche: vivono in app_settings.feedback_params (globali) e, per la
 // progressione del carico, nella scheda di ogni atleta (methodology_preferences).
 // Modulo puro condiviso tra app (Impostazioni, scheda, prompt del piano) ed Edge Function.
+import { ZONE_COUNTS, type ZoneCount } from "../workouts/zones.ts";
 
 export interface FeedbackParams {
   /** Rapporto svolto/prescritto (in %) entro cui una seduta e' "completata". */
@@ -19,9 +20,14 @@ export interface FeedbackParams {
   min_wellness_days: number;
   /** Minuti minimi su cui la distribuzione dell'intensita' e' comunicabile. */
   min_distribution_minutes: number;
-  /** Zone fino a cui l'intensita' e' bassa e fino a cui e' media (oltre: alta). */
-  low_zone_max: number;
-  moderate_zone_max: number;
+  /** Per ciascun sistema di zone (3, 5, 7): zona fino a cui l'intensita' e' bassa e fino a cui
+   * e' media (oltre: alta). Ogni atleta usa la coppia del proprio sistema, per disciplina (ADR 0028). */
+  z3_low_max: number;
+  z3_moderate_max: number;
+  z5_low_max: number;
+  z5_moderate_max: number;
+  z7_low_max: number;
+  z7_moderate_max: number;
 }
 
 export const DEFAULT_FEEDBACK_PARAMS: FeedbackParams = {
@@ -34,8 +40,12 @@ export const DEFAULT_FEEDBACK_PARAMS: FeedbackParams = {
   min_rpe_coverage_pct: 50,
   min_wellness_days: 4,
   min_distribution_minutes: 120,
-  low_zone_max: 2,
-  moderate_zone_max: 4
+  z3_low_max: 1,
+  z3_moderate_max: 2,
+  z5_low_max: 2,
+  z5_moderate_max: 3,
+  z7_low_max: 2,
+  z7_moderate_max: 4
 };
 
 type Range = [number, number];
@@ -49,8 +59,12 @@ const RANGES: Record<keyof FeedbackParams, Range> = {
   min_rpe_coverage_pct: [0, 100],
   min_wellness_days: [0, 7],
   min_distribution_minutes: [0, 1200],
-  low_zone_max: [1, 6],
-  moderate_zone_max: [2, 7]
+  z3_low_max: [1, 2],
+  z3_moderate_max: [2, 3],
+  z5_low_max: [1, 4],
+  z5_moderate_max: [2, 5],
+  z7_low_max: [1, 6],
+  z7_moderate_max: [2, 7]
 };
 
 export const PARAM_KEYS = Object.keys(DEFAULT_FEEDBACK_PARAMS) as (keyof FeedbackParams)[];
@@ -69,18 +83,38 @@ export function validateFeedbackParams(p: FeedbackParams): Partial<Record<keyof 
   if (!errors.deviation_minor_pct && !errors.deviation_notable_pct && p.deviation_minor_pct >= p.deviation_notable_pct) {
     errors.deviation_minor_pct = "Deve essere inferiore allo scostamento rilevante.";
   }
-  if (!errors.low_zone_max && !errors.moderate_zone_max && p.low_zone_max >= p.moderate_zone_max) {
-    errors.low_zone_max = "Deve essere inferiore alla zona massima dell'intensità media.";
+  for (const n of ZONE_COUNTS) {
+    const low = `z${n}_low_max` as const;
+    const moderate = `z${n}_moderate_max` as const;
+    if (!errors[low] && !errors[moderate] && p[low] >= p[moderate]) {
+      errors[low] = "Deve essere inferiore alla zona massima dell'intensità media.";
+    }
   }
   return errors;
 }
+
+/** Domini d'intensita' di un sistema di zone: bassa fino a low_max, media fino a moderate_max. */
+export interface ZoneBands {
+  zones: ZoneCount;
+  low_max: number;
+  moderate_max: number;
+}
+
+export function zoneBands(p: FeedbackParams, zones: ZoneCount): ZoneBands {
+  return { zones, low_max: p[`z${zones}_low_max`], moderate_max: p[`z${zones}_moderate_max`] };
+}
+
+/** Nomi usati prima dei sistemi di zone (un'unica coppia per tutti): valevano per le 7 zone. */
+const LEGACY_KEYS: Partial<Record<keyof FeedbackParams, string>> = { z7_low_max: "low_zone_max", z7_moderate_max: "moderate_zone_max" };
 
 /** Parametri effettivi: valori salvati validi, altrimenti quelli predefiniti. */
 export function resolveFeedbackParams(raw: unknown): FeedbackParams {
   const merged = { ...DEFAULT_FEEDBACK_PARAMS };
   if (raw && typeof raw === "object") {
     for (const key of PARAM_KEYS) {
-      const v = (raw as Record<string, unknown>)[key];
+      const r = raw as Record<string, unknown>;
+      const legacy = LEGACY_KEYS[key];
+      const v = key in r || !legacy ? r[key] : r[legacy];
       if (typeof v === "number" && Number.isFinite(v)) merged[key] = v;
     }
   }

@@ -7,6 +7,7 @@ import { normalizeActivities } from "@shared/feedback/normalize.ts";
 import { completionColumns, recentCompletions, snapshotRefreshes } from "@shared/feedback/completion.ts";
 import { buildFeedbackTool, validateFeedbackOutput, buildFeedbackPrompt } from "@shared/feedback/output.ts";
 import { DEFAULT_FEEDBACK_PARAMS, loadProgressionOf, resolveFeedbackParams, validateFeedbackParams } from "@shared/feedback/params.ts";
+import { zoneCountsOf } from "@shared/workouts/zones.ts";
 import { inScheduleWindow, isValidTimeZone, localDayHour, reviewPeriod, safeTimeZone } from "@shared/feedback/period.ts";
 import type { PlannedWorkout, PlanWindow, RawActivity } from "@shared/feedback/types.ts";
 import type { Discipline, TargetMetric, WorkoutBlock, WorkoutStep } from "@shared/workouts/structure.ts";
@@ -42,7 +43,7 @@ const PLAN: PlanWindow = { id: "plan1", start_date: "2026-09-01", end_date: null
 
 function input(workouts: PlannedWorkout[], activities: RawActivity[], extra: Partial<AnalysisInput> = {}): AnalysisInput {
   return {
-    athlete: { id: "A1", display_name: "Elia", intensity_model: "polarizzato_80_20", load_pattern: "3:1", progression: loadProgressionOf(null), ftp_watts: null, lthr_bpm: null, event_dates: [] },
+    athlete: { id: "A1", display_name: "Elia", intensity_model: "polarizzato_80_20", load_pattern: "3:1", progression: loadProgressionOf(null), zone_counts: zoneCountsOf(null), ftp_watts: null, lthr_bpm: null, event_dates: [] },
     period: PERIOD, today: "2026-10-19", evaluated_at: "2026-10-19T06:05:00Z", timezone: "Europe/Rome",
     workouts, excluded_drafts: 0, coach_changes: [], plans: [PLAN], activities, wellness: [],
     params: DEFAULT_FEEDBACK_PARAMS, ...extra
@@ -85,6 +86,40 @@ describe("parametri", () => {
     expect(loadProgressionOf({ load_increase_min_pct: 8, load_increase_max_pct: 4, deload_decrease_pct: 40 }))
       .toEqual({ increase_min_pct: 4, increase_max_pct: 8, deload_decrease_pct: 40 });
     expect(loadProgressionOf(undefined)).toEqual({ increase_min_pct: 5, increase_max_pct: 10, deload_decrease_pct: 33 });
+  });
+
+  it("legge le soglie salvate prima dei sistemi di zone come quelle a 7 zone", () => {
+    const p = resolveFeedbackParams({ low_zone_max: 3, moderate_zone_max: 5 });
+    expect(p).toMatchObject({ z7_low_max: 3, z7_moderate_max: 5, z3_low_max: 1, z3_moderate_max: 2, z5_low_max: 2, z5_moderate_max: 3 });
+    expect(resolveFeedbackParams({ low_zone_max: 3, z7_low_max: 1 }).z7_low_max).toBe(1);
+  });
+
+  it("valida le soglie di ciascun sistema di zone entro le sue zone", () => {
+    expect(validateFeedbackParams({ ...DEFAULT_FEEDBACK_PARAMS, z3_moderate_max: 4 }).z3_moderate_max).toBeTruthy();
+    expect(validateFeedbackParams({ ...DEFAULT_FEEDBACK_PARAMS, z5_low_max: 3, z5_moderate_max: 3 }).z5_low_max).toBeTruthy();
+    expect(validateFeedbackParams(DEFAULT_FEEDBACK_PARAMS)).toEqual({});
+  });
+});
+
+describe("domini d'intensità per sistema di zone", () => {
+  const run = (zone: number) => wk("w1", "2026-10-14", "running", 0, {
+    structure: { version: 2, steps: [{ kind: "step", role: "work", duration: { type: "time", seconds: 150 * 60 }, target: { zone } }] }
+  });
+  const acts = [act("a1", "2026-10-14T07:00:00", "running", 150, { pace_zone_times: [0, 0, 150 * 60] })];
+
+  it("a 3 zone la Z3 è intensità alta e una seduta in Z2 è di qualità", () => {
+    const zones = { ...zoneCountsOf(null), running: 3 as const };
+    const base = input([run(3)], acts);
+    const r = buildFeedbackInput({ ...base, athlete: { ...base.athlete, zone_counts: zones } });
+    expect(r.metrics.intensity.running).toMatchObject({ domains: "3 zone: bassa ≤ Z1, media Z2-Z2, alta ≥ Z3", planned: [0, 0, 1], observed: [0, 0, 1] });
+    const q = buildFeedbackInput({ ...input([run(2)], acts), athlete: { ...base.athlete, zone_counts: zones } });
+    expect(outcome(q, "w1").key_session).toBe(true);
+  });
+
+  it("a 7 zone la stessa Z3 è intensità media e la Z2 non è qualità", () => {
+    const r = buildFeedbackInput(input([run(3)], acts));
+    expect(r.metrics.intensity.running).toMatchObject({ domains: "7 zone: bassa ≤ Z2, media Z3-Z4, alta ≥ Z5", planned: [0, 1, 0], observed: [0, 1, 0] });
+    expect(outcome(buildFeedbackInput(input([run(2)], acts)), "w1").key_session).toBe(false);
   });
 });
 

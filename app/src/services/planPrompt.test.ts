@@ -4,6 +4,7 @@ import { parseLoadPattern, planWeeks } from "../domain/planWeeks";
 import { buildAthleteContextForPrompt, buildPlanPrompt, PLAN_PROMPT_VERSION, PLAN_RULES, promptAsText, type PromptWorkout, type RecentReview } from "./planPrompt";
 import { buildFeedbackInput } from "@shared/feedback/contract.ts";
 import { DEFAULT_FEEDBACK_PARAMS, loadProgressionOf } from "@shared/feedback/params.ts";
+import { zoneCountsOf } from "@shared/workouts/zones.ts";
 
 const fixed: PromptWorkout = {
   planned_date: "2026-10-18", discipline: "running", title: "Lungo", objective: "", notes_for_athlete: "",
@@ -76,7 +77,7 @@ describe("buildPlanPrompt", () => {
   it("sedute recenti con esito, minuti svolti e RPE; valutazioni recenti solo come dati calcolati (D-09)", () => {
     const done: PromptWorkout = { ...fixed, planned_date: "2026-10-04", completed_at: "2026-10-04T08:00:00Z", completion_outcome: "short", activity_minutes: 41.6, activity_rpe: 8 };
     const input = buildFeedbackInput({
-      athlete: { id: "A", display_name: "Giulia", intensity_model: "", load_pattern: "3:1", progression: loadProgressionOf(null), ftp_watts: null, lthr_bpm: null, event_dates: [] },
+      athlete: { id: "A", display_name: "Giulia", intensity_model: "", load_pattern: "3:1", progression: loadProgressionOf(null), zone_counts: zoneCountsOf(null), ftp_watts: null, lthr_bpm: null, event_dates: [] },
       period: { start: "2026-09-28", end: "2026-10-04" }, today: "2026-10-05", evaluated_at: "2026-10-05T06:05:00Z", timezone: "Europe/Rome",
       workouts: [{ id: "w1", revision: 1, planned_date: "2026-10-04", slot: 0, discipline: "running", title: "Lungo", objective: "", duration_min: null, structure: fixed.structure, primary_target: "pace", completed_at: null, remote_event_id: null }],
       excluded_drafts: 0, coach_changes: [], plans: [], activities: [], wellness: [], params: DEFAULT_FEEDBACK_PARAMS

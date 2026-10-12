@@ -132,3 +132,23 @@ test("il sistema di zone dell'atleta limita l'editor e chiede conferma per appro
   await drawer.getByRole("button", { name: "Approva" }).click();
   await expect(page.getByRole("alertdialog")).toContainText("Usa la zona Z5, oltre le 3 zone impostate per la bici. Approvarla comunque?");
 });
+
+test("le intensità del feedback si impostano per sistema di zone; il nuoto mostra 7 zone fisse", async ({ page }) => {
+  const state = createState();
+  await installMockBackend(page, state);
+  await page.goto("./#/impostazioni");
+  await page.getByText("Intensità bassa, media e alta per sistema di zone").click();
+  const moderate3 = page.getByLabel("3 zone · media fino alla zona");
+  await moderate3.fill("4");
+  await expect(page.getByText("Valore tra 2 e 3.")).toBeVisible();
+  await moderate3.fill("3");
+  await page.getByRole("button", { name: "Salva impostazioni" }).click();
+  await expect(page.getByText("Impostazioni salvate.")).toBeVisible();
+  expect(state.tables.app_settings[0].feedback_params).toMatchObject({ z3_low_max: 1, z3_moderate_max: 3, z7_low_max: 2, z7_moderate_max: 4 });
+
+  await page.goto(`./#/atleta/${ATHLETE_ID}/profilo`);
+  await page.getByRole("button", { name: "Nuoto" }).click();
+  const swim = page.getByRole("combobox", { name: "Sistema di zone" });
+  await expect(swim).toBeDisabled();
+  await expect(swim).toHaveValue("7 zone");
+});

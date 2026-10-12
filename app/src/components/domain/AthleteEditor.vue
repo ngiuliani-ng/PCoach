@@ -457,10 +457,20 @@ function onExport() {
           </div>
           <MetricLogList v-model="profile.physiological_thresholds!.cycling!.thresholds_log as never" :field-defs="BIKE_THRESHOLD_FIELDS" />
         </template>
-        <MetricLogList v-else v-model="profile.physiological_thresholds!.swimming!.thresholds_log as never" :field-defs="SWIM_THRESHOLD_FIELDS" />
+        <template v-else>
+          <div class="field-row">
+            <label class="field">
+              <span class="field-label">Sistema di zone</span>
+              <select disabled aria-describedby="swim-zone-note">
+                <option>7 zone</option>
+              </select>
+            </label>
+          </div>
+          <MetricLogList v-model="profile.physiological_thresholds!.swimming!.thresholds_log as never" :field-defs="SWIM_THRESHOLD_FIELDS" />
+        </template>
         <FieldHelp v-if="thresholdSport === 'running'" field="physiological_thresholds.running.zone_system" />
         <FieldHelp v-else-if="thresholdSport === 'cycling'" field="physiological_thresholds.cycling.zone_system" />
-        <p v-else class="helper-text">Il nuoto usa 7 zone.</p>
+        <p v-else id="swim-zone-note" class="helper-text">Il nuoto usa sempre 7 zone: il valore non si cambia.</p>
         <FieldHelp field="physiological_thresholds" />
       </section>
 

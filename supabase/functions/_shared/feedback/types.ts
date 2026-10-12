@@ -2,7 +2,7 @@
 // normalizzate, abbinamenti e contratto passato al modello e salvato con la valutazione.
 import type { Discipline, TargetMetric, WorkoutStructure } from "../workouts/structure.ts";
 
-export const ANALYSIS_VERSION = "1.0.0";
+export const ANALYSIS_VERSION = "1.1.0";
 
 export interface Period {
   start: string; // lunedi'
@@ -154,7 +154,7 @@ export interface SessionResult {
   /** Rapporto svolto/prescritto (tempo, o distanza per le sedute a sola distanza). */
   ratio: number | null;
   ratio_basis: "time" | "distance" | null;
-  /** Seduta di qualita': lavoro sopra low_zone_max. */
+  /** Seduta di qualita': lavoro oltre l'intensita' bassa del sistema di zone dell'atleta. */
   key_session: boolean;
   quality: { metric: TargetMetric; from_zone: number; planned_min: number; done_min: number | null; ratio: number | null; reason?: string } | null;
 }

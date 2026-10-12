@@ -2,6 +2,7 @@
 import type { AthleteTrainingProfile } from "../schema/types.generated";
 import type { WorkoutContent } from "@shared/workouts/structure.ts";
 import { flattenSteps, peakZone } from "@shared/workouts/structure.ts";
+import { zoneCountsOf, type ZoneDiscipline } from "@shared/workouts/zones.ts";
 
 /** true se l'ultima soglia di bici registrata ha un FTP: la bici si pianifica in potenza,
  * altrimenti in frequenza cardiaca (decisione del coach, ADR 0017). */
@@ -11,8 +12,7 @@ export function hasFtp(profile: AthleteTrainingProfile | null | undefined): bool
   return typeof latest?.ftp_watts === "number" && latest.ftp_watts > 0;
 }
 
-/** Discipline con zone d'intensita'; la palestra non ne ha. */
-export type ZoneDiscipline = "running" | "cycling" | "swimming";
+export type { ZoneDiscipline } from "@shared/workouts/zones.ts";
 
 /**
  * Zone del sistema impostato per l'atleta (decisione del coach D-UX-3): corsa e bici dal loro
@@ -20,12 +20,7 @@ export type ZoneDiscipline = "running" | "cycling" | "swimming";
  * restare entro queste zone, le stesse impostate sull'account Intervals.icu dell'atleta.
  */
 export function zoneLimits(profile: AthleteTrainingProfile | null | undefined): Record<ZoneDiscipline, number> {
-  const count = (system: string | undefined) => {
-    const n = Number(/^(\d)-zone$/.exec(system ?? "")?.[1]);
-    return n === 3 || n === 5 || n === 7 ? n : 7;
-  };
-  const t = profile?.physiological_thresholds;
-  return { running: count(t?.running?.zone_system), cycling: count(t?.cycling?.zone_system), swimming: 7 };
+  return zoneCountsOf(profile?.physiological_thresholds);
 }
 
 const DISCIPLINE_PHRASE: Record<ZoneDiscipline, string> = { running: "la corsa", cycling: "la bici", swimming: "il nuoto" };

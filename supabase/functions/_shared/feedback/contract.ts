@@ -6,7 +6,8 @@ import type { Discipline, TargetMetric, WorkoutStep } from "../workouts/structur
 import { flattenSteps, stepSeconds } from "../workouts/structure.ts";
 import { matchWeek } from "./match.ts";
 import { isUnmappedType, normalizeActivities } from "./normalize.ts";
-import type { FeedbackParams, LoadProgression } from "./params.ts";
+import type { ZoneCount, ZoneDiscipline } from "../workouts/zones.ts";
+import { zoneBands, type FeedbackParams, type LoadProgression, type ZoneBands } from "./params.ts";
 import {
   ANALYSIS_VERSION, type ActivityResult, type Anomaly, type CoachChange, type ForbiddenClaim, type NormalizedActivity,
   type Period, type PlannedWorkout, type PlanWindow, type RawActivity, type RawWellness, type SessionResult, type Topic
@@ -18,6 +19,8 @@ export interface AthleteInfo {
   intensity_model: string;
   load_pattern: string;
   progression: LoadProgression;
+  /** Sistema di zone per disciplina (corsa e bici dalla scheda, nuoto 7): decide i domini d'intensita'. */
+  zone_counts: Record<ZoneDiscipline, ZoneCount>;
   /** Soglie correnti in PCoach, per segnalare differenze con quelle usate da Intervals.icu. */
   ftp_watts: number | null;
   lthr_bpm: number | null;
@@ -64,26 +67,32 @@ function weekMeta(plans: PlanWindow[], weekStart: string) {
   return null;
 }
 
-/** Dominio di intensita' di una zona: 0 bassa, 1 media, 2 alta. */
-export function domainOf(zone: number, p: FeedbackParams): 0 | 1 | 2 {
-  return zone <= p.low_zone_max ? 0 : zone <= p.moderate_zone_max ? 1 : 2;
+/** Dominio di intensita' di una zona nel sistema di zone dato: 0 bassa, 1 media, 2 alta. */
+export function domainOf(zone: number, b: ZoneBands): 0 | 1 | 2 {
+  return zone <= b.low_max ? 0 : zone <= b.moderate_max ? 1 : 2;
 }
 
-function plannedDomains(steps: WorkoutStep[], discipline: Discipline, p: FeedbackParams): number[] {
+/** Descrizione dei domini, salvata nel contratto: chi legge sa con quale regola si e' contato. */
+export function domainsLabel(b: ZoneBands): string {
+  const high = b.moderate_max < b.zones ? `, alta ≥ Z${b.moderate_max + 1}` : "";
+  return `${b.zones} zone: bassa ≤ Z${b.low_max}, media Z${b.low_max + 1}-Z${b.moderate_max}${high}`;
+}
+
+function plannedDomains(steps: WorkoutStep[], discipline: Discipline, b: ZoneBands): number[] {
   const out = [0, 0, 0];
   for (const s of steps) {
     if (!s.target) continue;
     const from = s.target.zone;
     const to = Math.max(from, s.target.zone_to ?? from);
     const sec = stepSeconds(s, discipline) / (to - from + 1);
-    for (let z = from; z <= to; z++) out[domainOf(z, p)] += sec;
+    for (let z = from; z <= to; z++) out[domainOf(z, b)] += sec;
   }
   return out;
 }
 
-function observedDomains(zones: number[], p: FeedbackParams): number[] {
+function observedDomains(zones: number[], b: ZoneBands): number[] {
   const out = [0, 0, 0];
-  zones.forEach((sec, i) => { out[domainOf(i + 1, p)] += sec; });
+  zones.forEach((sec, i) => { out[domainOf(i + 1, b)] += sec; });
   return out;
 }
 
@@ -120,7 +129,7 @@ export function buildFeedbackInput(a: AnalysisInput) {
 
   const current = normalizeActivities(a.activities, a.period);
   const previous = normalizeActivities(a.activities, { start: prevStart, end: prevEnd });
-  const { sessions, activities } = matchWeek({ workouts: a.workouts, activities: current, today: a.today, params: p, inPlan });
+  const { sessions, activities } = matchWeek({ workouts: a.workouts, activities: current, today: a.today, params: p, zones: a.athlete.zone_counts, inPlan });
   const actById = new Map(current.map((x) => [x.id, x]));
   const observedActs = activities.filter((r) => OBSERVED.has(r.classification)).map((r) => actById.get(r.activity_id)!);
 
@@ -176,21 +185,22 @@ export function buildFeedbackInput(a: AnalysisInput) {
     const acts = observedActs.filter((x) => x.discipline === d);
     const metric = intensityMetric(d, a.workouts, acts);
     if (!metric || metric === "none") continue;
+    const bands = zoneBands(p, a.athlete.zone_counts[d as ZoneDiscipline]);
     const plannedSteps = a.workouts
       .filter((w) => w.discipline === d && w.primary_target === metric && sessions.find((s) => s.workout_id === w.id)?.outcome !== "pending")
       .flatMap((w) => flattenSteps(w.structure));
-    const planned = plannedDomains(plannedSteps, d, p);
+    const planned = plannedDomains(plannedSteps, d, bands);
     const observed = [0, 0, 0];
     let basisSec = 0;
     for (const x of acts) {
       const zones = metric === "power" && !x.sensors.power ? null : x.zone_seconds[metric];
       if (!zones) continue;
-      observedDomains(zones, p).forEach((v, i) => { observed[i] += v; });
+      observedDomains(zones, bands).forEach((v, i) => { observed[i] += v; });
       basisSec += zones.reduce((s, v) => s + v, 0);
     }
     intensity[d] = {
       metric,
-      domains: `bassa ≤ Z${p.low_zone_max}, media Z${p.low_zone_max + 1}-Z${p.moderate_zone_max}, alta ≥ Z${p.moderate_zone_max + 1}`,
+      domains: domainsLabel(bands),
       planned: shares(planned),
       observed: shares(observed),
       basis_min: Math.round(basisSec / 60),

@@ -15,6 +15,7 @@ import { type Completion, completionsFrom } from "./completion.ts";
 import { buildFeedbackInput, type FeedbackInput } from "./contract.ts";
 import { buildFeedbackPrompt, buildFeedbackTool, DEFAULT_FEEDBACK_STYLE, type FeedbackOutput, type FeedbackTool, validateFeedbackOutput } from "./output.ts";
 import { loadProgressionOf, resolveFeedbackParams } from "./params.ts";
+import { zoneCountsOf } from "../workouts/zones.ts";
 import { inScheduleWindow, localDayHour, reviewPeriod, safeTimeZone } from "./period.ts";
 import type { CoachChange, Period, PlannedWorkout, PlanWindow, RawActivity, RawWellness } from "./types.ts";
 
@@ -170,6 +171,7 @@ export async function analyze(deps: Deps, row: ReviewRow, settings: FeedbackSett
       intensity_model: profile.methodology_preferences?.intensity_distribution_model ?? "",
       load_pattern: profile.methodology_preferences?.load_deload_pattern ?? "",
       progression: loadProgressionOf(profile.methodology_preferences),
+      zone_counts: zoneCountsOf(profile.physiological_thresholds),
       ftp_watts: latest(profile.physiological_thresholds?.cycling?.thresholds_log)?.ftp_watts ?? null,
       lthr_bpm: latest(profile.physiological_thresholds?.running?.thresholds_log)?.lthr_bpm ?? null,
       event_dates: (profile.goals?.target_events ?? []).map((e: { date?: string }) => e.date).filter(Boolean)

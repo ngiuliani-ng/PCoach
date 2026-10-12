@@ -401,6 +401,8 @@ input, select, textarea {
   font-size: var(--fs-md);
   font-variant-numeric: tabular-nums;
 }
+/* Valore fisso mostrato come campo (es. il sistema di zone del nuoto): leggibile, non attivo. */
+input:disabled, select:disabled { background: var(--surface-2); border-color: var(--border); cursor: not-allowed; opacity: 1; }
 .mono-input { font-family: var(--font-mono); font-size: var(--fs-sm); }
 textarea { resize: vertical; min-height: 72px; line-height: 1.5; }
 input:focus, select:focus, textarea:focus {

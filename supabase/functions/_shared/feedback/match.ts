@@ -4,7 +4,8 @@
 // o "in programma". Nei casi che le regole non separano l'esito e' "ambiguo".
 import { addDaysISO, daysBetween, weekdayName } from "../workouts/calendar.ts";
 import { flattenSteps, stepSeconds, workoutTotals } from "../workouts/structure.ts";
-import type { FeedbackParams } from "./params.ts";
+import { zoneCountsOf, type ZoneCount, type ZoneDiscipline } from "../workouts/zones.ts";
+import { zoneBands, type FeedbackParams } from "./params.ts";
 import type {
   ActivityResult, Confidence, MatchMethod, NormalizedActivity, PlannedWorkout, SessionOutcome, SessionResult
 } from "./types.ts";
@@ -20,6 +21,8 @@ export interface MatchInput {
   /** Data della valutazione (oggi nel fuso del coach): le sedute da oggi in poi sono "in programma". */
   today: string;
   params: FeedbackParams;
+  /** Sistema di zone dell'atleta per disciplina; senza, 7 zone ovunque. */
+  zones?: Record<ZoneDiscipline, ZoneCount>;
   /** true se il giorno e' coperto da un piano. */
   inPlan: (date: string) => boolean;
 }
@@ -58,16 +61,20 @@ export function outcomeOf(ratio: number | null, p: FeedbackParams): SessionOutco
   return "short";
 }
 
-/** Seduta di qualita' e zona da cui si misura il lavoro di qualita' (o null). */
-export function qualityZone(w: PlannedWorkout, p: FeedbackParams): number | null {
-  const zones = flattenSteps(w.structure)
-    .filter((s) => s.role === "work" && s.target && s.target.zone > p.low_zone_max)
+const ALL_SEVEN = zoneCountsOf(null);
+
+/** Seduta di qualita' e zona da cui si misura il lavoro di qualita' (o null): lavoro oltre
+ * l'intensita' bassa del sistema di zone dell'atleta per quella disciplina. */
+export function qualityZone(w: PlannedWorkout, p: FeedbackParams, zones: Record<ZoneDiscipline, ZoneCount> = ALL_SEVEN): number | null {
+  const lowMax = zoneBands(p, zones[w.discipline as ZoneDiscipline] ?? 7).low_max;
+  const work = flattenSteps(w.structure)
+    .filter((s) => s.role === "work" && s.target && s.target.zone > lowMax)
     .map((s) => s.target!.zone);
-  return zones.length ? Math.min(...zones) : null;
+  return work.length ? Math.min(...work) : null;
 }
 
-function quality(w: PlannedWorkout, acts: NormalizedActivity[], p: FeedbackParams): SessionResult["quality"] {
-  const from = qualityZone(w, p);
+function quality(w: PlannedWorkout, acts: NormalizedActivity[], p: FeedbackParams, zones: Record<ZoneDiscipline, ZoneCount>): SessionResult["quality"] {
+  const from = qualityZone(w, p, zones);
   if (from === null) return null;
   const plannedSec = flattenSteps(w.structure)
     .filter((s) => s.target && s.target.zone >= from)
@@ -81,9 +88,9 @@ function quality(w: PlannedWorkout, acts: NormalizedActivity[], p: FeedbackParam
   }
   let done = 0;
   for (const a of acts) {
-    const zones = a.zone_seconds[metric];
-    if (!zones) return { ...base, done_min: null, ratio: null, reason: `tempo nelle zone di ${metric === "hr" ? "frequenza cardiaca" : metric === "pace" ? "passo" : "potenza"} non disponibile` };
-    done += zones.slice(from - 1).reduce((s, x) => s + x, 0);
+    const secs = a.zone_seconds[metric];
+    if (!secs) return { ...base, done_min: null, ratio: null, reason: `tempo nelle zone di ${metric === "hr" ? "frequenza cardiaca" : metric === "pace" ? "passo" : "potenza"} non disponibile` };
+    done += secs.slice(from - 1).reduce((s, x) => s + x, 0);
   }
   const doneMin = Math.round(done / 60);
   return { ...base, done_min: doneMin, ratio: base.planned_min > 0 ? round2(doneMin / base.planned_min) : null };
@@ -91,6 +98,7 @@ function quality(w: PlannedWorkout, acts: NormalizedActivity[], p: FeedbackParam
 
 export function matchWeek(input: MatchInput): MatchResult {
   const { params: p, today } = input;
+  const zones = input.zones ?? ALL_SEVEN;
   const workouts = [...input.workouts].sort((a, b) => a.planned_date.localeCompare(b.planned_date) || a.slot - b.slot);
   const usable = input.activities.filter((a) => a.status === "ok" && a.discipline !== "other");
   const freeActs = new Set(usable.map((a) => a.id));
@@ -104,7 +112,7 @@ export function matchWeek(input: MatchInput): MatchResult {
       workout_id: w.id, revision: w.revision, date: w.planned_date, weekday: weekdayName(w.planned_date), discipline: w.discipline, title: w.title,
       outcome: "not_recorded", activity_ids: [], method: null, confidence: null,
       planned_minutes: planned.minutes, planned_meters: planned.meters, done_minutes: null,
-      ratio: null, ratio_basis: null, key_session: qualityZone(w, p) !== null, quality: null
+      ratio: null, ratio_basis: null, key_session: qualityZone(w, p, zones) !== null, quality: null
     };
   };
   const assign = (w: PlannedWorkout, acts: NormalizedActivity[], method: MatchMethod, confidence: Confidence, outcome?: SessionOutcome) => {
@@ -117,7 +125,7 @@ export function matchWeek(input: MatchInput): MatchResult {
       method, confidence,
       done_minutes: Math.round(acts.reduce((s, a) => s + a.minutes, 0)),
       ratio, ratio_basis: basis,
-      quality: quality(w, acts, p)
+      quality: quality(w, acts, p, zones)
     });
   };
   const isFree = (w: PlannedWorkout) => !results.has(w.id);

@@ -45,12 +45,12 @@ export const FIELD_HELP = {
   },
   "physiological_thresholds.running.zone_system": {
     text: "Le sedute di corsa usano solo le zone da Z1 a quella indicata, nella generazione e nell'editor.",
-    more: "Deve coincidere con il numero di zone impostato su Intervals.icu per l'atleta: le zone delle sedute si riferiscono a quelle del suo account. Una seduta proposta con zone oltre il limite arriva da verificare.",
+    more: "Deve coincidere con il numero di zone impostato su Intervals.icu per l'atleta: le zone delle sedute si riferiscono a quelle del suo account. Una seduta proposta con zone oltre il limite arriva da verificare. Il feedback divide le zone in intensità bassa, media e alta con le soglie di questo sistema (Impostazioni).",
     claude: "zone_per_disciplina.running"
   },
   "physiological_thresholds.cycling.zone_system": {
     text: "Le sedute di bici usano solo le zone da Z1 a quella indicata, nella generazione e nell'editor.",
-    more: "Deve coincidere con il numero di zone impostato su Intervals.icu per l'atleta: le zone delle sedute si riferiscono a quelle del suo account. Una seduta proposta con zone oltre il limite arriva da verificare.",
+    more: "Deve coincidere con il numero di zone impostato su Intervals.icu per l'atleta: le zone delle sedute si riferiscono a quelle del suo account. Una seduta proposta con zone oltre il limite arriva da verificare. Il feedback divide le zone in intensità bassa, media e alta con le soglie di questo sistema (Impostazioni).",
     claude: "zone_per_disciplina.cycling"
   },
   "training_status.lifestyle_factors": {

@@ -9,6 +9,7 @@ import { confirmDialog } from "../../composables/useConfirmDialog";
 import { DEFAULT_PLAN_PREFERENCES } from "../../constants";
 import { SUPPORTED_MODELS } from "@shared/claude/models.ts";
 import { isValidTimeZone } from "@shared/feedback/period.ts";
+import { ZONE_COUNTS } from "@shared/workouts/zones.ts";
 import PasswordField from "../ui/PasswordField.vue";
 import FieldHelp from "../ui/FieldHelp.vue";
 
@@ -27,10 +28,15 @@ const DATA_PARAMS: ParamField[] = [
   ["unknown_max_share_pct", "Sedute non valutabili oltre cui non si dà il tasso di completamento (%)", "%"],
   ["min_rpe_coverage_pct", "Attività con RPE per parlare della risposta dell'atleta (%)", "%"],
   ["min_wellness_days", "Giorni con dati di benessere per parlarne (su 7)", "gg"],
-  ["min_distribution_minutes", "Minuti minimi per la distribuzione dell'intensità", "min"],
-  ["low_zone_max", "Intensità bassa fino alla zona", "Z"],
-  ["moderate_zone_max", "Intensità media fino alla zona", "Z"]
+  ["min_distribution_minutes", "Minuti minimi per la distribuzione dell'intensità", "min"]
 ];
+// Domini d'intensita' per sistema di zone (ADR 0028): ogni atleta usa la riga del proprio
+// sistema, per corsa e bici dalla scheda, per il nuoto quella a 7 zone.
+const ZONE_PARAMS = ZONE_COUNTS.map((n) => ({
+  zones: n,
+  low: `z${n}_low_max` as keyof FeedbackParams,
+  moderate: `z${n}_moderate_max` as keyof FeedbackParams
+}));
 // Il feedback parte sempre il lunedi', per la settimana appena conclusa (decisione D-11): si sceglie solo l'ora.
 const HOURS = Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, "0")}:00`);
 // Fusi riconosciuti dal browser (gli stessi di Intl sul server): un valore scritto a mano e sbagliato
@@ -112,6 +118,22 @@ async function onSave() {
             <span class="field-label">{{ label }}</span>
             <input type="number" step="1" v-model.number="settings.settings.feedback_params[key]" :aria-invalid="!!paramErrors[key]" />
             <span v-if="paramErrors[key]" class="error-text helper-text">{{ paramErrors[key] }}</span>
+          </label>
+        </div>
+      </details>
+      <details class="review-sessions">
+        <summary>Intensità bassa, media e alta per sistema di zone</summary>
+        <p class="helper-text">Ogni atleta usa la riga del proprio sistema di zone: corsa e bici come nella scheda, il nuoto sempre 7 zone. Oltre la zona dell'intensità media, l'intensità è alta.</p>
+        <div v-for="row in ZONE_PARAMS" :key="row.zones" class="field-row">
+          <label class="field">
+            <span class="field-label">{{ row.zones }} zone · bassa fino alla zona</span>
+            <input type="number" step="1" min="1" :max="row.zones" v-model.number="settings.settings.feedback_params[row.low]" :aria-invalid="!!paramErrors[row.low]" />
+            <span v-if="paramErrors[row.low]" class="error-text helper-text">{{ paramErrors[row.low] }}</span>
+          </label>
+          <label class="field">
+            <span class="field-label">{{ row.zones }} zone · media fino alla zona</span>
+            <input type="number" step="1" min="1" :max="row.zones" v-model.number="settings.settings.feedback_params[row.moderate]" :aria-invalid="!!paramErrors[row.moderate]" />
+            <span v-if="paramErrors[row.moderate]" class="error-text helper-text">{{ paramErrors[row.moderate] }}</span>
           </label>
         </div>
       </details>
