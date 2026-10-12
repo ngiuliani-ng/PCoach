@@ -36,6 +36,8 @@ All'apertura della scheda `ZoneAlignBanner.vue` legge le zone dell'atleta su Int
   - «Usa N zone in PCoach» cambia il sistema di zone della scheda e la salva. È possibile solo con 3, 5 o 7 zone su Intervals.icu, non per il nuoto, e non con modifiche della scheda non salvate;
   - «Porta Intervals.icu a N zone» scrive su Intervals.icu i limiti del modello scelto in Impostazioni («Zone su Intervals.icu»), mostrati nella conferma (azione `zones_apply`). La FC si calcola in bpm dalla FC di soglia e dalla FC massima registrate su Intervals.icu.
 - **Errori**: se la lettura non riesce, l'avviso non compare; se la scrittura non riesce, l'avviso resta e compare il messaggio di Intervals.icu.
+- **Feedback settimanale**: parte solo con le zone allineate; altrimenti la valutazione si ferma con il dettaglio delle discipline e riparte con «Riprova» ([backend.md](backend.md#weekly-feedback-edge-function)).
+- **Cambio del sistema di zone in PCoach** (dal Profilo o con «Usa N zone in PCoach»): se ci sono sedute da svolgere della disciplina da oggi compreso, una conferma dice quante sono. Se il coach procede, tornano «Da verificare» con il motivo, e le loro zone vanno adattate a mano (`useZoneChange.ts`, `domain/zoneChange.ts`).
 
 ## Intervals.icu: sincronizzazione delle sedute
 

@@ -6,6 +6,14 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
+**2026-10-12 — Feedback solo con zone allineate; sedute da verificare dopo un cambio di zone**
+- Il feedback settimanale controlla le zone su Intervals.icu prima dell'analisi. Se non coincidono con la scheda si ferma («Zone non allineate con Intervals.icu…») e riparte con «Riprova».
+- Cambiare il sistema di zone con un piano in corso chiede conferma. Se il coach procede, le sedute da svolgere della disciplina, da oggi compreso, tornano «Da verificare» con il motivo. Vale per ogni salvataggio della scheda: Profilo, uscita, «Salva e genera», «Usa N zone in PCoach».
+- Test: 174 unitari, 50 end-to-end.
+
+*Motivazione*: richiesta del coach: il feedback deve partire solo con i sistemi allineati, e le sedute pianificate con il vecchio sistema vanno ricontrollate a mano.
+*Docs aggiornati*: [decisioni/0029](docs/decisioni/0029-zone-allineate-con-intervals.md), [backend.md](docs/backend.md), [integrazioni.md](docs/integrazioni.md), [modello-dati.md](docs/modello-dati.md), [limiti-roadmap.md](docs/limiti-roadmap.md).
+
 **2026-10-12 — Zone allineate fra PCoach e Intervals.icu**
 - All'apertura della scheda PCoach legge le zone dell'atleta su Intervals.icu. Se il numero di zone non coincide con la scheda, mostra un avviso con due scelte, entrambe con conferma: «Usa N zone in PCoach» oppure «Porta Intervals.icu a N zone».
 - Nuova sezione «Zone su Intervals.icu» in Impostazioni: per potenza e FC della bici, passo di corsa e di nuoto, e per 3, 5 e 7 zone, un preset dalla letteratura (Coggan, Friel, Seiler) o limiti propri. I predefiniti sono i modelli più usati.

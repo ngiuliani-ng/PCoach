@@ -54,7 +54,7 @@ Limiti noti dell'analisi ([decisioni/0019](decisioni/0019-feedback-analisi-deter
 - **Dati soggettivi del benessere**: fatica, dolore, stress e umore inseriti su Intervals.icu non sono usati, perché la direzione delle loro scale non è stata verificata. Si usano RPE, HRV, frequenza a riposo e sonno.
 - **Attività importate da Strava**: via API arrivano senza dati, quindi le sedute di quei giorni risultano «dato non disponibile».
 - **Soglie operative**: le soglie di classificazione sono regole pratiche modificabili in Impostazioni, non valori fisiologici.
-- **Zone diverse fra scheda e Intervals.icu**: la scheda le segnala all'apertura ([decisioni/0029](decisioni/0029-zone-allineate-con-intervals.md)), ma il feedback settimanale non le controlla: finché il coach non le allinea, la distribuzione dell'intensità non è attendibile. Si confrontano solo le zone con cui PCoach prescrive le sedute (non la FC della corsa). Con 4 o 6 zone su Intervals.icu si può allineare solo Intervals.icu.
+- **Zone diverse fra scheda e Intervals.icu**: la scheda le segnala all'apertura e il feedback non parte finché non sono allineate ([decisioni/0029](decisioni/0029-zone-allineate-con-intervals.md)). Si confrontano solo le zone con cui PCoach prescrive le sedute (non la FC della corsa). Con 4 o 6 zone su Intervals.icu si può allineare solo Intervals.icu. Dopo l'allineamento il feedback fermo riparte con «Riprova», non da solo.
 
 ## Zone del nuoto
 

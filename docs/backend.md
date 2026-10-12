@@ -132,6 +132,7 @@ Adattatore della pipeline in `supabase/functions/_shared/feedback/pipeline.ts`, 
 
 **Passi di una valutazione**:
 1. **Analisi** (`pending` → `analyzed`):
+   - legge le zone dell'atleta su Intervals.icu (`sport-settings`) e le confronta con la scheda (`zoneChecks`): se una disciplina non coincide, la valutazione va subito in `analysis_failed` con il dettaglio, e riparte con «Riprova» dopo l'allineamento ([decisioni/0029](decisioni/0029-zone-allineate-con-intervals.md));
    - legge le sedute approvate della settimana con il legame all'evento Intervals.icu, il numero di bozze, le modifiche del coach (`workout_events`) e i piani;
    - legge le attività dal lunedì precedente alla domenica e il benessere dei 35 giorni precedenti;
    - costruisce il contratto `feedback_input` ([integrazioni.md § Claude (feedback settimanale)](integrazioni.md#claude-feedback-settimanale));

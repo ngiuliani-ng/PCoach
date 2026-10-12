@@ -28,11 +28,14 @@ Decisioni del coach (2026-10-12):
    - passo di corsa (% della velocità di soglia): Friel 7 zone (77,5, 87,7, 94,3, 100, 103,4, 111,5), Friel 5 zone (77,5, 87,7, 94,3, 100), Seiler 3 zone (87,7, 100);
    - passo di nuoto: il modello predefinito di Intervals.icu a 7 zone.
 6. **Scritture solo lato server**, come per le sedute ([0017](0017-sedute-entita-proprie-sincronizzazione-intervals.md)): `intervals-sync` ha le azioni `zones_read` e `zones_apply`. `zones_apply` legge i modelli salvati, scrive con `PUT /sport-settings/{id}?recalcHrZones=false` e controlla che Intervals.icu abbia salvato il numero di zone richiesto.
+7. **Feedback solo con le zone allineate**: prima dell'analisi `weekly-feedback` legge le zone su Intervals.icu e le confronta come la scheda. Se una disciplina non coincide, la valutazione va in `analysis_failed` con il dettaglio («Zone non allineate con Intervals.icu (…). Allineale dalla scheda dell'atleta, poi premi «Riprova».»). Se la lettura delle zone non riesce, vale come gli altri errori di Intervals.icu: nuovi tentativi, poi `analysis_failed`.
+8. **Cambio del sistema di zone con un piano in corso**: ogni salvataggio della scheda dall'interfaccia (Profilo, uscita con «Salva e continua», «Salva e genera», «Usa N zone in PCoach») confronta il sistema di zone salvato con quello nuovo. Se cambia e ci sono sedute da svolgere della disciplina (bozze o approvate, da oggi compreso), chiede conferma indicando quante sono. Se il coach procede, tutte quelle sedute (non solo quelle con zone oltre il nuovo limite) tornano «Da verificare» (`needs_review`, con il motivo e la data del cambio), perché le loro zone vanno adattate a mano al nuovo sistema. Il motivo non è contenuto della seduta: revisione e copia su Intervals.icu non cambiano, ma una seduta da verificare non si invia finché il coach non la salva.
 
 Scelte dell'assistente, da confermare:
 - Seiler definisce le zone rispetto a LT1 e LT2 (zona 1 sotto LT1, zona 2 fra LT1 e LT2, zona 3 sopra LT2), ma PCoach non conosce LT1. LT1 è stimata alla fine della resistenza di Coggan (75% dell'FTP) e della zona 2 di Friel (89% della FC di soglia, 87,7% della velocità di soglia); LT2 coincide con la soglia.
 - I modelli a 5 zone di Coggan e Friel uniscono in una zona quelle sopra la soglia (5-7 di Coggan, 5a-5c di Friel).
 - L'avviso sta nella scheda, sopra le viste, e non è una finestra che blocca l'apertura.
+- Il feedback bloccato dalle zone non riparte da solo: dopo l'allineamento il coach preme «Riprova». Ripartire da solo vorrebbe dire rileggere Intervals.icu ogni ora senza un esito visibile.
 
 ## Motivo
 
@@ -41,5 +44,5 @@ Sedute, feedback e zone viste dall'atleta devono usare lo stesso sistema. I limi
 ## Conseguenze
 
 - Allineare Intervals.icu cambia le zone dell'atleta anche in ciò che l'atleta vede su Intervals.icu e nelle analisi successive.
-- Passare a meno zone in PCoach non cambia le sedute già pianificate: quelle con zone oltre il nuovo limite risultano da verificare ([0025](0025-sistema-di-zone-e-dati-personali-a-claude.md)).
+- Cambiare il sistema di zone in PCoach non modifica le zone delle sedute già pianificate: le segna da verificare, e il coach le adatta.
 - La FC della corsa e la potenza nel nuoto non si confrontano, perché PCoach non prescrive le sedute con quelle misure.
