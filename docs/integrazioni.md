@@ -66,18 +66,20 @@ Il pulsante «Sincronizza settimana» della tab Piano invia le sedute approvate 
 | `primary_target` | `target`: `POWER`, `HR`, `PACE` |
 
 Sintassi del testo, dal workout builder documentato sul forum di Intervals.icu:
-- uno step per riga, come `- Riscaldamento 15m Z1-Z2`; l'indicazione precede la durata;
+- uno step per riga, come `- Riscaldamento<!> 15m Z1-Z2`: l'indicazione precede la durata ed è chiusa da `<!>`, così i numeri che contiene («1000m», «8'») restano testo e non diventano la durata ([decisioni/0032](decisioni/0032-indicazioni-separate-e-verifica-di-ritorno.md)); dall'indicazione si tolgono `<!>` e `^`;
 - `m` significa minuti; le distanze si scrivono `2km` o `400mtr`;
 - le zone sono di potenza senza suffisso, altrimenti `Z2 HR` o `Z2 Pace`;
-- una ripetuta ha un'intestazione `Serie principale 4x`, con una riga vuota prima e una dopo.
+- una ripetuta ha un'intestazione `Serie principale 4x`, con una riga vuota prima e una dopo; il testo dell'intestazione non viene interpretato e non ha separatore.
 
-Le zone si riferiscono a quelle impostate sull'account Intervals.icu dell'atleta (FTP, LTHR, passo soglia, CSS). Dopo ogni invio la funzione confronta il numero di step letti da Intervals.icu (`workout_doc.steps`) con quelli attesi. Se differiscono, salva un avviso (`last_warning`) che compare nel pannello della seduta.
+Le zone si riferiscono a quelle impostate sull'account Intervals.icu dell'atleta (FTP, LTHR, passo soglia, CSS). Dopo ogni invio la funzione confronta, step per step, la struttura letta da Intervals.icu (`workout_doc.steps`) con quella della seduta (`workoutDocIssue`): numero di step, ripetizioni, durata o distanza di ogni step. Al primo scostamento salva un avviso (`last_warning`) che compare nel pannello della seduta, per esempio «Intervals.icu ha letto lo step 1 come 1000' invece di 4'».
 
 **Regole della settimana** (classificazione in `_shared/workouts/sync.ts`):
 - **Bozza**: non si invia ed è elencata come esclusa.
 - **Bloccata**: struttura non valida o da verificare; si indica il motivo.
 - **Approvata mai inviata**: si crea. Prima si cercano tra gli eventi del giorno l'`external_id` e, se un tentativo precedente non ha avuto risposta (`create_uncertain`), nome e tipo, per non duplicare.
 - **Modificata o spostata dopo l'invio**, oppure **invio precedente fallito**: si aggiorna per id.
+- **Zone o soglie non allineate** con Intervals.icu, o soglia mancante nella scheda: le sedute da creare o aggiornare sono bloccate con il motivo; le rimozioni restano possibili ([decisioni/0033](decisioni/0033-zone-e-soglie-bloccano-l-invio.md)).
+- **Contenuto da inviare diverso da quello inviato** (impronta `synced_hash`, per esempio dopo una correzione della conversione o per un invio precedente all'impronta): si aggiorna per id. Le sedute svolte non si confrontano.
 - **Modificata su Intervals.icu** (`updated` diverso dall'ultimo noto): conflitto. Il coach sceglie se sovrascrivere o lasciarla com'è; non c'è mai sovrascrittura silenziosa.
 - **Sparita da Intervals.icu**: il coach sceglie se ricrearla.
 - **Annullata o sostituita, ancora su Intervals.icu**: la rimozione è preselezionata, elencata a parte e contata nel pulsante di conferma.

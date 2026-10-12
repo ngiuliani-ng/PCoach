@@ -5,7 +5,7 @@
 // Formato su Intervals.icu (sport-settings): threshold_pace in metri al secondo, ftp in watt; le
 // pace_zones sono percentuali della velocita' di soglia (vedi zoneModels.ts).
 import { zoneCountOf, type ZoneDiscipline } from "./zones.ts";
-import { sportSettingsFor, type IcuSportSettings, type ZoneModels } from "./zoneModels.ts";
+import { sportSettingsFor, zoneChecks, type IcuSportSettings, type ZoneModels } from "./zoneModels.ts";
 
 /** "4:05" → 245 secondi; null se il testo non e' un passo valido. */
 export function parsePace(text: string | null | undefined): number | null {
@@ -175,4 +175,37 @@ export function missingThresholds(profile: ProfileLike | null | undefined): stri
   if (sports.has("running") && !now.runningPace) out.push("il passo di soglia della corsa");
   if (sports.has("swimming") && !now.swimmingCss) out.push("la CSS del nuoto");
   return out;
+}
+
+// ---------- Allineamento con Intervals.icu: blocca feedback e invio (ADR 0029, 0030, 0033) ----------
+
+export interface AlignmentProblems {
+  /** Discipline con un numero di zone diverso, es. "Corsa (passo): 5 zone in PCoach, 7 su Intervals.icu". */
+  zones: string[];
+  /** Soglie mancanti nella scheda, es. "il passo di soglia della corsa". */
+  missing: string[];
+  /** Soglie diverse, es. "Corsa, passo di soglia: 4:00/km in PCoach, 4:10/km su Intervals.icu". */
+  thresholds: string[];
+}
+
+/** Problemi di allineamento fra la scheda e le impostazioni dell'atleta su Intervals.icu. */
+export function alignmentProblems(profile: ProfileLike | null | undefined, list: IcuSportSettings[]): AlignmentProblems {
+  const hasFtp = !!currentThresholds(profile?.physiological_thresholds).cyclingFtp;
+  return {
+    zones: zoneChecks(profile, hasFtp, list).filter((c) => !c.aligned)
+      .map((c) => `${c.label}: ${c.pcoach} zone in PCoach, ${c.intervals ?? "nessuna"} su Intervals.icu`),
+    missing: missingThresholds(profile),
+    thresholds: thresholdChecks(profile, list).filter((c) => !c.aligned)
+      .map((c) => `${c.label}: ${c.format(c.pcoach!)} in PCoach, ${c.intervals === null ? "nessuna" : c.format(c.intervals)} su Intervals.icu`)
+  };
+}
+
+/** Motivo per cui le sedute non si inviano a Intervals.icu, oppure null se zone e soglie sono allineate. */
+export function syncBlockReason(p: AlignmentProblems): string | null {
+  const parts = [
+    ...(p.zones.length ? [`zone diverse (${p.zones.join("; ")})`] : []),
+    ...(p.missing.length ? [`soglia mancante nella scheda (${p.missing.join(", ")})`] : []),
+    ...(p.thresholds.length ? [`soglie diverse (${p.thresholds.join("; ")})`] : [])
+  ];
+  return parts.length ? `Non si invia finché zone e soglie non sono allineate con Intervals.icu: ${parts.join("; ")}. Sistemale dalla tab Anomalie.` : null;
 }

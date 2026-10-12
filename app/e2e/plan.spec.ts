@@ -97,3 +97,18 @@ test("sincronizza la settimana: anteprima, errore parziale e nuovo tentativo sol
   const draft = state.tables.workouts.find((w) => w.status === "draft")!;
   expect(state.applyCalls.some((c) => c.workout_id === draft.id)).toBe(false);
 });
+
+test("zone o soglie non allineate: «Sincronizza settimana» blocca creazioni e aggiornamenti, non le rimozioni", async ({ page }) => {
+  const state = createState();
+  state.previewBlocked = "Non si invia finché zone e soglie non sono allineate con Intervals.icu: soglie diverse (Corsa, passo di soglia: 4:00/km in PCoach, 4:10/km su Intervals.icu). Sistemale dalla tab Anomalie.";
+  await openPlan(page, state);
+  await page.getByRole("button", { name: "Sincronizza settimana" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("heading", { name: "Bloccate, da correggere" })).toBeVisible();
+  await expect(dialog.getByText(/Non si invia finché zone e soglie non sono allineate/).first()).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: "Da creare" })).toHaveCount(0);
+  await expect(dialog.getByRole("heading", { name: "Da aggiornare" })).toHaveCount(0);
+  await dialog.getByRole("button", { name: /Sincronizza 1 seduta/ }).click();
+  await expect(dialog.getByText(/Tutte le|riuscita/).first()).toBeVisible();
+  expect(state.applyCalls.map((c) => c.op)).toEqual(["delete"]);
+});

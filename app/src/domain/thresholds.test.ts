@@ -2,7 +2,7 @@
 // della zona, confronto con Intervals.icu e soglie mancanti.
 import { describe, expect, it } from "vitest";
 import {
-  currentThresholds, distanceSeconds, missingThresholds, paceContextOf, parsePace, thresholdChecks, zoneSpeedPct
+  alignmentProblems, currentThresholds, distanceSeconds, missingThresholds, paceContextOf, parsePace, syncBlockReason, thresholdChecks, zoneSpeedPct
 } from "@shared/workouts/thresholds.ts";
 import { defaultZoneModels, type IcuSportSettings } from "@shared/workouts/zoneModels.ts";
 import { workoutTotals, type WorkoutContent } from "@shared/workouts/structure.ts";
@@ -101,5 +101,20 @@ describe("soglie mancanti", () => {
     expect(missingThresholds(profile(["running", "cycling", "swimming"], thresholds()))).toEqual(["il passo di soglia della corsa", "la CSS del nuoto"]);
     expect(missingThresholds(profile(["cycling"], thresholds()))).toEqual([]);
     expect(missingThresholds(profile(["running"]))).toEqual([]);
+  });
+});
+
+describe("allineamento con Intervals.icu: blocca feedback e invio (ADR 0033)", () => {
+  const RUN7: IcuSportSettings = { ...RUN, pace_zones: [77.5, 87.7, 94.3, 100, 103.4, 111.5, 999] };
+  it("tutto allineato: nessun blocco", () => {
+    expect(syncBlockReason(alignmentProblems(profile(["running"]), [RUN7]))).toBeNull();
+  });
+  it("zone, soglie diverse e soglie mancanti finiscono nello stesso motivo", () => {
+    const p = profile(["running", "swimming"], thresholds("4:00"));
+    const problems = alignmentProblems({ ...p, physiological_thresholds: { ...p.physiological_thresholds, running: { ...p.physiological_thresholds.running, zone_system: "5-zone" } } }, [{ ...RUN7, threshold_pace: 1000 / 250 }, { ...SWIM, pace_zones: RUN7.pace_zones }]);
+    expect(problems.zones).toEqual(["Corsa (passo): 5 zone in PCoach, 7 su Intervals.icu"]);
+    expect(problems.missing).toEqual(["la CSS del nuoto"]);
+    expect(problems.thresholds).toEqual(["Corsa, passo di soglia: 4:00/km in PCoach, 4:10/km su Intervals.icu"]);
+    expect(syncBlockReason(problems)).toMatch(/^Non si invia finché zone e soglie non sono allineate con Intervals.icu: zone diverse .*soglia mancante.*soglie diverse.*Sistemale dalla tab Anomalie\.$/);
   });
 });

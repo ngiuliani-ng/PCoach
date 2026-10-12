@@ -29,7 +29,7 @@ async function call<T>(body: Record<string, unknown>): Promise<Response<T>> {
 }
 
 export function previewWeek(athleteId: string, weekStart: string) {
-  return call<{ remote: RemoteSnapshot; completed: number }>({ action: "preview", athlete_id: athleteId, week_start: weekStart });
+  return call<{ remote: RemoteSnapshot; completed: number; blocked?: string | null }>({ action: "preview", athlete_id: athleteId, week_start: weekStart });
 }
 
 export function applyOperation(athleteId: string, workoutId: string, op: ApplyOp, expectedRevision: number) {

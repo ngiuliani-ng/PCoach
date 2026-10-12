@@ -35,7 +35,7 @@ import AnomaliesTab from "./AnomaliesTab.vue";
 import { useAthleteAnomalies } from "../../composables/useAthleteAnomalies";
 import { useZoneChange } from "../../composables/useZoneChange";
 import FieldHelp from "../ui/FieldHelp.vue";
-import { Download, Plus, Trash2, TriangleAlert } from "lucide-vue-next";
+import { Download, Plus, Trash2 } from "lucide-vue-next";
 
 const athletes = useAthletesStore();
 const workouts = useWorkoutsStore();
@@ -273,15 +273,6 @@ const anomalies = useAthleteAnomalies({
   openWorkout: (id) => void router.push({ name: "athlete", params: { id: routeId.value, tab: "piano" }, query: { seduta: id } })
 });
 const anomalyCount = anomalies.count;
-const anomalySummary = computed(() => {
-  const n = anomalyCount.value;
-  const feedback = anomalies.countIn("feedback");
-  const sync = anomalies.countIn("sync");
-  const what = n === 1 ? "Un'anomalia" : `${n} anomalie`;
-  const verb = n === 1 ? "ferma" : "fermano";
-  if (feedback && sync) return `${what}: ${feedback} ${feedback === 1 ? "ferma" : "fermano"} il feedback settimanale, ${sync} l'invio a Intervals.icu.`;
-  return `${what} ${verb} ${feedback ? "il feedback settimanale" : "l'invio a Intervals.icu"}.`;
-});
 </script>
 
 <template>
@@ -304,12 +295,6 @@ const anomalySummary = computed(() => {
       <span v-if="nextEvent">Prossimo evento: {{ nextEvent.name || "senza nome" }}, {{ formatDate(nextEvent.date) }}</span>
       <span v-if="athletes.currentId">Aggiornata il {{ formatDate(profile.meta.updated_at) }}</span>
       <span v-else>Bozza non ancora salvata</span>
-    </p>
-
-    <p v-if="anomalyCount && tab !== 'anomalie'" class="update-banner anomaly-callout" role="status">
-      <TriangleAlert :size="16" aria-hidden="true" />
-      <span>{{ anomalySummary }}</span>
-      <button type="button" class="link-btn" @click="tab = 'anomalie'">Vedi le anomalie</button>
     </p>
 
     <div class="tabs" role="tablist" aria-label="Sezioni della scheda" @keydown="onTabKeydown">

@@ -17,7 +17,7 @@
 // l'id dell'evento e opera per id. external_id resta valorizzato per la riconciliazione.
 import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { addDaysISO, isISODate, todayISO } from "../_shared/workouts/calendar.ts";
-import { buildIntervalsEvent, expectedTopLevelSteps, externalIdFor, INTERVALS_TYPES } from "../_shared/workouts/intervals.ts";
+import { buildIntervalsEvent, externalIdFor, type IcuDocStep, INTERVALS_TYPES, intervalsPayloadHash, workoutDocIssue } from "../_shared/workouts/intervals.ts";
 import type { WorkoutContent } from "../_shared/workouts/structure.ts";
 import { validateWorkout } from "../_shared/workouts/structure.ts";
 import { completionColumns, completionsIn } from "../_shared/feedback/completion.ts";
@@ -25,7 +25,7 @@ import { resolveFeedbackParams } from "../_shared/feedback/params.ts";
 import type { PlannedWorkout, RawActivity } from "../_shared/feedback/types.ts";
 import { type IcuSportSettings, icuZoneCount, icuZonesUpdate, resolveZoneModels, sportSettingsFor, ZONE_MODEL_KEYS, type ZoneModelKey } from "../_shared/workouts/zoneModels.ts";
 import type { ZoneCount, ZoneDiscipline } from "../_shared/workouts/zones.ts";
-import { paceContextOf, thresholdChecks } from "../_shared/workouts/thresholds.ts";
+import { alignmentProblems, paceContextOf, syncBlockReason, thresholdChecks } from "../_shared/workouts/thresholds.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -115,7 +115,7 @@ interface IcuEvent {
   start_date_local?: string;
   name?: string;
   type?: string;
-  workout_doc?: { steps?: unknown[] } | null;
+  workout_doc?: { steps?: IcuDocStep[] } | null;
 }
 
 const WORKOUT_COLUMNS = "id, athlete_id, status, revision, needs_review, completed_at, planned_date, discipline, title, objective, notes_for_athlete, duration_min, structure, primary_target";
@@ -124,6 +124,18 @@ async function athleteKey(db: SupabaseClient, athleteId: string): Promise<string
   const { data } = await db.from("athletes").select("data").eq("id", athleteId).maybeSingle();
   const key = (data as { data?: { integrations?: { intervals_icu_api_key?: string } } } | null)?.data?.integrations?.intervals_icu_api_key;
   return key && key.trim() ? key.trim() : null;
+}
+
+/**
+ * Motivo per cui le sedute non si inviano: zone o soglie della scheda non allineate con Intervals.icu
+ * (ADR 0033). Una lettura non riuscita non blocca: la scrittura dell'evento fallirebbe comunque.
+ */
+async function alignmentBlock(db: SupabaseClient, athleteId: string, apiKey: string): Promise<string | null> {
+  const { data } = await db.from("athletes").select("data").eq("id", athleteId).maybeSingle();
+  const profile = (data as { data?: Parameters<typeof alignmentProblems>[0] } | null)?.data;
+  const res = await icu(apiKey, "GET", "/sport-settings");
+  if (!res.ok) return null;
+  return syncBlockReason(alignmentProblems(profile, pickZones(res.data)));
 }
 
 async function logEvent(db: SupabaseClient, w: WorkoutRow, type: string, note: string) {
@@ -192,6 +204,7 @@ async function preview(db: SupabaseClient, athleteId: string, weekStart: string,
   return jsonResponse({
     remote: { events: [...known.values()].map((e) => ({ id: e.id, updated: e.updated ?? null })), missingIds },
     completed,
+    blocked: await alignmentBlock(db, athleteId, apiKey),
   });
 }
 
@@ -241,6 +254,8 @@ async function apply(db: SupabaseClient, athleteId: string, workoutId: string, o
   if (workout.needs_review) return jsonResponse({ error: workout.needs_review }, 400);
   const errors = validateWorkout(workout);
   if (Object.keys(errors).length) return jsonResponse({ error: Object.values(errors)[0] }, 400);
+  const blocked = await alignmentBlock(db, athleteId, apiKey);
+  if (blocked) return jsonResponse({ ok: false, error: blocked });
   const payload = buildIntervalsEvent(workoutId, workout);
 
   let targetId: number | null = op === "recreate" ? null : row?.remote_event_id ?? null;
@@ -280,14 +295,11 @@ async function apply(db: SupabaseClient, athleteId: string, workoutId: string, o
   }
 
   const ev = res.data as IcuEvent;
-  // Verifica: Intervals.icu restituisce la struttura che ha letto dal testo.
-  const expected = expectedTopLevelSteps(workout);
-  const got = Array.isArray(ev?.workout_doc?.steps) ? ev.workout_doc!.steps!.length : null;
-  const warning = expected && got !== null && got !== expected
-    ? `Intervals.icu ha letto ${got} step invece di ${expected}: controlla la seduta sul suo calendario.`
-    : null;
+  // Verifica di ritorno: Intervals.icu restituisce la struttura che ha letto dal testo (ADR 0032).
+  const warning = workoutDocIssue(workout, ev?.workout_doc?.steps);
   await saveRow({
     remote_event_id: ev?.id ?? targetId, synced_revision: workout.revision, synced_date: workout.planned_date,
+    synced_hash: intervalsPayloadHash(payload),
     remote_updated: ev?.updated ?? null, state: "synced", pending_delete: false, create_uncertain: false,
     last_error: null, last_warning: warning, synced_at: now,
   });

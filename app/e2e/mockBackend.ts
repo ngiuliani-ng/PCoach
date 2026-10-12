@@ -2,12 +2,19 @@
 // lte, is; insert, upsert, update, delete; .single()), le due funzioni SQL e le Edge Function
 // claude-proxy e intervals-sync. Emula anche il trigger che incrementa la revisione.
 import type { Page, Route } from "@playwright/test";
+import { buildIntervalsEvent, intervalsPayloadHash } from "../../supabase/functions/_shared/workouts/intervals.ts";
+import type { WorkoutContent } from "../../supabase/functions/_shared/workouts/structure.ts";
 
 export const SUPABASE_URL = "http://e2e.supabase.test";
 export const ATHLETE_ID = "ATL00001";
 export const TODAY = "2026-10-10"; // sabato
 
 type Row = Record<string, unknown>;
+
+/** Impronta del contenuto inviato, calcolata come in intervals-sync (ADR 0032). */
+function hashOf(w: Row): string {
+  return intervalsPayloadHash(buildIntervalsEvent(String(w.id), w as unknown as WorkoutContent));
+}
 
 export interface MockState {
   tables: Record<string, Row[]>;
@@ -20,6 +27,8 @@ export interface MockState {
   icuSportSettings: Row[];
   zoneApplyCalls: Row[];
   thresholdApplyCalls: Row[];
+  /** Motivo del blocco dell'invio restituito dall'anteprima (zone o soglie non allineate, ADR 0033). */
+  previewBlocked: string | null;
 }
 
 let seq = 1;
@@ -111,6 +120,7 @@ export function createState(): MockState {
     ],
     zoneApplyCalls: [],
     thresholdApplyCalls: [],
+    previewBlocked: null,
     rpcCalls: []
   };
 }
@@ -238,6 +248,11 @@ function applyGeneration(state: MockState, p: Row): string {
 }
 
 export async function installMockBackend(page: Page, state: MockState) {
+  // Le righe gia' inviate hanno l'impronta del contenuto attuale, come dopo un invio reale.
+  for (const s of state.tables.workout_sync) {
+    const w = state.tables.workouts.find((x) => x.id === s.workout_id);
+    if (w && s.state === "synced" && s.synced_hash === undefined) s.synced_hash = hashOf(w);
+  }
   await page.clock.setFixedTime(new Date(`${TODAY}T10:00:00+02:00`));
   await page.addInitScript(([key]) => {
     const session = {
@@ -296,7 +311,7 @@ export async function installMockBackend(page: Page, state: MockState) {
         return fulfillJson(route, { ok: true, settings: sport });
       }
       if (body.action === "preview") {
-        return fulfillJson(route, { remote: { events: [{ id: 501, updated: "t1" }, { id: 502, updated: "t1" }, { id: 503, updated: "t1" }], missingIds: [] }, completed: 0 });
+        return fulfillJson(route, { remote: { events: [{ id: 501, updated: "t1" }, { id: 502, updated: "t1" }, { id: 503, updated: "t1" }], missingIds: [] }, completed: 0, blocked: state.previewBlocked });
       }
       const id = String(body.workout_id);
       state.applyCalls.push({ workout_id: id, op: String(body.op) });
@@ -309,7 +324,7 @@ export async function installMockBackend(page: Page, state: MockState) {
       if (body.op === "delete") {
         Object.assign(existing!, { state: "removed", pending_delete: false, remote_event_id: null });
       } else {
-        const row = { workout_id: id, provider: "intervals_icu", remote_event_id: existing?.remote_event_id ?? 600 + seq++, external_id: `pcoach:${id}`, synced_revision: w.revision, synced_date: w.planned_date, remote_updated: "t2", state: "synced", pending_delete: false, create_uncertain: false, last_error: null, last_warning: null };
+        const row = { workout_id: id, provider: "intervals_icu", remote_event_id: existing?.remote_event_id ?? 600 + seq++, external_id: `pcoach:${id}`, synced_revision: w.revision, synced_date: w.planned_date, remote_updated: "t2", state: "synced", pending_delete: false, create_uncertain: false, last_error: null, last_warning: null, synced_hash: hashOf(w) };
         if (existing) Object.assign(existing, row);
         else state.tables.workout_sync.push(row);
       }

@@ -74,6 +74,7 @@ supabase/
   migrations/0009_completion_details.sql  esito e dati dell'attività (RPE compreso) sulle sedute svolte
   migrations/0010_weekly_feedback_cron_timeout.sql  job orario del feedback, con attesa della risposta fino a 150 s
   migrations/0011_zone_models.sql  modelli di zone per allineare Intervals.icu a PCoach
+  migrations/0012_workout_sync_hash.sql  impronta del contenuto inviato a Intervals.icu
 .github/workflows/deploy.yml  Build + pubblicazione su GitHub Pages
 ```
 

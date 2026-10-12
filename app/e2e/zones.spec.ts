@@ -9,7 +9,8 @@ test("con zone e soglie allineate la scheda non mostra anomalie", async ({ page 
   await installMockBackend(page, createState());
   await page.goto(`./#/atleta/${ATHLETE_ID}/panoramica`);
   await expect(page.getByRole("heading", { name: "Giulia Ferri" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Vedi le anomalie" })).toHaveCount(0);
+  // Nessun numero accanto a «Anomalie».
+  await expect(page.getByRole("tab", { name: "Anomalie", exact: true })).toBeVisible();
   await page.getByRole("tab", { name: "Anomalie" }).click();
   await expect(page.getByRole("heading", { name: "Nessuna anomalia" })).toBeVisible();
 });
@@ -19,9 +20,10 @@ test("zone diverse: «Usa 7 zone in PCoach» aggiorna e salva la scheda", async 
   profileOf(state).physiological_thresholds.running.zone_system = "5-zone";
   await installMockBackend(page, state);
   await page.goto(`./#/atleta/${ATHLETE_ID}/panoramica`);
-  await expect(page.getByText("Un'anomalia ferma il feedback settimanale.")).toBeVisible();
-  await page.getByRole("button", { name: "Vedi le anomalie" }).click();
-  await expect(page.getByRole("heading", { name: "Fermano il feedback settimanale" })).toBeVisible();
+  // Il numero nell'etichetta della tab e' l'unico richiamo fuori dalla tab.
+  await expect(page.getByRole("tab", { name: /Anomalie/ })).toContainText("1");
+  await page.getByRole("tab", { name: /Anomalie/ }).click();
+  await expect(page.getByRole("heading", { name: "Fermano il feedback e l'invio a Intervals.icu" })).toBeVisible();
   await expect(page.getByText("Zone della corsa diverse da Intervals.icu")).toBeVisible();
   await expect(page.getByText("5 zone in PCoach, 7 zone su Intervals.icu.")).toBeVisible();
   await page.getByRole("button", { name: "Usa 7 zone in PCoach" }).click();
@@ -130,9 +132,8 @@ test("seduta da verificare: dalla tab si apre il pannello della seduta, e «indi
   state.tables.workouts.find((w) => w.title === "Tempo")!.needs_review = "Il giovedì l'atleta ha al massimo 60 minuti: le sedute del giorno ne fanno 67.";
   await installMockBackend(page, state);
   await page.goto(`./#/atleta/${ATHLETE_ID}/panoramica`);
-  await expect(page.getByText("Un'anomalia ferma l'invio a Intervals.icu.")).toBeVisible();
-  await page.getByRole("button", { name: "Vedi le anomalie" }).click();
   await expect(page.getByRole("tab", { name: /Anomalie/ })).toContainText("1");
+  await page.getByRole("tab", { name: /Anomalie/ }).click();
   await expect(page.getByText("ne fanno 67.")).toBeVisible();
   await page.getByRole("button", { name: /Tempo/ }).click();
   await expect(page.getByRole("dialog")).toBeVisible();

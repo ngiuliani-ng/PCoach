@@ -6,6 +6,22 @@ Ordine: più recente in cima. Formato per voce: **data — cambiamento — motiv
 
 ---
 
+**2026-10-13 — Zone e soglie bloccano anche l'invio; anomalie senza richiamo sopra le tab**
+- Zone diverse, soglie diverse o soglia mancante fermano anche l'invio delle sedute a Intervals.icu: in «Sincronizza settimana» creazioni e aggiornamenti risultano bloccati con il motivo, e `apply` ricontrolla lato server. Le rimozioni restano possibili.
+- Tolta la riga di richiamo sopra le tab: resta il numero accanto a «Anomalie». Nuovo gruppo «Fermano il feedback e l'invio a Intervals.icu».
+- Motivazione: sedute inviate con zone o soglie diverse arrivano all'atleta diverse da come sono state pensate; il richiamo ripeteva il numero della tab.
+- Test: 196 unitari, 60 end-to-end.
+- Docs: decisioni/0033 (nuova), decisioni/0031 (stato), design-ui, integrazioni, backend.
+
+**2026-10-13 — Indicazioni separate nel testo per Intervals.icu, verifica di ritorno, rinvio quando cambia la conversione**
+- Il testo inviato chiude ogni indicazione con `<!>`: «1000m @ ritmo gara 5K» non diventa più una durata di 1000 minuti. Verificato su un account di prova.
+- Dopo ogni invio la struttura letta da Intervals.icu si confronta step per step con quella della seduta, con un avviso sullo scostamento.
+- Nuova colonna `workout_sync.synced_hash` (migrazione 0012): una seduta torna «Da aggiornare» se ciò che PCoach invierebbe oggi è diverso da ciò che ha inviato. Al rilascio tornano da aggiornare solo le 11 sedute già inviate con numeri in un'indicazione; le altre ricevono l'impronta del nuovo formato.
+- Preferenze di generazione: ripetute di corsa e nuoto di solito a distanza, bici a tempo, allunghi di circa 100 m; il cue non ripete durata o distanza. `PLAN_PROMPT_VERSION` 2.4.0.
+- Motivazione: sedute di corsa con durate assurde su Intervals.icu, perché la distanza scritta nell'indicazione veniva letta come durata, senza alcun avviso.
+- Test: 193 unitari, 58 end-to-end.
+- Docs: decisioni/0032 (nuova), integrazioni, modello-dati, architettura.
+
 **2026-10-12 — Tab «Anomalie» della scheda atleta**
 - Nuova tab «Anomalie», con il conteggio nell'etichetta. Raggruppa le anomalie per ciò che fermano: il feedback settimanale (zone o soglie diverse da Intervals.icu, soglia mancante, feedback non preparato o non inviato) o l'invio a Intervals.icu (chiave non valida, sedute da verificare, invii non riusciti). Ogni anomalia ha la sua azione. Sopra le tab, una riga di richiamo con «Vedi le anomalie» sostituisce gli avvisi separati di zone e soglie (`ZoneAlignBanner.vue` rimosso, logica in `useAthleteAnomalies.ts`).
 - Motivazione: gli avvisi in cima alla scheda stavano diventando troppi; il coach ha chiesto di raggrupparli per atleta.

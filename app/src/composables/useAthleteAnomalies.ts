@@ -1,6 +1,6 @@
-// Anomalie dell'atleta aperto, raccolte in un solo elenco per la tab «Anomalie» e il richiamo sopra
-// le tab (ADR 0031). Ogni anomalia dice cosa ferma (feedback settimanale o invio a Intervals.icu) e
-// porta l'azione per sistemarla. Zone e soglie si confrontano con Intervals.icu all'apertura della
+// Anomalie dell'atleta aperto, raccolte in un solo elenco per la tab «Anomalie» e il numero nella sua
+// etichetta (ADR 0031, 0033). Ogni anomalia dice cosa ferma (feedback settimanale, invio a
+// Intervals.icu o entrambi) e porta l'azione per sistemarla. Zone e soglie si confrontano con Intervals.icu all'apertura della
 // scheda, sul profilo salvato (ADR 0029, 0030).
 import { computed, ref, watch } from "vue";
 import { useAthletesStore } from "../stores/athletes";
@@ -22,8 +22,8 @@ import {
 } from "@shared/workouts/zoneModels.ts";
 import type { ZoneCount } from "@shared/workouts/zones.ts";
 
-/** Cosa ferma un'anomalia: il feedback settimanale o l'invio delle sedute a Intervals.icu. */
-export type AnomalyGroup = "feedback" | "sync";
+/** Cosa ferma un'anomalia: feedback settimanale e invio insieme, solo il feedback, solo l'invio. */
+export type AnomalyGroup = "both" | "feedback" | "sync";
 
 export interface AnomalyAction {
   label: string;
@@ -181,13 +181,13 @@ export function useAthleteAnomalies(nav: AnomalyNavigation) {
     if (!athletes.currentId || !saved.value) return [];
     const out: Anomaly[] = [];
 
-    // Fermano il feedback settimanale.
+    // Fermano feedback e invio (ADR 0033): zone e soglie non allineate, chiave non valida.
     for (const c of zoneMismatches.value) {
       const actions: AnomalyAction[] = [];
       if (c.canUseIntervals) actions.push({ label: `Usa ${c.intervals} zone in PCoach`, kind: "write", run: () => adoptIntervalsZones(c) });
       if (!c.intervalsBlocked) actions.push({ label: `Porta Intervals.icu a ${c.pcoach} zone`, kind: "write", run: () => writeZones(c) });
       out.push({
-        key: `zones-${c.discipline}`, group: "feedback", tone: "warn",
+        key: `zones-${c.discipline}`, group: "both", tone: "warn",
         title: `Zone ${DISCIPLINE_OF[c.discipline]} diverse da Intervals.icu`,
         detail: `${c.pcoach} zone in PCoach, ${c.intervals === null ? "nessuna zona" : `${c.intervals} zone`} su Intervals.icu.${c.intervalsBlocked ? ` ${c.intervalsBlocked}` : ` «Porta Intervals.icu a ${c.pcoach} zone» scrive il modello ${modelLabel(c)}.`}`,
         actions
@@ -196,7 +196,7 @@ export function useAthleteAnomalies(nav: AnomalyNavigation) {
     for (const c of thresholdMismatches.value) {
       const what = c.label.split(", ")[1];
       out.push({
-        key: `threshold-${c.discipline}`, group: "feedback", tone: "warn",
+        key: `threshold-${c.discipline}`, group: "both", tone: "warn",
         title: `Soglia ${DISCIPLINE_OF[c.discipline]} diversa da Intervals.icu`,
         detail: `${what.charAt(0).toUpperCase()}${what.slice(1)} ${c.format(c.pcoach!)} in PCoach, ${c.intervals === null ? "nessun valore" : c.format(c.intervals)} su Intervals.icu.`,
         actions: [{ label: "Aggiorna Intervals.icu", kind: "write", run: () => writeThreshold(c) }]
@@ -205,12 +205,22 @@ export function useAthleteAnomalies(nav: AnomalyNavigation) {
     for (const m of missingThresholds(saved.value)) {
       const discipline: ZoneDiscipline = m.includes("corsa") ? "running" : "swimming";
       out.push({
-        key: `missing-${discipline}`, group: "feedback", tone: "warn",
+        key: `missing-${discipline}`, group: "both", tone: "warn",
         title: `Manca ${m}`,
         detail: "Serve a stimare la durata degli step a distanza e al feedback settimanale.",
         actions: [{ label: "Aggiungila nel Profilo", kind: "go", run: () => nav.openThresholds(discipline) }]
       });
     }
+    if (intervalsSync.statusFor(athletes.currentId) === "invalid") {
+      out.push({
+        key: "key", group: "both", tone: "err",
+        title: "Chiave Intervals.icu non valida",
+        detail: "Senza una chiave valida PCoach non invia le sedute e non legge carico, zone e attività.",
+        actions: [{ label: "Cambia la chiave nel Profilo", kind: "go", run: nav.openIntervalsKey }]
+      });
+    }
+
+    // Fermano il feedback settimanale.
     const weeks = [...new Set(reviews.current.map((r) => r.period_start))].slice(0, FEEDBACK_WEEKS);
     for (const r of reviews.current.filter((x) => weeks.includes(x.period_start))) {
       const week = `del ${formatDate(r.period_start, false)}`;
@@ -232,14 +242,6 @@ export function useAthleteAnomalies(nav: AnomalyNavigation) {
     }
 
     // Fermano l'invio a Intervals.icu.
-    if (intervalsSync.statusFor(athletes.currentId) === "invalid") {
-      out.push({
-        key: "key", group: "sync", tone: "err",
-        title: "Chiave Intervals.icu non valida",
-        detail: "Senza una chiave valida PCoach non invia le sedute e non legge carico, zone e attività.",
-        actions: [{ label: "Cambia la chiave nel Profilo", kind: "go", run: nav.openIntervalsKey }]
-      });
-    }
     const active = workouts.workouts.filter((w) => (w.status === "draft" || w.status === "approved") && !w.completed_at);
     const toVerify = active.filter((w) => w.needs_review);
     if (toVerify.length) {
@@ -264,9 +266,8 @@ export function useAthleteAnomalies(nav: AnomalyNavigation) {
     return out;
   });
 
-  /** Conteggio per il richiamo e la tab: le sedute raggruppate contano una per una. */
+  /** Numero nell'etichetta della tab: le sedute raggruppate contano una per una. */
   const count = computed(() => anomalies.value.reduce((n, a) => n + (a.items?.length ?? 1), 0));
-  const countIn = (group: AnomalyGroup) => anomalies.value.filter((a) => a.group === group).reduce((n, a) => n + (a.items?.length ?? 1), 0);
 
-  return { anomalies, count, countIn, checking, busy };
+  return { anomalies, count, checking, busy };
 }

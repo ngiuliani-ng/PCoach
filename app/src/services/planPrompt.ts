@@ -148,7 +148,7 @@ export interface PlanPromptInput {
 }
 
 /** Versione delle istruzioni fisse e della forma del messaggio: salvata con ogni generazione. */
-export const PLAN_PROMPT_VERSION = "2.3.0";
+export const PLAN_PROMPT_VERSION = "2.4.0";
 
 // Regole e formato fissi nel codice (ADR 0020, decisione del coach D-01): il coach modifica solo le
 // preferenze metodologiche, che non possono togliere a Claude i dati dell'atleta, i vincoli o il formato.

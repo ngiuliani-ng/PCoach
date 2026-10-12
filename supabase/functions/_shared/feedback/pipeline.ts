@@ -16,8 +16,8 @@ import { buildFeedbackInput, type FeedbackInput } from "./contract.ts";
 import { buildFeedbackPrompt, buildFeedbackTool, DEFAULT_FEEDBACK_STYLE, type FeedbackOutput, type FeedbackTool, validateFeedbackOutput } from "./output.ts";
 import { loadProgressionOf, resolveFeedbackParams } from "./params.ts";
 import { zoneCountsOf } from "../workouts/zones.ts";
-import { type IcuSportSettings, resolveZoneModels, zoneChecks } from "../workouts/zoneModels.ts";
-import { missingThresholds, paceContextOf, thresholdChecks } from "../workouts/thresholds.ts";
+import { type IcuSportSettings, resolveZoneModels } from "../workouts/zoneModels.ts";
+import { alignmentProblems, paceContextOf } from "../workouts/thresholds.ts";
 import { inScheduleWindow, localDayHour, reviewPeriod, safeTimeZone } from "./period.ts";
 import type { CoachChange, Period, PlannedWorkout, PlanWindow, RawActivity, RawWellness } from "./types.ts";
 
@@ -158,22 +158,17 @@ export async function analyze(deps: Deps, row: ReviewRow, settings: FeedbackSett
   // sedute prescritte e tempo nelle zone misurato non si possono confrontare.
   const sports = await deps.intervals.sportSettings(apiKey);
   if (!sports.ok) return fail(`Intervals.icu (zone): ${sports.error}`);
-  const ftp = Number(latest(profile.physiological_thresholds?.cycling?.thresholds_log)?.ftp_watts) || 0;
-  const misaligned = zoneChecks(profile, ftp > 0, sports.data).filter((c) => !c.aligned);
-  if (misaligned.length) {
-    const detail = misaligned.map((c) => `${c.label}: ${c.pcoach} zone in PCoach, ${c.intervals ?? "nessuna"} su Intervals.icu`).join("; ");
-    return fail(`Zone non allineate con Intervals.icu (${detail}). Allineale dalla scheda dell'atleta, poi premi «Riprova».`, true);
-  }
   // Stessa regola per le soglie (ADR 0030): il tempo nelle zone di Intervals.icu dipende dalla sua
   // soglia, e senza soglia nella scheda i minuti previsti degli step a distanza sono solo stimati.
-  const missing = missingThresholds(profile);
-  if (missing.length) {
-    return fail(`Soglia mancante nella scheda (${missing.join(", ")}). Aggiungila nel Profilo, poi premi «Riprova».`, true);
+  const problems = alignmentProblems(profile, sports.data);
+  if (problems.zones.length) {
+    return fail(`Zone non allineate con Intervals.icu (${problems.zones.join("; ")}). Allineale dalla scheda dell'atleta, poi premi «Riprova».`, true);
   }
-  const thresholdsOff = thresholdChecks(profile, sports.data).filter((c) => !c.aligned);
-  if (thresholdsOff.length) {
-    const detail = thresholdsOff.map((c) => `${c.label}: ${c.format(c.pcoach!)} in PCoach, ${c.intervals === null ? "nessuna" : c.format(c.intervals)} su Intervals.icu`).join("; ");
-    return fail(`Soglie non allineate con Intervals.icu (${detail}). Aggiorna Intervals.icu dalla scheda dell'atleta, poi premi «Riprova».`, true);
+  if (problems.missing.length) {
+    return fail(`Soglia mancante nella scheda (${problems.missing.join(", ")}). Aggiungila nel Profilo, poi premi «Riprova».`, true);
+  }
+  if (problems.thresholds.length) {
+    return fail(`Soglie non allineate con Intervals.icu (${problems.thresholds.join("; ")}). Aggiorna Intervals.icu dalla scheda dell'atleta, poi premi «Riprova».`, true);
   }
 
   const prevStart = addDaysISO(period.start, -7);

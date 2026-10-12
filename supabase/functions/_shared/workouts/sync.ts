@@ -3,6 +3,7 @@
 // intervals-sync per ricontrollare ogni operazione prima di eseguirla.
 import type { WorkoutContent } from "./structure.ts";
 import { validateWorkout } from "./structure.ts";
+import { buildIntervalsEvent, intervalsPayloadHash } from "./intervals.ts";
 
 export type WorkoutStatus = "draft" | "approved" | "cancelled" | "superseded";
 
@@ -17,6 +18,8 @@ export interface SyncRow {
   create_uncertain: boolean;
   last_error: string | null;
   last_warning: string | null;
+  /** Impronta del contenuto inviato (ADR 0032); null per gli invii precedenti all'impronta. */
+  synced_hash?: string | null;
 }
 
 export interface SyncableWorkout extends WorkoutContent {
@@ -60,17 +63,24 @@ export interface SyncOp {
 export type LocalSyncState =
   | "none" // mai inviata
   | "synced"
-  | "outdated" // revisione o data cambiate dopo l'invio
+  | "outdated" // revisione o data cambiate dopo l'invio, o contenuto da inviare diverso
   | "error"
   | "pending_delete"
   | "removed"
   | "unlinked";
 
+/**
+ * true se cio' che PCoach invierebbe oggi e' diverso da cio' che ha inviato: per esempio dopo una
+ * correzione della conversione verso Intervals.icu. Le sedute svolte non si confrontano: il loro
+ * evento e' abbinato all'attivita' e non si tocca (ADR 0032).
+ */
+export function contentChanged(w: SyncableWorkout, row: SyncRow | null | undefined): boolean {
+  if (!row || row.remote_event_id == null || w.completed_at || w.status !== "approved") return false;
+  return row.synced_hash !== intervalsPayloadHash(buildIntervalsEvent(w.id, w));
+}
+
 /** Stato di sincronizzazione noto senza interrogare Intervals.icu (per badge e filtri). */
-export function localSyncState(
-  w: Pick<SyncableWorkout, "status" | "revision" | "planned_date">,
-  row: SyncRow | null | undefined
-): LocalSyncState | null {
+export function localSyncState(w: SyncableWorkout, row: SyncRow | null | undefined): LocalSyncState | null {
   const active = w.status === "draft" || w.status === "approved";
   if (!row) return active ? "none" : null;
   if (row.pending_delete) return "pending_delete";
@@ -80,13 +90,19 @@ export function localSyncState(
   if (!active) return null;
   if (row.remote_event_id == null) return "none";
   if (w.revision > row.synced_revision || (row.synced_date && row.synced_date !== w.planned_date)) return "outdated";
+  if (contentChanged(w, row)) return "outdated";
   return "synced";
 }
 
+/**
+ * `blockReason`: zone o soglie non allineate con Intervals.icu (ADR 0033). Le sedute da creare o
+ * aggiornare restano bloccate con il motivo; le rimozioni restano possibili.
+ */
 export function classifySyncOp(
   w: SyncableWorkout,
   row: SyncRow | null | undefined,
-  remote: RemoteSnapshot | null
+  remote: RemoteSnapshot | null,
+  blockReason: string | null = null
 ): SyncOp | null {
   const op = (kind: SyncOpKind, detail = "", selected = true): SyncOp => ({ workoutId: w.id, kind, detail, selected });
   const remoteId = row?.remote_event_id ?? null;
@@ -106,24 +122,33 @@ export function classifySyncOp(
   // Una seduta gia' svolta non si tocca su Intervals.icu: l'evento e' abbinato all'attivita'.
   if (w.completed_at) return op("same", "completed", false);
   if (row?.state === "unlinked") return op("same", "unlinked", false);
-  if (remoteId == null) return op("create", row?.create_uncertain ? "uncertain" : row?.state === "error" ? "retry" : "");
-  if (missing) return op("remote_missing", "", true);
-  if (remoteEvent && row?.remote_updated && remoteEvent.updated && remoteEvent.updated !== row.remote_updated) {
-    return op("conflict", "", true);
+  // Zone o soglie non allineate (ADR 0033): nulla da creare o aggiornare parte verso Intervals.icu.
+  const result = classifyApproved();
+  if (blockReason && result.kind !== "same") return op("blocked", blockReason, false);
+  return result;
+
+  function classifyApproved(): SyncOp {
+    if (remoteId == null) return op("create", row?.create_uncertain ? "uncertain" : row?.state === "error" ? "retry" : "");
+    if (missing) return op("remote_missing", "", true);
+    if (remoteEvent && row?.remote_updated && remoteEvent.updated && remoteEvent.updated !== row.remote_updated) {
+      return op("conflict", "", true);
+    }
+    if (row?.state === "error") return op("update", "retry");
+    if (w.revision > (row?.synced_revision ?? 0)) return op("update", `${row?.synced_revision ?? 0}:${w.revision}`);
+    if (row?.synced_date && row.synced_date !== w.planned_date) return op("update", "moved");
+    if (contentChanged(w, row)) return op("update", "format");
+    return op("same", "", false);
   }
-  if (row?.state === "error") return op("update", "retry");
-  if (w.revision > (row?.synced_revision ?? 0)) return op("update", `${row?.synced_revision ?? 0}:${w.revision}`);
-  if (row?.synced_date && row.synced_date !== w.planned_date) return op("update", "moved");
-  return op("same", "", false);
 }
 
 export function classifyWeek(
   workouts: SyncableWorkout[],
   rows: Record<string, SyncRow | undefined>,
-  remote: RemoteSnapshot | null
+  remote: RemoteSnapshot | null,
+  blockReason: string | null = null
 ): SyncOp[] {
   return workouts
-    .map((w) => classifySyncOp(w, rows[w.id], remote))
+    .map((w) => classifySyncOp(w, rows[w.id], remote, blockReason))
     .filter((o): o is SyncOp => o !== null);
 }
 

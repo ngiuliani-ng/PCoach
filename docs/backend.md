@@ -103,10 +103,13 @@ Scrive le sedute sul calendario Intervals.icu dell'atleta, e ne legge e allinea 
   - legge gli eventi `WORKOUT` della settimana e, uno per uno, quelli memorizzati che non compaiono (404 = spariti);
   - registra come svolte, con esito e dati dell'attività, le sedute approvate abbinate con certezza a un'attività (regola unica `completionsIn` in `_shared/feedback/completion.ts`: evento abbinato, oppure stesso giorno e disciplina con una sola coppia).
 
-  Risponde `{ remote: { events: [{id, updated}], missingIds }, completed }`. Non scrive nulla su Intervals.icu.
+  - confronta zone e soglie della scheda con le impostazioni su Intervals.icu (`alignmentProblems`, `syncBlockReason` in `_shared/workouts/thresholds.ts`).
+
+  Risponde `{ remote: { events: [{id, updated}], missingIds }, completed, blocked }`, con `blocked` il motivo per cui le sedute non si inviano oppure null ([decisioni/0033](decisioni/0033-zone-e-soglie-bloccano-l-invio.md)). Non scrive nulla su Intervals.icu.
 - **Richiesta `{ action: "apply", athlete_id, workout_id, op, expected_revision }`**, con `op` tra `create`, `update`, `overwrite`, `recreate` e `delete`. Esegue una sola operazione:
   - rifiuta con 409 (`code: "stale"`) se la revisione è cambiata dall'anteprima;
-  - invia solo sedute approvate e valide; rimuove solo sedute annullate o sostituite con `pending_delete`, mai se svolte;
+  - invia solo sedute approvate e valide, e solo con zone e soglie allineate (se non lo sono risponde `{ ok: false, error }` con il motivo); rimuove solo sedute annullate o sostituite con `pending_delete`, mai se svolte;
+  - dopo l'invio confronta il `workout_doc` con la struttura (`workoutDocIssue`) e salva l'impronta del contenuto (`synced_hash`), [decisioni/0032](decisioni/0032-indicazioni-separate-e-verifica-di-ritorno.md);
   - salva subito l'esito in `workout_sync` e in `workout_events`.
 
   Risponde `{ ok, outcome, warning }` oppure `{ ok: false, error }`.

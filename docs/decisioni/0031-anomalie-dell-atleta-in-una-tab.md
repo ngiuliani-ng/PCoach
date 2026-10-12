@@ -2,7 +2,7 @@
 
 **Quando leggerlo**: prima di aggiungere un nuovo tipo di avviso sulla scheda atleta, o di cambiare la tab «Anomalie» e il richiamo sopra le tab.
 
-**Stato**: attiva. Cambia la presentazione degli avvisi di [0029](0029-zone-allineate-con-intervals.md) e [0030](0030-soglie-allineate-e-stima-della-durata.md), non le loro regole.
+**Stato**: attiva; la decisione 2 (richiamo sopra le tab) è superata da [0033](0033-zone-e-soglie-bloccano-l-invio.md). Cambia la presentazione degli avvisi di [0029](0029-zone-allineate-con-intervals.md) e [0030](0030-soglie-allineate-e-stima-della-durata.md), non le loro regole.
 
 ## Contesto
 

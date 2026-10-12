@@ -43,18 +43,19 @@ async function load() {
     return;
   }
   await store.reload(); // la preview puo' aver registrato sedute svolte
-  ops.value = classify(res.data.remote);
+  ops.value = classify(res.data.remote, res.data.blocked ?? null);
   outcomes.value = {};
   phase.value = "preview";
 }
-function classify(remote: RemoteSnapshot): SyncOp[] {
+function classify(remote: RemoteSnapshot, blocked: string | null): SyncOp[] {
   // Le sedute della settimana, piu' quelle spostate altrove il cui evento e' ancora in questa.
   const scope = store.workouts.filter((w) => {
     const row = store.syncRows[w.id];
     return (w.planned_date >= props.weekStart && w.planned_date <= weekEnd.value)
       || (row?.synced_date && row.synced_date >= props.weekStart && row.synced_date <= weekEnd.value && row.remote_event_id != null);
   });
-  return classifyWeek(scope, store.syncRows, remote);
+  // Zone o soglie non allineate (ADR 0033): da creare e da aggiornare restano bloccate.
+  return classifyWeek(scope, store.syncRows, remote, blocked);
 }
 onMounted(load);
 
@@ -86,6 +87,7 @@ function detail(op: SyncOp): string {
     case "update": {
       if (op.detail === "moved") return "Spostata di data dopo l'invio.";
       if (op.detail === "retry") return "Il tentativo precedente non è riuscito.";
+      if (op.detail === "format") return "PCoach la converte in modo diverso da quando è stata inviata: va inviata di nuovo.";
       const [from, to] = op.detail.split(":");
       return `Modificata dopo l'invio (revisione ${from} → ${to}).`;
     }

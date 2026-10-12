@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { addDaysISO, dayKey, isISODate, todayISO, weekStartISO } from "@shared/workouts/calendar.ts";
 import type { WorkoutContent } from "@shared/workouts/structure.ts";
 import { defaultTargetMetric, flattenSteps, parseZones, validateWorkout, workoutTotals } from "@shared/workouts/structure.ts";
-import { buildIntervalsEvent, intervalsWorkoutText } from "@shared/workouts/intervals.ts";
+import { buildIntervalsEvent, intervalsPayloadHash, intervalsWorkoutText, workoutDocIssue } from "@shared/workouts/intervals.ts";
 import type { SyncRow, SyncableWorkout } from "@shared/workouts/sync.ts";
 import { classifySyncOp, isRunnable, localSyncState } from "@shared/workouts/sync.ts";
 
@@ -83,7 +83,7 @@ describe("zone e struttura", () => {
 describe("conversione per Intervals.icu", () => {
   it("bici in potenza: zone senza suffisso, ripetuta con intestazione e righe vuote", () => {
     expect(intervalsWorkoutText(bike())).toBe(
-      ["- Riscaldamento 15m Z1-Z2", "", "Serie principale 4x", "- 8m Z4", "- 3m Z1", "", "- Defaticamento 10m Z1"].join("\n")
+      ["- Riscaldamento<!> 15m Z1-Z2", "", "Serie principale 4x", "- 8m Z4", "- 3m Z1", "", "- Defaticamento<!> 10m Z1"].join("\n")
     );
   });
 
@@ -105,7 +105,7 @@ describe("conversione per Intervals.icu", () => {
       }
     };
     expect(intervalsWorkoutText(run)).toBe(
-      ["- Riscaldamento 10m Z2 Pace", "", "Serie 3x", "- Ritmo gara 2km Z3 Pace", "- 1m30s Z1 Pace", "", "- Defaticamento 400mtr Z1 Pace"].join("\n")
+      ["- Riscaldamento<!> 10m Z2 Pace", "", "Serie 3x", "- Ritmo gara<!> 2km Z3 Pace", "- 1m30s Z1 Pace", "", "- Defaticamento<!> 400mtr Z1 Pace"].join("\n")
     );
     const event = buildIntervalsEvent("abc", run);
     expect(event.type).toBe("Run");
@@ -130,7 +130,7 @@ describe("conversione per Intervals.icu", () => {
       moving_time: 69 * 60,
       target: "POWER"
     });
-    expect(event.description.startsWith("Cadenza alta nelle ripetute.\n\n- Riscaldamento")).toBe(true);
+    expect(event.description.startsWith("Cadenza alta nelle ripetute.\n\n- Riscaldamento<!>")).toBe(true);
   });
 
   it("palestra: solo note e durata, nessun target", () => {
@@ -142,7 +142,53 @@ describe("conversione per Intervals.icu", () => {
   it("toglie a capo e trattini dalle indicazioni", () => {
     const w = bike();
     (w.structure!.steps[0] as { cue?: string }).cue = "- Sciolto\ne tranquillo";
-    expect(intervalsWorkoutText(w).split("\n")[0]).toBe("- Sciolto e tranquillo 15m Z1-Z2");
+    expect(intervalsWorkoutText(w).split("\n")[0]).toBe("- Sciolto e tranquillo<!> 15m Z1-Z2");
+  });
+
+  // Verificato su un account di prova il 2026-10-13 (ADR 0032): senza separatore Intervals.icu legge
+  // "1000m" dell'indicazione come 1000 minuti; con "<!>" l'indicazione resta testo.
+  it("l'indicazione e' separata dalla definizione con <!>, e non puo' contenere segni di Intervals.icu", () => {
+    const w = bike();
+    (w.structure!.steps[0] as { cue?: string }).cue = "1000m @ ritmo gara<!> 5^ prova";
+    expect(intervalsWorkoutText(w).split("\n")[0]).toBe("- 1000m @ ritmo gara 5 prova<!> 15m Z1-Z2");
+  });
+
+  it("le intestazioni delle ripetute restano senza separatore: Intervals.icu non le interpreta", () => {
+    const w = bike();
+    (w.structure!.steps[1] as { label?: string }).label = "Serie 1000m";
+    expect(intervalsWorkoutText(w)).toContain("\nSerie 1000m 4x\n");
+  });
+});
+
+describe("verifica di ritorno da Intervals.icu", () => {
+  const run = (): WorkoutContent => ({
+    ...bike(), discipline: "running", primary_target: "pace",
+    structure: { version: 2, steps: [
+      { kind: "step", role: "warmup", duration: { type: "time", seconds: 600 }, target: { zone: 1 } },
+      { kind: "repeat", count: 5, steps: [
+        { kind: "step", role: "work", duration: { type: "distance", meters: 1000 }, target: { zone: 5 } },
+        { kind: "step", role: "recovery", duration: { type: "time", seconds: 120 }, target: { zone: 1 } }
+      ] }
+    ] }
+  });
+  const doc = (workSeconds = 234, workDistance: number | null = 1000) => [
+    { duration: 600 },
+    { reps: 5, steps: [{ duration: workSeconds, distance: workDistance }, { duration: 120 }] }
+  ];
+
+  it("letta come definita: nessun avviso", () => {
+    expect(workoutDocIssue(run(), doc())).toBeNull();
+  });
+  it("uno step letto con un'altra durata: avviso con lo step e i due valori", () => {
+    const w = run();
+    (w.structure!.steps[0] as { duration: unknown }).duration = { type: "time", seconds: 240 };
+    expect(workoutDocIssue(w, [{ duration: 60000 }, doc()[1]])).toBe("Intervals.icu ha letto lo step 1 come 1000' invece di 4': controlla la seduta sul suo calendario.");
+  });
+  it("una ripetuta letta a tempo invece che a distanza", () => {
+    expect(workoutDocIssue(run(), doc(240, null))).toBe("Intervals.icu ha letto lo step 1 della ripetuta 2 come 4' invece di 1000 m: controlla la seduta sul suo calendario.");
+  });
+  it("numero di step diverso", () => {
+    expect(workoutDocIssue(run(), [{ duration: 600 }])).toMatch(/ha letto 1 step invece di 2/);
   });
 });
 
@@ -152,7 +198,8 @@ describe("classificazione della sincronizzazione", () => {
   });
   const row = (over: Partial<SyncRow> = {}): SyncRow => ({
     workout_id: "w1", remote_event_id: 100, synced_revision: 1, synced_date: "2026-10-13", remote_updated: "t1",
-    state: "synced", pending_delete: false, create_uncertain: false, last_error: null, last_warning: null, ...over
+    state: "synced", pending_delete: false, create_uncertain: false, last_error: null, last_warning: null,
+    synced_hash: intervalsPayloadHash(buildIntervalsEvent("w1", base())), ...over
   });
   const remote = { events: [{ id: 100, updated: "t1" }], missingIds: [] };
 
@@ -184,6 +231,20 @@ describe("classificazione della sincronizzazione", () => {
     expect(op.kind).toBe("delete");
     expect(isRunnable(op)).toBe(true);
     expect(isRunnable({ ...op, selected: false })).toBe(false);
+  });
+  it("contenuto da inviare diverso da quello inviato (conversione cambiata o invio precedente all'impronta): aggiornamento", () => {
+    expect(classifySyncOp(base(), row({ synced_hash: "00000000" }), remote)).toMatchObject({ kind: "update", detail: "format" });
+    expect(classifySyncOp(base(), row({ synced_hash: null }), remote)).toMatchObject({ kind: "update", detail: "format" });
+    expect(localSyncState(base(), row({ synced_hash: null }))).toBe("outdated");
+    // Una seduta svolta non si confronta: il suo evento non si tocca.
+    expect(localSyncState(base({ completed_at: "2026-10-13T08:00:00Z" }), row({ synced_hash: null }))).toBe("synced");
+  });
+  it("zone o soglie non allineate: da creare e da aggiornare bloccate con il motivo, le rimozioni no", () => {
+    const why = "Non si invia finché zone e soglie non sono allineate con Intervals.icu: zone diverse (…).";
+    expect(classifySyncOp(base(), null, remote, why)).toMatchObject({ kind: "blocked", detail: why, selected: false });
+    expect(classifySyncOp(base({ revision: 2 }), row(), remote, why)?.kind).toBe("blocked");
+    expect(classifySyncOp(base(), row(), remote, why)?.kind).toBe("same");
+    expect(classifySyncOp(base({ status: "cancelled" }), row({ pending_delete: true }), remote, why)?.kind).toBe("delete");
   });
   it("svolta: non si tocca", () => {
     expect(classifySyncOp(base({ revision: 3, completed_at: "2026-10-13T08:00:00Z" }), row(), remote)?.kind).toBe("same");

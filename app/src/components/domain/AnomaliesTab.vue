@@ -1,7 +1,7 @@
 <script setup lang="ts">
-// Tab «Anomalie» della scheda (ADR 0031): le anomalie dell'atleta raggruppate per cio' che fermano,
-// ognuna con l'azione per sistemarla. L'elenco lo calcola useAthleteAnomalies, condiviso con il
-// richiamo sopra le tab.
+// Tab «Anomalie» della scheda (ADR 0031, 0033): le anomalie dell'atleta raggruppate per cio' che
+// fermano, ognuna con l'azione per sistemarla. L'elenco lo calcola useAthleteAnomalies, che da'
+// anche il numero nell'etichetta della tab.
 import { computed } from "vue";
 import type { Anomaly, AnomalyGroup } from "../../composables/useAthleteAnomalies";
 import { CircleAlert, TriangleAlert } from "lucide-vue-next";
@@ -9,6 +9,7 @@ import { CircleAlert, TriangleAlert } from "lucide-vue-next";
 const props = defineProps<{ anomalies: Anomaly[]; checking: boolean; busy: boolean }>();
 
 const GROUPS: { key: AnomalyGroup; title: string; help: string }[] = [
+  { key: "both", title: "Fermano il feedback e l'invio a Intervals.icu", help: "Finché restano, il feedback del lunedì non parte e le sedute non vanno sul calendario dell'atleta." },
   { key: "feedback", title: "Fermano il feedback settimanale", help: "Il feedback del lunedì non parte, o non arriva all'atleta, finché restano." },
   { key: "sync", title: "Fermano l'invio a Intervals.icu", help: "Le sedute coinvolte restano in PCoach: l'atleta non le vede sul suo calendario." }
 ];

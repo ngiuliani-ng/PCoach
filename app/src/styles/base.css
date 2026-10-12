@@ -288,10 +288,7 @@ button:focus-visible, a:focus-visible {
   font-size: var(--fs-sm);
 }
 .update-banner .link-btn { font-weight: 600; margin-left: var(--sp-1); }
-/* Richiamo delle anomalie sopra le tab (ADR 0031): una riga, il dettaglio e' nella tab. */
-.anomaly-callout { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-2); }
-.anomaly-callout svg { flex-shrink: 0; }
-.anomaly-callout .link-btn { margin-left: 0; }
+/* Numero di anomalie nell'etichetta della tab (ADR 0031): l'unico richiamo fuori dalla tab. */
 .tab-count {
   margin-left: var(--sp-1);
   padding: 0 6px;
