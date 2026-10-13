@@ -213,7 +213,8 @@ async function startGeneration() {
 }
 
 async function copyPrompt() {
-  showToast((await copyToClipboardFallback(promptText.value)) ? "Prompt copiato negli appunti." : "Copia non riuscita: seleziona il testo e copialo a mano.");
+  if (await copyToClipboardFallback(promptText.value)) showToast("Prompt copiato negli appunti.");
+  else showToast("Copia non riuscita: seleziona il testo e copialo a mano.", "error");
 }
 
 async function handleResponse(text: string, truncated = false) {

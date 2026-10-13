@@ -166,3 +166,18 @@ test("modello di zone non valido: niente conferma prima del rifiuto, sezione seg
   await expect(section.locator(".section-toggle")).toHaveAttribute("aria-expanded", "true");
   await expect(section.getByText("Ogni valore va da 1 a 400.")).toBeVisible();
 });
+
+test("anomalie con la scheda modificata: «Salva o annulla prima…» è un errore che resta (A-19)", async ({ page }) => {
+  const state = createState();
+  profileOf(state).physiological_thresholds.running.zone_system = "5-zone";
+  await installMockBackend(page, state);
+  await page.goto(`./#/atleta/${ATHLETE_ID}/profilo`);
+  await openSection(page, "Note libere");
+  await page.locator("textarea[aria-label='Note libere']").fill("modifica non salvata");
+  await page.getByRole("tab", { name: /Anomalie/ }).click();
+  await page.getByRole("button", { name: "Usa 7 zone in PCoach" }).click();
+  // Spiega perché l'azione non è partita: errore persistente (role=alert), non un messaggio che sparisce.
+  await expect(page.getByRole("alert")).toHaveText("Salva o annulla prima le modifiche della scheda.");
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+  expect(profileOf(state).physiological_thresholds.running.zone_system).toBe("5-zone");
+});

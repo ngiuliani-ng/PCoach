@@ -121,7 +121,9 @@ export const useReviewsStore = defineStore("reviews", {
         .eq("id", id).eq("status", "draft").select("id, coach_text, coach_text_at");
       if (error) {
         this.unsavedText[id] = "failed";
-        if (!quiet && !notified.has(id)) showToast(`Testo del feedback non salvato: ${error.message}. Riprovo alla prossima modifica.`, "error");
+        // Il dettaglio tecnico va in console, non nel messaggio (audit A-19).
+        console.warn("Salvataggio del testo del feedback non riuscito:", error.message);
+        if (!quiet && !notified.has(id)) showToast("Testo del feedback non salvato: riprovo alla prossima modifica. Se il problema resta, controlla la connessione.", "error");
         notified.add(id);
         return false;
       }

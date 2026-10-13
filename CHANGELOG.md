@@ -14,6 +14,7 @@ Ordine: più recente in cima. Versioni con [Semantic Versioning](https://semver.
 
 ### Modificato
 - «Modifica i parametri» dopo una proposta di Claude, e «Indietro» con una risposta incollata, chiedono conferma («Scarta la proposta e modifica i parametri» / «Tieni la proposta») — la proposta si perdeva con un clic — decisione del coach D-01 ([audit A-07](docs/audit/2026-10-ux-ui-1-2-0/README.md#a-07)) — docs: design-ui, sviluppo-deploy.
+- I messaggi informativi restano a schermo in base alla lunghezza del testo (da 4 a 10 secondi), si fermano con il puntatore o il focus sopra e hanno il pulsante di chiusura — sparivano dopo 2,6 secondi anche se lunghi — decisione del coach D-02 ([audit A-08](docs/audit/2026-10-ux-ui-1-2-0/README.md#a-08)) — docs: design-ui, sviluppo-deploy.
 
 ### Corretto
 - «Prosegui il piano» e «Ripianifica», riaperti da un ricaricamento o da un link, partivano da domani invece che dopo il piano attivo e non tenevano più le sedute bloccate: ora aspettano che sedute e piano siano letti, e con una lettura non riuscita mostrano l'errore con «Riprova» e non preparano né applicano la proposta — i valori iniziali si calcolavano prima del caricamento ([audit A-01](docs/audit/2026-10-ux-ui-1-2-0/README.md#a-01)) — docs: design-ui, sviluppo-deploy.
@@ -23,6 +24,7 @@ Ordine: più recente in cima. Versioni con [Semantic Versioning](https://semver.
 - Login: senza rete il messaggio è «Server di accesso non raggiungibile» e non più «Credenziali non valide.»; dopo un errore il focus torna sulla password ([audit A-15](docs/audit/2026-10-ux-ui-1-2-0/README.md#a-15)) — docs: sicurezza, sviluppo-deploy.
 - Feedback di un atleta senza email: la nota su cosa succede approvando sta prima di «Approva», e «Aggiungi l'indirizzo nel Profilo» è un link che apre Identità, anche nella riga «Email non inviata» ([audit A-18](docs/audit/2026-10-ux-ui-1-2-0/README.md#a-18)) — docs: design-ui, sviluppo-deploy.
 - Bozza di un nuovo atleta: scegliendo «Resta» all'uscita (o con «Salva e continua» rifiutato, o con «indietro» del browser) quanto scritto restava perso e la pagina bloccata su «Caricamento…»; ora la bozza resta intatta — la chiusura della bozza scattava anche sulle navigazioni annullate ([audit A-28](docs/audit/2026-10-ux-ui-1-2-0/README.md#a-28)) — docs: architettura, sviluppo-deploy.
+- Gli errori delle azioni su Intervals.icu dalla tab Anomalie, «Salva o annulla prima le modifiche della scheda.» e «Copia non riuscita» del prompt sono errori che restano, non messaggi che spariscono; il salvataggio non riuscito del testo del feedback non mostra più il messaggio tecnico del server ([audit A-19](docs/audit/2026-10-ux-ui-1-2-0/README.md#a-19)) — docs: design-ui, sviluppo-deploy.
 
 ## [1.2.0] — 2026-10-13
 

@@ -56,7 +56,9 @@ test("un salvataggio non riuscito: errore, nuvola rossa e domanda uscendo dalla 
   });
   await page.goto(`./#/atleta/${ATHLETE_ID}/panoramica`);
   await draftText(page).fill("Correzione che non si salva.");
-  await expect(page.getByRole("alert")).toContainText("Testo del feedback non salvato");
+  await expect(page.getByRole("alert")).toHaveText("Testo del feedback non salvato: riprovo alla prossima modifica. Se il problema resta, controlla la connessione.");
+  // Nessun dettaglio tecnico del server nel messaggio (audit A-19).
+  await expect(page.getByRole("alert")).not.toContainText("rete non disponibile");
   await expect(cloud(page)).toHaveClass(/unsaved/);
   await page.getByRole("button", { name: "Chiudi messaggio" }).click();
   const menu = page.getByRole("button", { name: "Apri la barra laterale" });

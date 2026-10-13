@@ -334,3 +334,33 @@ test("Impostazioni: solo la nuvola del salvataggio, colorata per stato, salvata 
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(0);
 });
+
+test("toast informativo: resta con il puntatore o il focus sopra e si chiude anche da tastiera (A-08, D-02)", async ({ page }) => {
+  await installMockBackend(page, createState());
+  await page.goto(`./#/atleta/${ATHLETE_ID}/piano?settimana=2026-10-12`);
+  const toast = page.locator(".toast");
+  await page.locator(".w-row", { hasText: "VO2max" }).getByRole("button", { name: "Approva" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Seduta approvata." })).toBeVisible();
+
+  // Con il puntatore sopra il toast non sparisce, oltre la sua durata (4 s + 60 ms per carattere).
+  await toast.hover();
+  await page.waitForTimeout(6500);
+  await expect(toast).toHaveClass(/show/);
+  // Tolto il puntatore riparte il tempo che restava (almeno 2 s), poi sparisce.
+  await page.mouse.move(5, 5);
+  await expect(toast).toHaveClass(/show/);
+  await expect(toast).not.toHaveClass(/show/, { timeout: 7000 });
+
+  // Il pulsante di chiusura c'e' anche per i messaggi informativi; con il focus sopra il toast resta.
+  await page.getByRole("button", { name: /Apri Corsa rigenerativa/ }).click();
+  const drawer = page.getByRole("dialog");
+  await drawer.getByLabel("Obiettivo della seduta").fill("Recupero attivo");
+  await drawer.getByRole("button", { name: "Salva modifiche" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Modifiche salvate" })).toBeVisible();
+  const close = toast.getByRole("button", { name: "Chiudi messaggio" });
+  await close.focus();
+  await page.waitForTimeout(7000);
+  await expect(toast).toHaveClass(/show/);
+  await page.keyboard.press("Enter");
+  await expect(toast).not.toHaveClass(/show/);
+});

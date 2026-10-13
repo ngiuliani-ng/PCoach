@@ -113,7 +113,7 @@ export function useAthleteAnomalies(nav: AnomalyNavigation) {
 
   async function adoptIntervalsZones(c: ZoneCheck) {
     if (athletes.isDirty) {
-      showToast("Salva o annulla prima le modifiche della scheda.");
+      showToast("Salva o annulla prima le modifiche della scheda.", "error");
       return;
     }
     if (c.discipline === "swimming") return;
@@ -144,7 +144,7 @@ export function useAthleteAnomalies(nav: AnomalyNavigation) {
     const models = resolveZoneModels(JSON.parse(settings.baseline).zone_models);
     const update = icuZonesUpdate(c.key, c.pcoach, models, sport);
     if (!update.ok) {
-      showToast(update.error);
+      showToast(update.error, "error");
       return;
     }
     const model = models[c.key][c.pcoach]!;
@@ -157,7 +157,7 @@ export function useAthleteAnomalies(nav: AnomalyNavigation) {
     busy.value = true;
     const res = await applyZones(id, c.discipline, c.key, c.pcoach);
     busy.value = false;
-    if (!res.ok || !res.data.ok) showToast(res.ok ? res.data.error ?? "Aggiornamento non riuscito." : res.error);
+    if (!res.ok || !res.data.ok) showToast(res.ok ? res.data.error ?? "Aggiornamento non riuscito." : res.error, "error");
     else showToast(`Zone aggiornate su Intervals.icu: ${c.pcoach} zone per ${disciplineWord(c)}.`);
     await load();
   }
@@ -173,7 +173,7 @@ export function useAthleteAnomalies(nav: AnomalyNavigation) {
     busy.value = true;
     const res = await applyThreshold(id, c.discipline);
     busy.value = false;
-    if (!res.ok || !res.data.ok) showToast(res.ok ? res.data.error ?? "Aggiornamento non riuscito." : res.error);
+    if (!res.ok || !res.data.ok) showToast(res.ok ? res.data.error ?? "Aggiornamento non riuscito." : res.error, "error");
     else showToast(`Soglia aggiornata su Intervals.icu: ${c.label.toLowerCase()} ${c.format(c.pcoach)}.`);
     await load();
   }

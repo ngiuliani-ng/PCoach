@@ -1158,11 +1158,11 @@ button.add-row:hover { background: var(--surface-2); }
 /* Con un pannello o un dialogo aperto il toast sale sopra il loro piede, che altrimenti coprirebbe
    (su mobile il piede va su due righe): un errore che resta visibile non deve bloccare i pulsanti. */
 body:has(.drawer-foot) .toast, body:has(.dialog-foot) .toast { bottom: calc(var(--sp-5) + 112px); }
+.toast { padding-right: var(--sp-1); }
 .toast.error {
   background: var(--danger-bg);
   color: var(--danger);
   border: 1px solid currentColor;
-  padding-right: var(--sp-1);
 }
 .toast-text:empty { display: none; }
 .toast-close {
