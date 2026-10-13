@@ -200,9 +200,7 @@ test("nuovo atleta senza nome: «Salva» apre Identità, porta al campo e lo seg
   await expect(page).toHaveURL(/#\/atleta\/[A-Z0-9]+\/profilo/);
 });
 
-// In attesa della correzione di A-28 (audit 2026-10-ux-ui-1-2-0): una navigazione annullata dalla guardia
-// chiude la bozza in router.afterEach, e la scheda resta su «Caricamento…».
-test.fixme("nuovo atleta senza nome: «Salva e continua» resta sulla scheda e porta al campo (A-06)", async ({ page }) => {
+test("nuovo atleta senza nome: «Salva e continua» resta sulla scheda e porta al campo (A-06, A-28)", async ({ page }) => {
   await installMockBackend(page, createState());
   await page.goto("./#/atleta/nuovo");
   await openSection(page, "Note libere");
@@ -215,6 +213,8 @@ test.fixme("nuovo atleta senza nome: «Salva e continua» resta sulla scheda e p
   await expect(page).toHaveURL(/#\/atleta\/nuovo/);
   await expect(page.getByLabel("Nome", { exact: true })).toBeFocused();
   await expect(page.getByText("Il nome è obbligatorio per salvare la scheda.")).toBeVisible();
+  // La bozza e' intatta (A-28): la nota scritta prima c'e' ancora.
+  await expect(page.locator("textarea[aria-label='Note libere']")).toHaveValue("prima nota");
 });
 
 test("login: rete assente e credenziali sbagliate hanno messaggi diversi, il focus torna sulla password (A-15)", async ({ page }) => {
@@ -236,4 +236,83 @@ test("login: rete assente e credenziali sbagliate hanno messaggi diversi, il foc
   await page.getByRole("button", { name: "Accedi" }).click();
   await expect(page.getByRole("alert")).toHaveText("Credenziali non valide.");
   await expect(page.getByLabel("Password")).toBeFocused();
+});
+
+// ---------- Audit A-28: una navigazione annullata non deve chiudere la bozza del nuovo atleta ----------
+
+/** Bozza di nuovo atleta con un cognome scritto nella sezione Identità. */
+async function draftWithSurname(page: Page) {
+  await installMockBackend(page, createState());
+  await page.goto("./");
+  const menu = page.getByRole("button", { name: "Apri la barra laterale" });
+  if (await menu.isVisible().catch(() => false)) await menu.click();
+  await page.getByRole("button", { name: "Nuovo atleta" }).click();
+  await openSection(page, "Identità");
+  await page.getByLabel("Cognome").fill("Rossi");
+}
+async function leaveToHome(page: Page) {
+  const menu = page.getByRole("button", { name: "Apri la barra laterale" });
+  if (await menu.isVisible().catch(() => false)) await menu.click();
+  await page.getByRole("button", { name: /^Da fare/ }).click();
+}
+
+test("bozza di nuovo atleta, uscita e «Resta»: la bozza resta intatta e si salva (A-28)", async ({ page }) => {
+  await draftWithSurname(page);
+  await leaveToHome(page);
+  await page.getByRole("alertdialog").getByRole("button", { name: "Resta" }).click();
+
+  await expect(page).toHaveURL(/#\/atleta\/nuovo$/);
+  await expect(page.getByText("Caricamento…")).toHaveCount(0);
+  await expect(page.getByLabel("Cognome")).toHaveValue("Rossi");
+  // «Resta» riporta allo stato di prima: il focus torna su «Da fare»; su telefono il drawer, da cui si
+  // era usciti, e' ancora aperto e si chiude con Esc.
+  await expect(page.getByRole("button", { name: /^Da fare/ })).toBeFocused();
+  if (await page.locator(".sidebar.open").count()) {
+    await page.keyboard.press("Escape");
+    await expect(page.locator(".sidebar.open")).toHaveCount(0);
+  }
+  // L'interfaccia continua a funzionare: si completa e si salva.
+  await page.getByLabel("Nome", { exact: true }).fill("Anna");
+  await page.getByRole("button", { name: "Salva", exact: true }).click();
+  await expect(page).toHaveURL(/#\/atleta\/[A-Z0-9]+\/profilo/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Anna Rossi");
+});
+
+test("bozza di nuovo atleta, «indietro» del browser e «Resta»: la bozza resta intatta (A-28)", async ({ page }) => {
+  await draftWithSurname(page);
+  await page.goBack();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Resta" }).click();
+  await expect(page).toHaveURL(/#\/atleta\/nuovo$/);
+  await expect(page.getByText("Caricamento…")).toHaveCount(0);
+  await expect(page.getByLabel("Cognome")).toHaveValue("Rossi");
+});
+
+test("bozza di nuovo atleta, uscita confermata: la bozza si chiude e la successiva parte vuota (A-28)", async ({ page }) => {
+  await draftWithSurname(page);
+  await leaveToHome(page);
+  await page.getByRole("alertdialog").getByRole("button", { name: "Esci senza salvare" }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Da fare");
+  await expect(page.locator(".draft-card")).toHaveCount(0);
+
+  const menu = page.getByRole("button", { name: "Apri la barra laterale" });
+  if (await menu.isVisible().catch(() => false)) await menu.click();
+  await page.getByRole("button", { name: "Nuovo atleta" }).click();
+  await openSection(page, "Identità");
+  await expect(page.getByLabel("Cognome")).toHaveValue("");
+});
+
+test("bozza di nuovo atleta, «Salva e continua» riuscito: la scheda è salvata e la navigazione completa (A-28)", async ({ page }) => {
+  const state = createState();
+  await installMockBackend(page, state);
+  await page.goto("./#/atleta/nuovo");
+  await openSection(page, "Identità");
+  await page.getByLabel("Nome", { exact: true }).fill("Anna");
+  await page.getByLabel("Cognome").fill("Rossi");
+  await leaveToHome(page);
+  await page.getByRole("alertdialog").getByRole("button", { name: "Salva e continua" }).click();
+
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Da fare");
+  await expect(page.locator(".draft-card")).toHaveCount(0);
+  expect(state.tables.athletes.some((a) => (a.data as { identity: { cognome: string } }).identity.cognome === "Rossi")).toBe(true);
+  await expect(page.getByRole("button", { name: /Anna Rossi/ })).toBeAttached();
 });

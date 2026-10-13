@@ -22,6 +22,7 @@ Ordine: più recente in cima. Versioni con [Semantic Versioning](https://semver.
 - Salvare una scheda senza nome apre Identità, porta il focus su «Nome» e mostra l'errore sotto il campo — c'era solo un toast, con la sezione chiusa ([audit A-06](docs/audit/2026-10-ux-ui-1-2-0/README.md#a-06)) — docs: design-ui, sviluppo-deploy.
 - Login: senza rete il messaggio è «Server di accesso non raggiungibile» e non più «Credenziali non valide.»; dopo un errore il focus torna sulla password ([audit A-15](docs/audit/2026-10-ux-ui-1-2-0/README.md#a-15)) — docs: sicurezza, sviluppo-deploy.
 - Feedback di un atleta senza email: la nota su cosa succede approvando sta prima di «Approva», e «Aggiungi l'indirizzo nel Profilo» è un link che apre Identità, anche nella riga «Email non inviata» ([audit A-18](docs/audit/2026-10-ux-ui-1-2-0/README.md#a-18)) — docs: design-ui, sviluppo-deploy.
+- Bozza di un nuovo atleta: scegliendo «Resta» all'uscita (o con «Salva e continua» rifiutato, o con «indietro» del browser) quanto scritto restava perso e la pagina bloccata su «Caricamento…»; ora la bozza resta intatta — la chiusura della bozza scattava anche sulle navigazioni annullate ([audit A-28](docs/audit/2026-10-ux-ui-1-2-0/README.md#a-28)) — docs: architettura, sviluppo-deploy.
 
 ## [1.2.0] — 2026-10-13
 

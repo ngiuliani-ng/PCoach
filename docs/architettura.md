@@ -134,7 +134,7 @@ Il drawer della sidebar su mobile (backdrop cliccabile, Esc, scroll-lock, gestio
 
 Il pannello della seduta, i dialoghi del piano e la guida sono parametri di query (`?seduta=<id>`, `?dialogo=genera|prosegui|ripianifica|sincronizza`, `?guida=<gruppo>`, composable `useQueryLayer`): «indietro» li chiude e un ricaricamento li riapre. Altri parametri portano a un punto della pagina: `?feedback=<id>` (una settimana del feedback), `?sezione=<id>` (una sezione del Profilo o delle Impostazioni), `?settimana=<data>` (la settimana del Piano).
 
-La guardia globale (`router.ts`) chiede «Salva e continua / Esci senza salvare / Resta» quando si lascia una scheda o le Impostazioni con modifiche non salvate; «Esci» fa la stessa domanda. La chiusura della pagina usa l'avviso del browser (`beforeunload` in `App.vue`). Il pannello della seduta e i dialoghi hanno guardie proprie: conferma per le modifiche della seduta, nessuna chiusura durante generazione, applicazione o sincronizzazione.
+La guardia globale (`router.ts`) chiede «Salva e continua / Esci senza salvare / Resta» quando si lascia una scheda o le Impostazioni con modifiche non salvate; «Esci» fa la stessa domanda. Con «Resta» o con un salvataggio rifiutato la navigazione non avviene e la scheda, anche la bozza di un nuovo atleta, resta com'era: la bozza si chiude solo in `afterEach` di una navigazione completata (vue-router chiama `afterEach` anche per quelle annullate, con `failure`). La chiusura della pagina usa l'avviso del browser (`beforeunload` in `App.vue`). Il pannello della seduta e i dialoghi hanno guardie proprie: conferma per le modifiche della seduta, nessuna chiusura durante generazione, applicazione o sincronizzazione.
 
 **Apertura scheda + sincronizzazione**
 ```

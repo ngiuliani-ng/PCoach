@@ -117,7 +117,11 @@ export function installNavigationGuards(r: Router) {
     if (from.name === "settings" && to.name !== "settings" && !(await confirmLeaveSettings())) return false;
     return true;
   });
-  r.afterEach((to) => {
+  r.afterEach((to, _from, failure) => {
+    // vue-router chiama afterEach anche per le navigazioni non avvenute (annullate dalla guardia con
+    // «Resta» o con un salvataggio rifiutato, superate da un'altra, duplicate): la rotta resta quella di
+    // prima e la bozza non va chiusa (audit A-28).
+    if (failure) return;
     // Una bozza di nuovo atleta vive solo nella sua rotta: uscendo (gia' confermato) si chiude.
     const athletes = useAthletesStore();
     if (to.name !== "new-athlete" && athletes.currentId === null && athletes.currentProfile) athletes.closeEditor();
