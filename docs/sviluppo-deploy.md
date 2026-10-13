@@ -69,7 +69,14 @@ Gli esiti finiscono in `test-results/`, non tracciata.
 
 ## Edge Function
 
-Le funzioni in `supabase/functions/` si pubblicano sul progetto Supabase. Il CLI non è nel repository: si usa la dashboard oppure lo strumento di deploy del MCP Supabase. `intervals-sync` importa i moduli di `functions/_shared/workouts/` (zone comprese) e di `functions/_shared/feedback/` (abbinamento delle sedute svolte); `weekly-feedback` quelli di `functions/_shared/feedback/` e `functions/_shared/workouts/` (calendario e struttura) e il mittente email. Vanno pubblicati insieme alla funzione, con nomi relativi (`../_shared/...`). Il CLI Deno non è installato: i tipi delle funzioni si controllano con `tsc` usando un'interfaccia minima per `Deno`, e la logica vive nei moduli condivisi, testati con Vitest.
+Le funzioni in `supabase/functions/` si pubblicano sul progetto Supabase con il CLI, senza installarlo nel repository:
+
+```
+npx supabase login        # una volta, da un terminale normale: apre il browser
+npx supabase functions deploy <funzione> [<funzione> ...] --project-ref lykalqkkxckzsphlnhij --use-api
+```
+
+`--use-api` impacchetta la funzione sul server, senza Docker, caricando dal disco tutti i moduli importati. Il login va fatto fuori da Claude Code: il comando `!` non ha un terminale interattivo, e un token passato con `--token` resterebbe scritto nella conversazione. Lo strumento di deploy del MCP Supabase richiede invece il contenuto di ogni file nella richiesta: va bene solo per funzioni piccole. `intervals-sync` importa i moduli di `functions/_shared/workouts/` (zone comprese) e di `functions/_shared/feedback/` (abbinamento delle sedute svolte); `weekly-feedback` quelli di `functions/_shared/feedback/` e `functions/_shared/workouts/` (calendario e struttura) e il mittente email. Vanno pubblicati insieme alla funzione, con nomi relativi (`../_shared/...`). Il CLI Deno non è installato: i tipi delle funzioni si controllano con `tsc` usando un'interfaccia minima per `Deno`, e la logica vive nei moduli condivisi, testati con Vitest.
 
 L'ordine conta: prima le migrazioni (`supabase/migrations/`, in ordine numerico), poi le funzioni che leggono le nuove tabelle o colonne, infine l'app. `claude-proxy` e `weekly-feedback` importano anche `functions/_shared/claude/models.ts`. `athlete-checks` importa `functions/_shared/workouts/` (calendario, soglie, zone, `athleteChecks.ts`, `loadMetrics.ts`). Tutte e quattro importano `functions/_shared/version.ts` e restituiscono la versione nell'intestazione `x-pcoach-version` (vedi [§ Rilascio](#rilascio-di-una-versione)).
 
