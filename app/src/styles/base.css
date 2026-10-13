@@ -1,5 +1,8 @@
 * { box-sizing: border-box; }
 html, body { height: 100%; }
+/* L'intestazione di pagina e' sticky (al piu' ~74 px, non va a capo): un campo che riceve il focus, o una
+   sezione portata in vista, si ferma sotto di lei invece di finirle dietro (audit A-03, WCAG 2.4.11). */
+html { scroll-padding-top: calc(var(--titlebar-h) + 88px); }
 body {
   margin: 0;
   background: var(--bg);

@@ -364,3 +364,27 @@ test("toast informativo: resta con il puntatore o il focus sopra e si chiude anc
   await page.keyboard.press("Enter");
   await expect(toast).not.toHaveClass(/show/);
 });
+
+test("il focus da tastiera non finisce sotto l'intestazione fissa (A-03, WCAG 2.4.11)", async ({ page }) => {
+  await installMockBackend(page, createState());
+  for (const size of [{ width: 1440, height: 900 }, { width: 390, height: 844 }, { width: 640, height: 400 }]) {
+    await page.setViewportSize(size);
+    await page.goto(`./#/atleta/${ATHLETE_ID}/profilo`);
+    await page.evaluate(() => document.querySelectorAll<HTMLButtonElement>(".section-toggle[aria-expanded=false]").forEach((b) => b.click()));
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await page.locator("textarea[aria-label='Note libere']").focus();
+    const covered: string[] = [];
+    for (let i = 0; i < 60; i++) {
+      await page.keyboard.press("Shift+Tab");
+      const hit = await page.evaluate(() => {
+        const el = document.activeElement as HTMLElement | null;
+        const header = document.querySelector(".page-header");
+        if (!el || !header || el.closest(".page-header") || el.closest("#athlete-sidebar")) return null;
+        const r = el.getBoundingClientRect();
+        return r.top < header.getBoundingClientRect().bottom - 1 ? `${el.tagName} ${Math.round(r.top)}` : null;
+      });
+      if (hit) covered.push(hit);
+    }
+    expect(covered, `${size.width}×${size.height}`).toEqual([]);
+  }
+});
