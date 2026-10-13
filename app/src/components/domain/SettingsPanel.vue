@@ -2,15 +2,18 @@
 // Impostazioni (decisioni del coach D-02, D-04): due gruppi d'uso comune, Claude e generazione e
 // Feedback settimanale, poi «Avanzate» con le regole che cambiano i calcoli per tutti gli atleti.
 // Ogni gruppo e' una sezione comprimibile con riepilogo e guida (icona Info).
-import { computed, nextTick, watch } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import { useSettingsStore } from "../../stores/settings";
 import { DEFAULT_FEEDBACK_PARAMS, validateFeedbackParams, type FeedbackParams } from "@shared/feedback/params.ts";
-import { showResultToast } from "../../composables/useToast";
+import { showResultToast, showToast } from "../../composables/useToast";
+import { useRoute } from "vue-router";
+import { supabaseUrl } from "../../services/supabase";
+import { APP_BUILD_DATE, APP_COMMIT, APP_ENVIRONMENT, APP_VERSION, releaseNotes, reportLine } from "../../version";
 import { confirmDialog } from "../../composables/useConfirmDialog";
 import { saveSettings } from "../../composables/useSettingsSave";
 import { useSections, scrollToSection } from "../../composables/useSections";
 import { useQueryLayer } from "../../composables/useQueryLayer";
-import { DEFAULT_PLAN_PREFERENCES } from "../../constants";
+import { DEFAULT_PLAN_PREFERENCES, formatDate } from "../../constants";
 import { SUPPORTED_MODELS } from "@shared/claude/models.ts";
 import { isValidTimeZone } from "@shared/feedback/period.ts";
 import { ZONE_COUNTS } from "@shared/workouts/zones.ts";
@@ -62,10 +65,45 @@ const SECTIONS = [
   { id: "imp-feedback", title: "Feedback settimanale" },
   { id: "imp-classificazione", title: "Classificazione delle sedute" },
   { id: "imp-intensita", title: "Intensità per sistema di zone" },
-  { id: "imp-modelli", title: "Modelli di zone" }
+  { id: "imp-modelli", title: "Modelli di zone" },
+  { id: "imp-info", title: "Informazioni" }
 ];
 const sections = useSections("impostazioni", () => ["imp-claude", "imp-feedback"]);
 const go = (id: string) => scrollToSection(id, sections.reveal, nextTick);
+// Link a una sezione (?sezione=…, ad esempio la versione nella barra laterale).
+const route = useRoute();
+watch(() => route.query.sezione, (id) => {
+  if (typeof id === "string" && SECTIONS.some((s) => s.id === id)) void go(id);
+}, { immediate: true });
+
+// ---------- Informazioni (ADR 0036): versione, build, server, note di rilascio ----------
+const buildDate = formatDate(APP_BUILD_DATE.slice(0, 10));
+const notes = releaseNotes(APP_VERSION);
+const serverVersion = ref<string | null>(null);
+const serverChecked = ref(false);
+// La versione delle funzioni arriva nell'intestazione della risposta a una richiesta OPTIONS: nessun dato,
+// nessuna chiave. Si legge solo quando la sezione e' aperta.
+async function loadServerVersion() {
+  if (serverChecked.value || !supabaseUrl) return;
+  serverChecked.value = true;
+  try {
+    const res = await fetch(`${supabaseUrl}/functions/v1/weekly-feedback`, { method: "OPTIONS" });
+    serverVersion.value = res.headers.get("x-pcoach-version");
+  } catch {
+    serverVersion.value = null;
+  }
+}
+watch(() => sections.isOpen("imp-info"), (open) => open && void loadServerVersion(), { immediate: true });
+const infoSummary = computed(() => `Versione ${APP_VERSION}, build ${APP_COMMIT} del ${buildDate}`);
+async function copyReport() {
+  const text = reportLine(undefined, serverVersion.value);
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast("Informazioni copiate: incollale nella segnalazione.");
+  } catch {
+    showToast(`Copia non riuscita. Copia a mano: ${text}`, "error");
+  }
+}
 const guideLayer = useQueryLayer("guida");
 const guideKey = computed(() => (isGuideKey(guideLayer.value.value) ? guideLayer.value.value : null));
 const openGuide = (key: GuideKey) => guideLayer.open(key);
@@ -240,6 +278,27 @@ async function onSave() {
       guide @toggle="sections.toggle('imp-modelli')" @guide="openGuide('impostazioni-modelli')">
       <ZoneModelsEditor />
       <button type="button" class="link-btn" @click="resetModels">Ripristina i modelli predefiniti</button>
+    </PageSection>
+
+    <PageSection id="imp-info" title="Informazioni" :open="sections.isOpen('imp-info')" :summary="infoSummary" @toggle="sections.toggle('imp-info')">
+      <dl class="app-info">
+        <dt>Versione</dt><dd>{{ APP_VERSION }}<template v-if="APP_ENVIRONMENT"> ({{ APP_ENVIRONMENT }})</template></dd>
+        <dt>Build</dt><dd><span class="mono">{{ APP_COMMIT }}</span> del {{ buildDate }}</dd>
+        <dt>Server</dt>
+        <dd>
+          <template v-if="serverVersion">{{ serverVersion }}<template v-if="serverVersion !== APP_VERSION"> (diversa dall'app)</template></template>
+          <template v-else-if="serverChecked">non disponibile</template>
+          <template v-else>…</template>
+        </dd>
+      </dl>
+      <button type="button" class="secondary" @click="copyReport">Copia per una segnalazione</button>
+      <template v-if="notes.length">
+        <h4 class="subsection-title">Novità della versione {{ APP_VERSION }}</h4>
+        <div v-for="n in notes" :key="n.heading" class="release-notes">
+          <p class="release-heading">{{ n.heading }}</p>
+          <ul><li v-for="item in n.items" :key="item">{{ item }}</li></ul>
+        </div>
+      </template>
     </PageSection>
 
     <GuidePanel v-if="guideKey" :key="guideKey" :guide-key="guideKey" @close="guideLayer.close()" />

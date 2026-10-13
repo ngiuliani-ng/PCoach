@@ -17,11 +17,14 @@ import { type Completion, completionColumns } from "../_shared/feedback/completi
 import type { CoachChange, Period, PlannedWorkout, PlanWindow, RawActivity, RawWellness } from "../_shared/feedback/types.ts";
 import { addDaysISO, isISODate, todayISO, weekStartISO } from "../_shared/workouts/calendar.ts";
 import type { IcuSportSettings } from "../_shared/workouts/zoneModels.ts";
+import { PCOACH_VERSION } from "../_shared/version.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Expose-Headers": "x-pcoach-version",
+  "x-pcoach-version": PCOACH_VERSION,
 };
 
 function jsonResponse(body: unknown, status = 200) {

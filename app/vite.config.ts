@@ -1,11 +1,48 @@
 /// <reference types="vitest/config" />
 import { fileURLToPath } from 'node:url'
+import { execSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 import vue from '@vitejs/plugin-vue'
 import { defineConfig, searchForWorkspaceRoot } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
+// Versione dell'app (ADR 0036): una sola fonte, package.json. Commit e data vengono dalla build:
+// in CI da GITHUB_SHA, in locale da git (con «-modificato» se ci sono modifiche non committate).
+const APP_VERSION: string = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')).version
+function buildCommit(): string {
+  if (process.env.GITHUB_SHA) return process.env.GITHUB_SHA.slice(0, 7)
+  try {
+    const sha = execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim()
+    let dirty = false
+    try {
+      execSync('git diff --quiet HEAD', { stdio: 'ignore' })
+    } catch {
+      dirty = true
+    }
+    return dirty ? `${sha}-modificato` : sha
+  } catch {
+    return 'locale'
+  }
+}
+const APP_COMMIT = buildCommit()
+// Solo la sezione del CHANGELOG di questa versione entra nell'app (note di rilascio in Informazioni).
+function releaseSection(version: string): string {
+  const lines = readFileSync(new URL('../CHANGELOG.md', import.meta.url), 'utf8').split(/\r?\n/)
+  const start = lines.findIndex((l) => l.startsWith(`## [${version}]`))
+  if (start < 0) return ''
+  const end = lines.findIndex((l, i) => i > start && l.startsWith('## '))
+  return lines.slice(start, end < 0 ? undefined : end).join('\n')
+}
+const APP_BUILD_DATE = new Date().toISOString()
+
 // https://vite.dev/config/
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(APP_VERSION),
+    __APP_COMMIT__: JSON.stringify(APP_COMMIT),
+    __APP_BUILD_DATE__: JSON.stringify(APP_BUILD_DATE),
+    __APP_RELEASE_SECTION__: JSON.stringify(releaseSection(APP_VERSION)),
+  },
   base: '/PCoach/',
   // Moduli puri condivisi con le Edge Function (supabase/functions/_shared): stesso codice
   // per l'anteprima nell'app e per l'invio a Intervals.icu.
@@ -13,13 +50,21 @@ export default defineConfig({
     alias: { '@shared': fileURLToPath(new URL('../supabase/functions/_shared', import.meta.url)) },
   },
   server: {
-    fs: { allow: [searchForWorkspaceRoot(process.cwd()), '../supabase/functions/_shared'] },
+    // Il CHANGELOG alla radice serve alle note di rilascio in Impostazioni › Informazioni.
+    fs: { allow: [searchForWorkspaceRoot(process.cwd()), '../supabase/functions/_shared', '../CHANGELOG.md'] },
   },
   test: {
     include: ['src/**/*.test.ts'],
   },
   plugins: [
     vue(),
+    // version.json accanto all'app pubblicata: dopo il deploy si controlla che sia in linea la versione del tag.
+    {
+      name: 'pcoach-version-json',
+      generateBundle() {
+        this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ version: APP_VERSION, commit: APP_COMMIT, builtAt: APP_BUILD_DATE }) })
+      },
+    },
     VitePWA({
       // Nessun Service Worker attivo: l'app è solo installabile (manifest + icone).
       // Per aggiungere offline support in futuro, rimuovere selfDestroying e configurare workbox.

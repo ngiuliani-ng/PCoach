@@ -114,3 +114,18 @@ test("pagina «Da fare»: feedback e bozze di tutti gli atleti, con il numero in
   await page.goBack();
   await expect(page.locator(".todo-athlete")).not.toContainText("Feedback della settimana del 5 ott da approvare");
 });
+
+test("la versione in fondo alla barra laterale porta a Informazioni, con build, server e novità (D-08)", async ({ page }) => {
+  await installMockBackend(page, createState());
+  await page.goto("./");
+  const menu = page.getByRole("button", { name: "Apri la barra laterale" });
+  if (await menu.isVisible().catch(() => false)) await menu.click();
+  await page.getByRole("link", { name: /^Versione \d+\.\d+\.\d+, informazioni sull'app$/ }).click();
+  const info = page.locator("#imp-info");
+  await expect(info.getByRole("button", { name: /^Informazioni/ })).toHaveAttribute("aria-expanded", "true");
+  await expect(info).toContainText("Versione");
+  await expect(info).toContainText("Build");
+  await expect(info.locator("dd").nth(2)).toHaveText(/^\d+\.\d+\.\d+$/);
+  await expect(info).toContainText("Novità della versione");
+  await expect(info).not.toContainText("e2e-anon-key");
+});

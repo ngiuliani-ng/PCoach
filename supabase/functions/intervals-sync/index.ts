@@ -26,11 +26,14 @@ import type { PlannedWorkout, RawActivity } from "../_shared/feedback/types.ts";
 import { type IcuSportSettings, icuZoneCount, icuZonesUpdate, resolveZoneModels, sportSettingsFor, ZONE_MODEL_KEYS, type ZoneModelKey } from "../_shared/workouts/zoneModels.ts";
 import type { ZoneCount, ZoneDiscipline } from "../_shared/workouts/zones.ts";
 import { alignmentProblems, paceContextOf, syncBlockReason, thresholdChecks } from "../_shared/workouts/thresholds.ts";
+import { PCOACH_VERSION } from "../_shared/version.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Expose-Headers": "x-pcoach-version",
+  "x-pcoach-version": PCOACH_VERSION,
 };
 const API = "https://intervals.icu/api/v1/athlete/0";
 const TIMEOUT_MS = 10_000;

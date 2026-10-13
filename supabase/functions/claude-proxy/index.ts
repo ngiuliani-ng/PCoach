@@ -7,6 +7,7 @@
 //   con la generazione per poterla ricostruire.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { resolveModel } from "../_shared/claude/models.ts";
+import { PCOACH_VERSION } from "../_shared/version.ts";
 
 /** Tetto ai token di risposta: la generazione ne chiede al massimo 18 000 (4 settimane). */
 const MAX_TOKENS_CAP = 20_000;
@@ -15,6 +16,8 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Expose-Headers": "x-pcoach-version",
+  "x-pcoach-version": PCOACH_VERSION,
 };
 
 function jsonResponse(body: unknown, status = 200) {

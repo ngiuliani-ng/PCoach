@@ -150,6 +150,16 @@ button:focus-visible, a:focus-visible {
   padding: var(--sp-1) var(--sp-2) var(--sp-1) var(--sp-4);
   flex-shrink: 0;
 }
+.app-version {
+  order: 3;
+  flex-basis: 100%;
+  padding-bottom: var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  text-decoration: none;
+}
+.app-version:hover, .app-version:focus-visible { color: var(--text); text-decoration: underline; }
+.sidebar-footer { flex-wrap: wrap; }
 .sidebar-footer-icons {
   display: flex;
   gap: 2px;
@@ -457,6 +467,16 @@ section.block h3.section-title { flex: 1; min-width: 0; margin: 0; font-size: va
 .intensity-table thead th { font-size: var(--fs-xs); font-weight: 400; color: var(--text-muted); }
 .intensity-table tbody th { font-weight: 500; padding-top: var(--sp-3); }
 .intensity-table input { width: 96px; }
+
+/* Informazioni sull'app (ADR 0036): versione, build, server e novita'. */
+.app-info { display: grid; grid-template-columns: max-content 1fr; gap: var(--sp-1) var(--sp-4); margin: 0 0 var(--sp-4); }
+.app-info dt { color: var(--text-muted); font-size: var(--fs-sm); }
+.app-info dd { margin: 0; }
+.app-info .mono { font-family: var(--font-mono); }
+.release-notes { margin-bottom: var(--sp-3); max-width: 70ch; }
+.release-heading { margin: 0 0 var(--sp-1); font-weight: 600; font-size: var(--fs-sm); }
+.release-notes ul { margin: 0; padding-left: var(--sp-5); }
+.release-notes li { margin-bottom: var(--sp-1); }
 section.block h3 {
   font-size: var(--fs-lg);
   font-weight: 600;
@@ -1225,6 +1245,7 @@ body:has(.drawer-foot) .toast, body:has(.dialog-foot) .toast { bottom: calc(var(
 /* Campi a 16px: sotto, Safari su iOS ingrandisce la pagina al tocco di un campo. Bersagli da 44px
    per i controlli (WCAG 2.5.5, consigliato per il tocco); i link nel testo restano in riga. */
 @media (pointer: coarse) {
+  .app-version { display: flex; align-items: center; min-height: 44px; padding-bottom: 0; }
   input:not([type="checkbox"]):not([type="radio"]), select, textarea, .mono-input { font-size: var(--fs-lg); }
   input:not([type="checkbox"]):not([type="radio"]), select { min-height: 44px; }
   button.primary, button.secondary, button.ghost, button.danger, .segmented button { min-height: 44px; }

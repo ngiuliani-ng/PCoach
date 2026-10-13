@@ -4,6 +4,7 @@
 import type { Page, Route } from "@playwright/test";
 import { buildIntervalsEvent, intervalsPayloadHash } from "../../supabase/functions/_shared/workouts/intervals.ts";
 import type { WorkoutContent } from "../../supabase/functions/_shared/workouts/structure.ts";
+import { PCOACH_VERSION } from "../../supabase/functions/_shared/version.ts";
 
 export const SUPABASE_URL = "http://e2e.supabase.test";
 export const ATHLETE_ID = "ATL00001";
@@ -268,7 +269,9 @@ export async function installMockBackend(page: Page, state: MockState) {
   await page.route(`${SUPABASE_URL}/**`, async (route) => {
     const req = route.request();
     if (req.method() === "OPTIONS") {
-      return route.fulfill({ status: 204, headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "*", "access-control-allow-methods": "*" } });
+      // Le Edge Function dicono la loro versione nell'intestazione (ADR 0036).
+      const version = req.url().includes("/functions/v1/") ? { "x-pcoach-version": PCOACH_VERSION, "access-control-expose-headers": "x-pcoach-version" } : {};
+      return route.fulfill({ status: 204, headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "*", "access-control-allow-methods": "*", ...version } });
     }
     const url = new URL(req.url());
     const path = url.pathname;

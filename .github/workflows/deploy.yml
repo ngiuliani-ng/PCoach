@@ -1,8 +1,11 @@
-name: Deploy su GitHub Pages
+name: Test e pubblicazione su GitHub Pages
 
+# Pubblicazione solo dai tag di versione (ADR 0036): un push su main esegue i test, un tag vX.Y.Z
+# pubblica quella versione. La versione in linea e' quindi sempre una versione numerata.
 on:
   push:
     branches: [main]
+    tags: ['v*']
   workflow_dispatch:
 
 permissions:
@@ -11,7 +14,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -28,17 +31,28 @@ jobs:
           cache: npm
           cache-dependency-path: app/package-lock.json
       - run: npm ci
+      # Anche la coerenza della versione: package.json, funzioni del server e sezione del CHANGELOG.
       - run: npm run test
+      - name: Il tag corrisponde alla versione di package.json
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          expected="v$(node -p "require('./package.json').version")"
+          if [ "$GITHUB_REF_NAME" != "$expected" ]; then
+            echo "Il tag $GITHUB_REF_NAME non corrisponde alla versione $expected di app/package.json."
+            exit 1
+          fi
       - run: npm run build
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
       - uses: actions/upload-pages-artifact@v5
+        if: startsWith(github.ref, 'refs/tags/v')
         with:
           path: app/dist
 
   deploy:
     needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -46,3 +60,13 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v5
+      # Dopo il deploy la versione in linea deve essere quella del tag.
+      - name: Versione in linea
+        run: |
+          for i in 1 2 3 4 5 6; do
+            online=$(curl -fsS "${{ steps.deployment.outputs.page_url }}version.json?t=$(date +%s)" | sed -n 's/.*"version":"\([^"]*\)".*/v\1/p')
+            if [ "$online" = "$GITHUB_REF_NAME" ]; then echo "In linea: $online"; exit 0; fi
+            sleep 20
+          done
+          echo "In linea c'è ${online:-niente}, atteso $GITHUB_REF_NAME."
+          exit 1
