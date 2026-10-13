@@ -84,14 +84,28 @@ test("«Salva e genera» salva la scheda prima di aprire la generazione", async 
   expect(profileOf(state).constraints.sessions_per_week_target).toBe(4);
 });
 
-test("con l'email attiva e un atleta senza indirizzo, il feedback si approva senza promettere l'invio", async ({ page }) => {
+test("con l'email attiva un atleta senza indirizzo è un'anomalia; approvando, il feedback resta da inviare (D-05)", async ({ page }) => {
   const state = createState();
   state.tables.app_settings[0].weekly_feedback_email_enabled = true;
   await installMockBackend(page, state);
   await page.goto(`./#/atleta/${ATHLETE_ID}/panoramica`);
-  await expect(page.getByText("L'atleta non ha un indirizzo email")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Approva", exact: true })).toBeVisible();
+  await expect(page.getByText("L'atleta non ha un indirizzo email: approvando, il feedback non gli arriva")).toBeVisible();
   await expect(page.getByRole("button", { name: "Approva e invia" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Approva", exact: true }).click();
+  await expect(page.getByText("Approvato, email non inviata")).toBeVisible();
+  await page.getByRole("tab", { name: /Anomalie/ }).click();
+  await expect(page.getByText("Manca l'email dell'atleta")).toBeVisible();
+  // Prima cio' che e' gia' fallito (l'email non partita), poi cio' che va sistemato.
+  const titles = await page.locator(".anomaly-title").allTextContents();
+  expect(titles[0]).toContain("approvato ma non inviato");
+  await page.getByRole("button", { name: "Aggiungila nel Profilo" }).click();
+  await expect(page.getByRole("textbox", { name: "Email" })).toBeInViewport();
+});
+
+test("con l'invio email disattivato un atleta senza indirizzo non è un'anomalia (D-05)", async ({ page }) => {
+  await installMockBackend(page, createState());
+  await page.goto(`./#/atleta/${ATHLETE_ID}/anomalie`);
+  await expect(page.getByRole("heading", { name: "Nessuna anomalia" })).toBeVisible();
 });
 
 test("il fuso orario si sceglie da un elenco; un valore salvato non valido è segnalato", async ({ page }) => {

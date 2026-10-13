@@ -1,6 +1,7 @@
 // Anomalie dell'atleta aperto, raccolte in un solo elenco per la tab «Anomalie» e il numero nella sua
-// etichetta (ADR 0031, 0033). Ogni anomalia dice cosa ferma (feedback settimanale, invio a
-// Intervals.icu o entrambi) e porta l'azione per sistemarla. Zone e soglie si confrontano con Intervals.icu all'apertura della
+// etichetta (ADR 0031, 0033, 0034). Ogni anomalia dice cosa ferma (feedback settimanale, invio a
+// Intervals.icu, email all'atleta) e porta l'azione per sistemarla. L'elenco non ha gruppi: prima cio'
+// che e' gia' fallito, poi cio' che va sistemato. Zone e soglie si confrontano con Intervals.icu all'apertura della
 // scheda, sul profilo salvato (ADR 0029, 0030).
 import { computed, ref, watch } from "vue";
 import { useAthletesStore } from "../stores/athletes";
@@ -22,8 +23,16 @@ import {
 } from "@shared/workouts/zoneModels.ts";
 import type { ZoneCount } from "@shared/workouts/zones.ts";
 
-/** Cosa ferma un'anomalia: feedback settimanale e invio insieme, solo il feedback, solo l'invio. */
-export type AnomalyGroup = "both" | "feedback" | "sync";
+/** Cosa ferma un'anomalia: feedback e invio insieme, solo il feedback, solo l'invio, l'email all'atleta. */
+export type AnomalyGroup = "both" | "feedback" | "sync" | "email";
+
+/** Riga «Ferma: …» di ogni anomalia. */
+export const ANOMALY_STOPS: Record<AnomalyGroup, string> = {
+  both: "feedback settimanale e invio a Intervals.icu",
+  feedback: "feedback settimanale",
+  sync: "invio a Intervals.icu",
+  email: "email del feedback all'atleta"
+};
 
 export interface AnomalyAction {
   label: string;
@@ -53,6 +62,7 @@ export interface Anomaly {
 export interface AnomalyNavigation {
   openThresholds: (discipline: ZoneDiscipline) => void;
   openIntervalsKey: () => void;
+  openIdentity: () => void;
   openFeedback: () => void;
   openWorkout: (id: string) => void;
 }
@@ -220,6 +230,17 @@ export function useAthleteAnomalies(nav: AnomalyNavigation) {
       });
     }
 
+    // Ferma l'email all'atleta (decisione del coach D-05): con l'invio attivo l'indirizzo e' obbligatorio,
+    // ma la scheda si salva anche senza.
+    if (settings.savedEmailEnabled && !saved.value.identity?.email?.trim()) {
+      out.push({
+        key: "email", group: "email", tone: "warn",
+        title: "Manca l'email dell'atleta",
+        detail: "L'invio via email è attivo in Impostazioni: il feedback approvato non arriva all'atleta finché non aggiungi l'indirizzo.",
+        actions: [{ label: "Aggiungila nel Profilo", kind: "go", run: nav.openIdentity }]
+      });
+    }
+
     // Fermano il feedback settimanale.
     const weeks = [...new Set(reviews.current.map((r) => r.period_start))].slice(0, FEEDBACK_WEEKS);
     for (const r of reviews.current.filter((x) => weeks.includes(x.period_start))) {
@@ -233,7 +254,7 @@ export function useAthleteAnomalies(nav: AnomalyNavigation) {
         });
       } else if (r.status === "approved" && (r.delivery_status === "failed" || r.delivery_status === "skipped")) {
         out.push({
-          key: `delivery-${r.id}`, group: "feedback", tone: "err",
+          key: `delivery-${r.id}`, group: "email", tone: "err",
           title: `Feedback della settimana ${week} approvato ma non inviato`,
           detail: r.delivery_error || "L'email all'atleta non è partita.",
           actions: [{ label: "Apri il feedback", kind: "go", run: nav.openFeedback }]
@@ -263,7 +284,8 @@ export function useAthleteAnomalies(nav: AnomalyNavigation) {
         actions: []
       });
     }
-    return out;
+    // Prima cio' che e' gia' fallito, poi cio' che va sistemato; a parita', l'ordine sopra.
+    return out.map((a, i) => ({ a, i })).sort((x, y) => Number(x.a.tone !== "err") - Number(y.a.tone !== "err") || x.i - y.i).map(({ a }) => a);
   });
 
   /** Numero nell'etichetta della tab: le sedute raggruppate contano una per una. */

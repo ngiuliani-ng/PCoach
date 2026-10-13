@@ -206,7 +206,7 @@ async function onRetry(r: ReviewRecord) {
             Invia anche questa versione: l'atleta ha già ricevuto la revisione {{ sentBefore(r)!.revision }}{{ sentBefore(r)!.delivered_at ? ` il ${formatDate(sentBefore(r)!.delivered_at!.slice(0, 10))}` : "" }}
           </label>
           <p v-if="!emailOn" class="helper-text">L'invio via email è disattivato in Impostazioni: approvando, il feedback resta solo qui.</p>
-          <p v-else-if="!hasEmail" class="helper-text">L'atleta non ha un indirizzo email: approvando, il feedback resta solo qui. Puoi aggiungerlo nel Profilo, sezione Identità.</p>
+          <p v-else-if="!hasEmail" class="helper-text error-text">L'atleta non ha un indirizzo email: approvando, il feedback non gli arriva e resta fra le anomalie. Aggiungi l'indirizzo nel Profilo, sezione Identità, poi «Riprova l'invio».</p>
         </template>
 
         <template v-else-if="r.status === 'approved'">

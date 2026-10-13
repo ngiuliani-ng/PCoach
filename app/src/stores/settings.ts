@@ -63,7 +63,9 @@ export const useSettingsStore = defineStore("settings", {
   getters: {
     isDirty: (s) => JSON.stringify(s.settings) !== s.baseline,
     /** Modelli di zone salvati (non le modifiche in corso in Impostazioni): quelli che legge il server. */
-    savedZoneModels: (s): ZoneModels => resolveZoneModels((JSON.parse(s.baseline) as Partial<AppSettings>).zone_models)
+    savedZoneModels: (s): ZoneModels => resolveZoneModels((JSON.parse(s.baseline) as Partial<AppSettings>).zone_models),
+    /** Invio email attivo secondo le impostazioni salvate (non quelle in modifica). */
+    savedEmailEnabled: (s): boolean => !!(JSON.parse(s.baseline) as Partial<AppSettings>).weekly_feedback_email_enabled
   },
   actions: {
     /** Scarta le modifiche non salvate: tornano i valori letti o salvati per ultimi. */

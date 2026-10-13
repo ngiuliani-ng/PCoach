@@ -279,10 +279,10 @@ button:focus-visible, a:focus-visible {
   background: var(--warning-bg);
 }
 
-/* ---------- Tab Anomalie: un'unita' per gruppo, righe separate da filetti ---------- */
+/* ---------- Tab Anomalie: un'unita' con una riga per anomalia, separate da filetti ---------- */
 .anomaly-unit {
   list-style: none;
-  margin: 0;
+  margin: var(--sp-4) 0 0;
   padding: 0;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -301,6 +301,7 @@ button:focus-visible, a:focus-visible {
 .anomaly.err .anomaly-icon { color: var(--danger); }
 .anomaly-main { min-width: 0; }
 .anomaly-title { margin: 0; font-weight: 600; }
+.anomaly-stops { margin: 2px 0 0; font-size: var(--fs-sm); font-weight: 600; color: var(--text); }
 .anomaly-detail { margin: 2px 0 0; max-width: 70ch; font-size: var(--fs-sm); color: var(--text-muted); }
 .anomaly-items { list-style: none; margin: var(--sp-2) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); font-size: var(--fs-sm); }
 .anomaly-items li { display: flex; flex-direction: column; align-items: flex-start; }

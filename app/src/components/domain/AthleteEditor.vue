@@ -268,6 +268,7 @@ const anomalies = useAthleteAnomalies({
     void goToSection("sec-soglie");
   },
   openIntervalsKey: () => void goToSection("sec-intervals"),
+  openIdentity: () => void goToSection("sec-identita"),
   openFeedback: async () => {
     tab.value = "panoramica";
     await nextTick();
@@ -363,7 +364,7 @@ const anomalyCount = anomalies.count;
 
     <!-- ===================== Profilo ===================== -->
     <div v-show="tab === 'profilo'" id="panel-profilo" role="tabpanel" aria-labelledby="tab-profilo">
-      <section class="block">
+      <section class="block" id="sec-identita">
         <h3>Identità</h3>
         <div class="field-row">
           <label class="field"><span class="field-label">Nome</span><input type="text" v-model="profile.identity.nome" /></label>

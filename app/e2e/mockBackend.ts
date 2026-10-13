@@ -289,8 +289,17 @@ export async function installMockBackend(page: Page, state: MockState) {
       const body = req.postDataJSON() as Row;
       const review = state.tables.weekly_reviews.find((r) => r.id === body.review_id);
       if (body.action === "approve" && review && review.status === "draft") {
-        Object.assign(review, { status: "approved", output_text: body.text, approved_at: new Date().toISOString(), delivery_status: "not_requested" });
-        return fulfillJson(route, { id: review.id, status: "approved", delivery_status: "not_requested" });
+        // Come approveReview e deliver del server: con l'email attiva l'invio si tenta; senza indirizzo si salta.
+        const emailOn = !!state.tables.app_settings[0].weekly_feedback_email_enabled && body.send !== false;
+        const athlete = state.tables.athletes.find((a) => a.id === review.athlete_id)?.data as { identity?: { email?: string } } | undefined;
+        const to = athlete?.identity?.email?.trim();
+        const delivery = !emailOn ? "not_requested" : to ? "sent" : "skipped";
+        Object.assign(review, {
+          status: "approved", output_text: body.text, approved_at: new Date().toISOString(), delivery_status: delivery,
+          delivery_error: delivery === "skipped" ? "L'atleta non ha un indirizzo email." : null,
+          delivered_at: delivery === "sent" ? new Date().toISOString() : null
+        });
+        return fulfillJson(route, { id: review.id, status: "approved", delivery_status: delivery });
       }
       return fulfillJson(route, { error: "Azione non gestita dal backend finto." }, 400);
     }
