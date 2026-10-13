@@ -253,6 +253,10 @@ async function onDelete() {
   showResultToast(result);
   if (result.ok) void router.replace({ name: "home" });
 }
+// Una seduta dalla Panoramica: si apre nel Piano, e «indietro» torna alla Panoramica.
+function openWorkout(id: string) {
+  void router.push({ name: "athlete", params: { id: routeId.value, tab: "piano" }, query: { seduta: id } });
+}
 function onExport() {
   athletes.exportCurrent();
 }
@@ -279,7 +283,7 @@ const anomalyCount = anomalies.count;
   <div v-if="!ready" class="placeholder"><p>Caricamento…</p></div>
   <div class="form-wrap" v-else>
     <header class="page-header">
-      <h2>{{ fullName(profile.identity) || "Nuovo atleta" }}</h2>
+      <h1>{{ fullName(profile.identity) || "Nuovo atleta" }}</h1>
       <div class="page-header-actions">
         <span v-if="athletes.isDirty" class="unsaved-badge">Modifiche non salvate</span>
         <!-- Salva i dati del Profilo: fuori da quella vista compare solo se ci sono modifiche da salvare. -->
@@ -337,7 +341,7 @@ const anomalyCount = anomalies.count;
         </p>
         <template v-else>
           <div class="week-unit">
-            <WorkoutRow v-for="w in thisWeek" :key="w.id" :workout="w" :sync="workouts.syncRows[w.id]" show-date readonly @open="tab = 'piano'" />
+            <WorkoutRow v-for="w in thisWeek" :key="w.id" :workout="w" :sync="workouts.syncRows[w.id]" show-date readonly @open="openWorkout" />
           </div>
           <button type="button" class="link-btn overview-plan-link" @click="tab = 'piano'">Apri il piano</button>
         </template>

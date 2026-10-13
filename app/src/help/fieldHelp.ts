@@ -40,7 +40,7 @@ export const FIELD_HELP = {
   },
   physiological_thresholds: {
     text: "Conta l'ultima rilevazione per data.",
-    more: "Claude riceve l'ultima rilevazione di ogni sport. Senza un FTP la bici si pianifica in frequenza cardiaca. Il feedback segnala se FTP o soglia differiscono di oltre il 3% da quelli registrati su Intervals.icu.",
+    more: "Claude riceve l'ultima rilevazione di ogni sport. Senza un FTP la bici si pianifica in frequenza cardiaca. Passo di soglia, CSS e FTP devono coincidere con quelli su Intervals.icu: se sono diversi, o se manca la soglia di uno sport praticato, il feedback settimanale e l'invio delle sedute si fermano (tab Anomalie). La soglia serve anche a stimare la durata degli step a distanza.",
     claude: "latest_thresholds"
   },
   "physiological_thresholds.running.zone_system": {

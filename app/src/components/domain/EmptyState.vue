@@ -9,11 +9,11 @@ const athletes = useAthletesStore();
   <div class="placeholder">
     <p v-if="!athletes.loaded">Caricamento…</p>
     <template v-else-if="athletes.sortedList.length">
-      <h2>Scegli un atleta</h2>
+      <h1>Scegli un atleta</h1>
       <p>Apri una scheda dall'elenco per vedere carico, piano e feedback.</p>
     </template>
     <template v-else>
-      <h2>Nessun atleta</h2>
+      <h1>Nessun atleta</h1>
       <p>Crea la prima scheda con «Nuovo atleta» nell'elenco: nome, discipline e obiettivi bastano per generare un piano.</p>
     </template>
   </div>

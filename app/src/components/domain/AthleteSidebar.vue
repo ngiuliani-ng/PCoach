@@ -2,18 +2,16 @@
 // Elenco degli atleti: "Nuovo atleta" in cima, la bozza non salvata, gli atleti, lo stato della
 // connessione, Impostazioni ed Esci. Ogni voce e' un <button> che naviga (router.ts): le conferme
 // per le modifiche non salvate le chiedono le guardie di navigazione, non questo componente.
-// L'eliminazione e' un pulsante fratello, non annidato, perche' un button non puo' contenerne un altro.
+// L'eliminazione di una scheda sta solo nel Profilo (Gestione scheda): nell'elenco resta la navigazione.
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAthletesStore } from "../../stores/athletes";
 import { useAuthStore } from "../../stores/auth";
-import { confirmDialog } from "../../composables/useConfirmDialog";
-import { showResultToast } from "../../composables/useToast";
 import { CONNECTION_STATUS_LABELS, useConnectionStatus } from "../../composables/useConnectionStatus";
 import { disciplineLabel, fullName, formatSigned } from "../../constants";
 import { confirmLeaveProfile, confirmLeaveSettings } from "../../router";
 import IconButton from "../ui/IconButton.vue";
-import { Settings, LogOut, X, UserPlus } from "lucide-vue-next";
+import { Settings, LogOut, UserPlus } from "lucide-vue-next";
 
 const athletes = useAthletesStore();
 const auth = useAuthStore();
@@ -48,16 +46,6 @@ function go(location: Parameters<typeof router.push>[0], alreadyThere: boolean) 
   else void router.push(location);
 }
 
-async function onDelete(id: string, name: string) {
-  const confirmed = await confirmDialog(`Eliminare la scheda di "${name}"? L'operazione non è reversibile.`, {
-    confirmLabel: "Elimina scheda",
-  });
-  if (!confirmed) return;
-  const result = await athletes.deleteAthlete(id);
-  showResultToast(result);
-  if (result.ok && openId.value === id) void router.replace({ name: "home" });
-}
-
 async function onSignOut() {
   if (!(await confirmLeaveProfile()) || !(await confirmLeaveSettings())) return;
   await auth.signOut();
@@ -69,7 +57,7 @@ async function onSignOut() {
        programmatico all'apertura (vedi useMobileSidebar). -->
   <aside id="athlete-sidebar" class="sidebar" tabindex="-1" aria-label="Atleti">
     <div class="sidebar-header">
-      <h1>PCoach</h1>
+      <p class="brand">PCoach</p>
     </div>
     <div class="sidebar-separator"></div>
     <ul class="athlete-list">
@@ -106,9 +94,6 @@ async function onSignOut() {
             <span class="sub">{{ a.disciplines || "Nessuna disciplina" }}</span>
             <span v-if="a.tsb" class="sub">TSB {{ a.tsb }}</span>
           </span>
-        </button>
-        <button type="button" class="del-btn" :aria-label="`Elimina ${a.name}`" @click="onDelete(a.id, a.name)">
-          <X :size="14" aria-hidden="true" />
         </button>
       </li>
     </ul>

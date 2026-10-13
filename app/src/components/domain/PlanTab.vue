@@ -169,7 +169,7 @@ function rangeText(ws: string) {
           <button type="button" class="secondary" @click="openGeneration('regenerate')"><CalendarSync :size="16" aria-hidden="true" />Ripianifica da…</button>
         </template>
         <button v-else type="button" class="secondary" @click="openGeneration('initial')"><Sparkles :size="16" aria-hidden="true" />Genera il piano</button>
-        <button v-if="mode === 'week'" type="button" class="primary" :disabled="!hasKey || !inWeek.length" @click="dialogLayer.open('sincronizza')">
+        <button v-if="mode === 'week' && inWeek.length" type="button" class="primary" :disabled="!hasKey" @click="dialogLayer.open('sincronizza')">
           <CloudUpload :size="16" aria-hidden="true" />Sincronizza settimana
         </button>
       </div>

@@ -35,9 +35,9 @@ function resetModels() {
 
 <template>
   <p class="helper-text">
-    Servono per «Allinea Intervals.icu a PCoach»: quando un atleta ha su Intervals.icu un numero di zone diverso dalla scheda,
-    PCoach scrive su Intervals.icu i limiti del modello scelto qui. Ogni valore è il limite superiore della zona, in percentuale della soglia; l'ultima zona non ha limite.
-    I predefiniti sono i modelli più usati.
+    Limiti delle zone in percentuale della soglia, per tutti gli atleti. PCoach li usa per stimare il passo di ogni zona, e quindi
+    la durata degli step a distanza (totali, durata massima del giorno, feedback), e li scrive su Intervals.icu con «Porta Intervals.icu a N zone».
+    Ogni valore è il limite superiore della zona; l'ultima zona non ha limite. I predefiniti sono i modelli più usati.
   </p>
   <details v-for="key in ZONE_MODEL_KEYS" :key="key" class="review-sessions zone-models">
     <summary>{{ ZONE_MODEL_INFO[key].label }} <span class="helper-text">({{ ZONE_MODEL_INFO[key].unit }})</span></summary>

@@ -68,7 +68,7 @@ async function onSave() {
 <template>
   <div class="form-wrap">
     <header class="page-header">
-      <h2>Impostazioni</h2>
+      <h1>Impostazioni</h1>
       <div class="page-header-actions">
         <span v-if="settings.isDirty" class="unsaved-badge">Modifiche non salvate</span>
         <button type="button" class="primary" :disabled="!settings.isDirty" @click="onSave">Salva impostazioni</button>
@@ -89,7 +89,7 @@ async function onSave() {
           </select>
         </label>
       </div>
-      <p class="helper-text">Solo modelli verificati con la generazione e con il feedback. Senza chiave, «Genera piano» copia il prompt negli appunti: puoi incollarlo in Claude a mano.</p>
+      <p class="helper-text">Solo modelli verificati con la generazione e con il feedback. Senza chiave, la generazione copia il prompt negli appunti: lo incolli in Claude e poi incolli qui la risposta.</p>
     </section>
     <section class="block">
       <h3>Preferenze per generare il piano</h3>

@@ -140,6 +140,9 @@ function fmt(v: number | undefined): string {
       <slot name="empty"><p>Nessun dato di carico.</p></slot>
     </div>
     <template v-else>
+      <!-- Etichette di assi e date in HTML sopra l'SVG: dentro l'SVG scalerebbero con il grafico e su
+           un telefono scenderebbero sotto i 7px. Le posizioni sono percentuali del viewBox. -->
+      <div class="chart-plot">
       <svg
         class="load-chart"
         :viewBox="`0 0 ${W} ${H}`"
@@ -158,7 +161,6 @@ function fmt(v: number | undefined): string {
             :stroke="t === 0 ? 'var(--text-muted)' : 'var(--border)'"
             :stroke-width="t === 0 ? 1 : 0.75"
           />
-          <text :x="padL - 6" :y="y(t) + 3.5" font-size="10" fill="var(--text-muted)" text-anchor="end" class="chart-num">{{ t }}</text>
         </g>
         <path v-if="tsbArea" :d="tsbArea" fill="var(--chart-tsb)" />
         <path :d="pathFor('atl')" fill="none" stroke="var(--chart-atl)" stroke-width="1.25" />
@@ -172,10 +174,14 @@ function fmt(v: number | undefined): string {
           :height="barHeight(e.workouts_count || 0)"
           fill="var(--chart-bar)"
         />
-        <text :x="padL" :y="H - 3" font-size="10" fill="var(--text-muted)">{{ formatDate(sorted[0].date) }}</text>
-        <text :x="W - padR" :y="H - 3" font-size="10" fill="var(--text-muted)" text-anchor="end">{{ formatDate(sorted.at(-1)?.date) }}</text>
         <line v-if="hoverIndex !== null" :x1="x(hoverIndex)" :x2="x(hoverIndex)" :y1="padT" :y2="stripTop + STRIP_H" stroke="var(--text-muted)" stroke-dasharray="2,2" />
       </svg>
+      <div class="chart-labels" aria-hidden="true">
+        <span v-for="t in scale.ticks" :key="'label-' + t" class="chart-tick chart-num" :style="{ top: (y(t) / H) * 100 + '%', right: (1 - (padL - 6) / W) * 100 + '%' }">{{ t }}</span>
+        <span class="chart-date" :style="{ left: (padL / W) * 100 + '%' }">{{ formatDate(sorted[0].date) }}</span>
+        <span class="chart-date" :style="{ right: (padR / W) * 100 + '%' }">{{ formatDate(sorted.at(-1)?.date) }}</span>
+      </div>
+      </div>
       <div class="chart-tooltip" :class="{ visible: hoverEntry }" :style="{ left: tooltipX + '%' }" aria-hidden="true">
         <template v-if="hoverEntry">
           <div class="chart-tooltip-date">{{ formatDate(hoverEntry.date) }}</div>

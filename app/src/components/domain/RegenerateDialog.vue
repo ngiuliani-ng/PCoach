@@ -286,7 +286,7 @@ function dayLabel(date: string) {
           <div v-if="patternMissing" class="drawer-note warn" role="note">
             Lo schema di carico e scarico dell'atleta non è riconosciuto: le settimane non avranno una fase e Claude deciderà da solo carichi e scarichi. Sceglilo nel Profilo, sezione Metodologia.
           </div>
-          <p class="helper-text">Al massimo {{ MAX_PLAN_WEEKS }} settimane per volta. Quando stanno per finire, usa «Prosegui il piano»: Claude parte da come sono andate le ultime settimane e il ciclo di carico e scarico continua da dove era rimasto.</p>
+          <p class="helper-text">Al massimo {{ MAX_PLAN_WEEKS }} settimane per volta.<template v-if="kind !== 'continue'"> Quando stanno per finire, usa «Prosegui il piano»: Claude parte da come sono andate le ultime settimane e il ciclo di carico e scarico continua da dove era rimasto.</template></p>
           <label class="field"><span class="field-label">{{ replan ? "Cosa è cambiato" : "Indicazioni per Claude (facoltative)" }}</span>
             <textarea v-model="reason" rows="2" :placeholder="!replan ? '' : 'Ad esempio: affaticamento dopo la gara, ridurre l\'intensità per due settimane'"></textarea></label>
           <div v-if="candidates.length" class="op-group">

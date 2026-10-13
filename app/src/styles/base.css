@@ -57,7 +57,7 @@ button:focus-visible, a:focus-visible {
 .sidebar-header {
   padding: var(--sp-5) var(--sp-4) var(--sp-3);
 }
-.sidebar-header h1 {
+.sidebar-header .brand {
   font-size: var(--fs-lg);
   font-weight: 600;
   margin: 0;
@@ -137,26 +137,6 @@ button:focus-visible, a:focus-visible {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.athlete-item .del-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  margin-right: var(--sp-1);
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  flex-shrink: 0;
-  opacity: 0;
-}
-.athlete-item:hover .del-btn, .athlete-item:focus-within .del-btn { opacity: 1; }
-.athlete-item .del-btn:hover { color: var(--danger); background: var(--danger-bg); }
-@media (hover: none) {
-  .athlete-item .del-btn { opacity: 1; }
-}
 .empty-list {
   padding: var(--sp-4) var(--sp-3);
   color: var(--text-muted);
@@ -224,7 +204,7 @@ button:focus-visible, a:focus-visible {
   padding-top: 18vh;
   text-align: center;
 }
-.placeholder h2 {
+.placeholder h1 {
   font-size: var(--fs-xl);
   font-weight: 600;
   margin: 0 0 var(--sp-2);
@@ -249,7 +229,7 @@ button:focus-visible, a:focus-visible {
   background: var(--bg);
   border-bottom: 1px solid var(--border);
 }
-.page-header h2 {
+.page-header h1 {
   font-size: var(--fs-2xl);
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -344,6 +324,11 @@ button:focus-visible, a:focus-visible {
   display: flex;
   gap: var(--sp-5);
   border-bottom: 1px solid var(--border);
+}
+.tab { white-space: nowrap; }
+/* Quattro tab e il numero delle anomalie devono stare in 288px (320px meno i margini). */
+@media (max-width: 400px) {
+  .tabs { gap: var(--sp-3); }
 }
 .tab {
   padding: var(--sp-2) 0;
@@ -519,6 +504,10 @@ input[type="checkbox"] {
   color: var(--text-muted);
   font-size: var(--fs-sm);
 }
+.chart-plot { position: relative; }
+.chart-labels { position: absolute; inset: 0; pointer-events: none; font-size: var(--fs-xs); color: var(--text-muted); line-height: 1; }
+.chart-tick { position: absolute; transform: translateY(-50%); white-space: nowrap; }
+.chart-date { position: absolute; bottom: 0; white-space: nowrap; }
 .load-chart {
   width: 100%;
   aspect-ratio: 600 / 200;
@@ -1121,7 +1110,7 @@ body:has(.drawer-foot) .toast, body:has(.dialog-foot) .toast { bottom: calc(var(
     min-height: 64px;
     padding: 10px 0 10px 48px;
   }
-  .page-header h2 { font-size: var(--fs-xl); }
+  .page-header h1 { font-size: var(--fs-xl); }
   .placeholder { padding-top: 96px; }
   .day-row { grid-template-columns: 1fr 1fr; }
   .day-row .day-label { padding-bottom: 0; align-self: center; }
@@ -1152,7 +1141,7 @@ body:has(.drawer-foot) .toast, body:has(.dialog-foot) .toast { bottom: calc(var(
   input:not([type="checkbox"]):not([type="radio"]), select, textarea, .mono-input { font-size: var(--fs-lg); }
   input:not([type="checkbox"]):not([type="radio"]), select { min-height: 44px; }
   button.primary, button.secondary, button.ghost, button.danger, .segmented button, .chip { min-height: 44px; }
-  .icon-btn, .del-btn { min-width: 44px; min-height: 44px; }
+  .icon-btn { min-width: 44px; min-height: 44px; }
   .tab, .athlete-select, .new-athlete-card .athlete-select, button.add-row { min-height: 44px; }
   summary { padding-block: var(--sp-2); }
   .checkbox-line, .op-choice label { min-height: 44px; }

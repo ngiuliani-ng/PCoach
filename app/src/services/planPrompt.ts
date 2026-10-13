@@ -148,7 +148,7 @@ export interface PlanPromptInput {
 }
 
 /** Versione delle istruzioni fisse e della forma del messaggio: salvata con ogni generazione. */
-export const PLAN_PROMPT_VERSION = "2.4.0";
+export const PLAN_PROMPT_VERSION = "2.5.0";
 
 // Regole e formato fissi nel codice (ADR 0020, decisione del coach D-01): il coach modifica solo le
 // preferenze metodologiche, che non possono togliere a Claude i dati dell'atleta, i vincoli o il formato.
@@ -165,6 +165,7 @@ Regole:
 - Le settimane con fase "tapering" o "gara" preparano la gara indicata nel calendario (campo "gara" nel giorno della gara): rispetta la variazione di carico indicata e non pianificare altre sedute nel giorno della gara.
 - Le sedute già fissate nel periodo non vanno ripetute né spostate: pianifica intorno a queste, tenendone conto nel carico.
 - "recent_workouts" e "recent_reviews" descrivono com'è andato il periodo precedente, con dati calcolati da PCoach (esiti, minuti svolti, RPE, scostamenti di volume): usali per calibrare il carico, senza ricalcolarli. "nessuna attività registrata" non significa che l'atleta non si sia allenato.
+- Uno step a distanza ha "distance_m" e "duration_sec": null, uno step a tempo il contrario. Il "cue" non ripete la durata o la distanza dello step: la dicono già "duration_sec" o "distance_m".
 
 Restituisci SOLO un oggetto JSON valido (puoi racchiuderlo in un blocco di codice \`\`\`json, oppure scriverlo senza altro testo prima o dopo), con questa struttura esatta:
 ${TRAINING_PLAN_JSON_SHAPE}`;

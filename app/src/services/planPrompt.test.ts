@@ -74,6 +74,12 @@ describe("buildPlanPrompt", () => {
     expect(PLAN_RULES).toContain("zone_per_disciplina");
   });
 
+  it("le regole sul formato degli step sono fisse; le preferenze del coach restano senza nomi di campo (D-07)", () => {
+    expect(PLAN_RULES).toContain('"distance_m"');
+    expect(PLAN_RULES).toContain('Il "cue" non ripete la durata o la distanza');
+    expect(DEFAULT_PLAN_PREFERENCES).not.toMatch(/[a-z]+_[a-z]+|\bcue\b/);
+  });
+
   it("sedute recenti con esito, minuti svolti e RPE; valutazioni recenti solo come dati calcolati (D-09)", () => {
     const done: PromptWorkout = { ...fixed, planned_date: "2026-10-04", completed_at: "2026-10-04T08:00:00Z", completion_outcome: "short", activity_minutes: 41.6, activity_rpe: 8 };
     const input = buildFeedbackInput({

@@ -155,8 +155,7 @@ export const DEFAULT_PLAN_PREFERENCES = `- Nella settimana di scarico c'è pochi
 - Un nuovo ciclo riparte da un carico simile alla seconda settimana di carico del ciclo precedente: guarda le sedute recenti.
 - La settimana di raccordo (fase "raccordo"), se presente, è leggera.
 - Tieni conto del carico recente (CTL, ATL, TSB) e delle sedute senza un'attività registrata.
-- Le ripetute di corsa e nuoto sono di solito a distanza (distance_m), quelle di bici a tempo (duration_sec). Gli allunghi sono ripetute di circa 100 m.
-- Il cue non ripete la durata o la distanza dello step: la dicono già duration_sec o distance_m.`;
+- Le ripetute di corsa e nuoto sono di solito a distanza, quelle di bici a tempo. Gli allunghi sono ripetute di circa 100 m.`;
 
 /** true per un template del vecchio formato (prompt intero con i segnaposto dei dati): non si usa
  * piu' come preferenze, perche' ripeterebbe regole e dati. */
