@@ -93,9 +93,11 @@ async function onCreate() {
     <button v-if="reviews.current.length > VISIBLE" type="button" class="link-btn" @click="showAll = !showAll">
       {{ showAll ? "Mostra solo i più recenti" : `Mostra tutti (${reviews.current.length})` }}
     </button>
-    <!-- L'azione rara dopo quella frequente (audit UX-10): prima si approva, poi si prepara un'altra settimana. -->
+    <!-- L'azione rara dopo quella frequente (audit UX-10): prima si approva, poi si prepara un'altra settimana.
+         Solo a caricamento finito: prima il selettore proporrebbe anche le settimane che hanno gia' un feedback. -->
     <h4 class="subsection-title">Prepara il feedback di un'altra settimana</h4>
-    <p v-if="!weekOptions.length" class="helper-text">Le ultime sei settimane hanno già un feedback: per rifarne uno usa «Rigenera».</p>
+    <p v-if="reviews.loading" class="helper-text">Caricamento…</p>
+    <p v-else-if="!weekOptions.length" class="helper-text">Le ultime sei settimane hanno già un feedback: per rifarne uno usa «Rigenera».</p>
     <div v-else class="review-create">
       <label class="field">
         <span class="field-label">Settimana</span>

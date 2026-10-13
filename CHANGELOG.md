@@ -26,7 +26,7 @@ Feedback settimanale rivisto dopo la verifica UI/UX ([docs/audit/2026-10-feedbac
 - Lo stato del salvataggio è solo una nuvola colorata, senza testo né data: verde se salvato, rossa con modifiche, grigia e barrata per una bozza mai salvata; c'è anche nelle Impostazioni; su telefono «Salva impostazioni» e «Salva il profilo» diventano «Salva», così il titolo non si taglia — richiesta del coach — docs: design-ui, architettura.
 
 ### Corretto
-- «Prepara il feedback» propone solo le settimane che non ne hanno ancora uno e non risponde più «Valutazione in corso» per una settimana già approvata; la guida non suggerisce più di usarlo per rivalutare una settimana (audit FB-03) — docs: design-ui, backend.
+- «Prepara il feedback» propone solo le settimane che non ne hanno ancora uno e non risponde più «Valutazione in corso» per una settimana già approvata; la guida non suggerisce più di usarlo per rivalutare una settimana; il selettore compare solo a feedback caricati (audit FB-03) — docs: design-ui, backend.
 
 ### Rimosso
 - «Versione X.Y.Z» in fondo alla barra laterale: la versione resta in Impostazioni › Informazioni — richiesta del coach — docs: design-ui, architettura, sviluppo-deploy, decisioni/0036.

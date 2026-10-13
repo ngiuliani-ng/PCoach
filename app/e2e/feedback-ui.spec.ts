@@ -148,6 +148,7 @@ test("«Prepara il feedback» propone solo le settimane senza feedback (FB-03)",
   const state = withHistory();
   await installMockBackend(page, state);
   await page.goto(`./#/atleta/${ATHLETE_ID}/panoramica`);
+  await expect(page.locator("#feedback-r-21set")).toBeVisible();
   const select = page.locator(".review-create select");
   const options = await select.locator("option").allTextContents();
   for (const taken of ["5 ott – 11 ott 2026", "28 set – 4 ott 2026", "21 set – 27 set 2026", "14 set – 20 set 2026"]) expect(options).not.toContain(taken);

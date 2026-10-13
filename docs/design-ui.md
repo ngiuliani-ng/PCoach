@@ -267,7 +267,7 @@ Sezione della Panoramica (`WeeklyReviews.vue`, una settimana per `FeedbackWeek.v
   - sopra i pulsanti, se una versione precedente è già stata inviata, la casella «Invia anche questa versione»;
   - poi «Approva e invia» (o «Approva», con una nota, se l'email è disattivata o l'atleta non ha un indirizzo; senza indirizzo la nota è in `--danger`) e «Rigenera». Con il testo corretto, «Rigenera» chiede conferma («perdi le tue correzioni»); se non riesce, le correzioni restano.
 - **In preparazione**: la sezione si rilegge da sola ogni 30 secondi finché c'è una valutazione in preparazione, con «Aggiorna ora».
-- **In fondo**, «Prepara il feedback di un'altra settimana»: un selettore con le sole settimane senza feedback fra le ultime sei (in corso compresa) e «Prepara il feedback». Se le hanno tutte, al posto del selettore: «Le ultime sei settimane hanno già un feedback: per rifarne uno usa «Rigenera».»
+- **In fondo**, «Prepara il feedback di un'altra settimana»: un selettore con le sole settimane senza feedback fra le ultime sei (in corso compresa) e «Prepara il feedback», che compare a feedback caricati («Caricamento…» prima). Se le hanno tutte, al posto del selettore: «Le ultime sei settimane hanno già un feedback: per rifarne uno usa «Rigenera».»
 
 ## Impostazioni
 
