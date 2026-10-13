@@ -43,7 +43,7 @@ import ProfileTrainingStatus from "./ProfileTrainingStatus.vue";
 import ProfileGoals from "./ProfileGoals.vue";
 import ProfileConstraints from "./ProfileConstraints.vue";
 import ProfileMethodology from "./ProfileMethodology.vue";
-import { Download, Trash2 } from "lucide-vue-next";
+import { CloudCheck, Download, Trash2 } from "lucide-vue-next";
 
 const athletes = useAthletesStore();
 const workouts = useWorkoutsStore();
@@ -131,6 +131,11 @@ const openGuide = (key: GuideKey) => guideLayer.open(key);
 const disciplinesText = computed(() =>
   profile.value.disciplines.map((d) => disciplineLabel(d.sport)).filter(Boolean).join(", ")
 );
+// Data dell'ultimo salvataggio in forma corta per il telefono: senza l'anno, se e' quello in corso.
+const savedShort = computed(() => {
+  const date = profile.value.meta.updated_at ?? "";
+  return formatDate(date, date.slice(0, 4) !== todayISO().slice(0, 4));
+});
 const nextEvent = computed(() => {
   const today = todayISO();
   return (profile.value.goals.target_events || [])
@@ -277,7 +282,12 @@ watch(
       <div class="page-header-actions">
         <span v-if="athletes.isDirty" class="unsaved-badge">Modifiche non salvate</span>
         <!-- La data dell'ultimo salvataggio sta accanto a «Salva», dove si capisce che riguarda la scheda (audit UX-05). -->
-        <span v-else-if="tab === 'profilo' && athletes.currentId" class="saved-note">Scheda salvata il {{ formatDate(profile.meta.updated_at) }}</span>
+        <!-- Su telefono: icona e data corta («1 set»), il testo intero resta per i lettori di schermo. -->
+        <span v-else-if="tab === 'profilo' && athletes.currentId" class="saved-note">
+          <CloudCheck :size="16" class="saved-icon" aria-hidden="true" />
+          <span class="saved-long">Scheda salvata il {{ formatDate(profile.meta.updated_at) }}</span>
+          <span class="saved-short" aria-hidden="true">{{ savedShort }}</span>
+        </span>
         <!-- Salva i dati del Profilo: fuori da quella vista compare solo se ci sono modifiche da salvare. -->
         <button v-if="tab === 'profilo' || athletes.isDirty" type="button" class="primary" :disabled="!athletes.isDirty" @click="onSave">{{ tab === "profilo" ? "Salva" : "Salva il profilo" }}</button>
       </div>

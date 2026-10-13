@@ -229,7 +229,7 @@ test("rilevazioni delle soglie: nessun valore tagliato nei selettori, a 1440 e s
   expect(await clippedSelects(page, "#sec-soglie")).toEqual([]);
 });
 
-test("intestazione della scheda: su telefono solo il prossimo evento e le tab in alto; «Scheda salvata il» accanto a «Salva» nel Profilo (UX-05)", async ({ page }, info) => {
+test("intestazione della scheda: su telefono solo il prossimo evento e le tab in alto; «Scheda salvata il» accanto a «Salva» nel Profilo, corta su telefono (UX-05)", async ({ page }, info) => {
   const state = createState();
   const profile = (state.tables.athletes[0] as { data: { goals: Record<string, unknown> } }).data;
   profile.goals.target_events = [{ name: "Mezza di Bergamo", date: "2026-11-15", discipline: "running", distance_or_duration: "21 km", priority: "A", target_result: "" }];
@@ -244,6 +244,14 @@ test("intestazione della scheda: su telefono solo il prossimo evento e le tab in
     await expect(sub.getByText("Corsa, Bici")).toBeHidden();
     const tabs = (await page.getByRole("tablist", { name: "Sezioni della scheda" }).boundingBox())!;
     expect(tabs.y).toBeLessThanOrEqual(200);
+    // Nel Profilo, accanto a «Salva»: icona e data corta, il testo intero per i lettori di schermo.
+    await page.getByRole("tab", { name: "Profilo" }).click();
+    const saved = page.locator(".page-header .saved-note");
+    await expect(saved.locator(".saved-short")).toHaveText("1 set");
+    await expect(saved.locator(".saved-icon")).toBeVisible();
+    await expect(saved).toContainText("Scheda salvata il 1 set 2026");
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow).toBeLessThanOrEqual(0);
   } else {
     await expect(sub.getByText("Corsa, Bici")).toBeVisible();
     await page.getByRole("tab", { name: "Profilo" }).click();
