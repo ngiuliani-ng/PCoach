@@ -1,10 +1,48 @@
 # Changelog
 
-**Quando leggerlo**: per sapere quando e perché è cambiato qualcosa, o per collegare un comportamento attuale alla fase/commit che lo ha introdotto.
+**Quando leggerlo**: per sapere quando e perché è cambiato qualcosa, in quale versione, o per collegare un comportamento attuale alla versione e al commit che lo ha introdotto.
 
-Ordine: più recente in cima. Formato per voce: **data — cambiamento — motivazione — docs aggiornati**.
+Ordine: più recente in cima. Versioni con [Semantic Versioning](https://semver.org/lang/it/) adattato a un'app senza API pubbliche: MAJOR se serve un'azione o si rompe la compatibilità di dati o flussi, MINOR per una funzione nuova o cambiata che il coach vede, PATCH per correzioni e testi ([decisioni/0036](docs/decisioni/0036-versione-dell-app-e-rilasci.md)).
+
+- `## [Unreleased]` in cima raccoglie ciò che è nel codice ma non ancora rilasciato. Al rilascio diventa `## [X.Y.Z] — AAAA-MM-GG`, con la versione in `app/package.json` e in `supabase/functions/_shared/version.ts` e il tag `vX.Y.Z`.
+- Categorie: **Aggiunto**, **Modificato**, **Corretto**, **Rimosso**, **Sicurezza** per ciò che il coach nota o che cambia i dati; **Interno** per test, refactoring, documentazione e dipendenze. Le note di rilascio in Impostazioni › Informazioni escludono «Interno».
+- Formato per voce: **cambiamento — motivazione — docs aggiornati**, in una riga che inizia con «- ».
 
 ---
+
+## [Unreleased]
+
+## [1.0.0] — 2026-10-13
+
+Prima versione numerata: corrisponde al commit con cui viene pubblicata e comprende tutto ciò che è elencato sotto «Prima del versionamento». Le voci di questa sezione sono l'audit UI/UX completo di ottobre 2026 ([docs/audit/2026-10-ux-ui-completo](docs/audit/2026-10-ux-ui-completo/README.md)).
+
+### Aggiunto
+- Pagina iniziale «Da fare»: per ogni atleta feedback da approvare o fermi, email e soglie mancanti, sedute da verificare, invii non riusciti e bozze delle prossime due settimane, con il link al punto esatto; il numero compare accanto all'atleta nella barra laterale — prima bisognava aprire ogni atleta — docs: design-ui, decisioni/0035.
+- Profilo e Impostazioni a sezioni comprimibili con riepilogo e indice; nelle Impostazioni i parametri che cambiano i calcoli per tutti gli atleti sono in «Avanzate» — pagine lunghe fino a 14 schermi su telefono — docs: design-ui, decisioni/0035.
+- Guida per ogni gruppo di dati, aperta dall'icona Info: i testi d'aiuto non stanno più sotto i campi — decisione del coach, sul modello di Garmin Connect — docs: design-ui, decisioni/0035.
+- Versione dell'app in fondo alla barra laterale e in Impostazioni › Informazioni, con build, versione del server, novità e «Copia per una segnalazione» — la versione non era identificabile — docs: sviluppo-deploy, design-ui, decisioni/0036.
+- Anomalia «Manca l'email dell'atleta» quando l'invio via email è attivo; la scheda si salva anche senza — decisione del coach — docs: design-ui, decisioni/0034.
+
+### Modificato
+- Tab Anomalie: un solo elenco, prima ciò che è fallito, ognuno con la riga «Ferma: …» — i gruppi non aiutavano a scegliere cosa fare prima — docs: design-ui, decisioni/0034.
+- Nomi degli stati: «Bozza» al posto di «Da revisionare», «Da approvare» per il feedback, «Versione N» al posto di «Revisione N»; nelle righe delle sedute solo gli stati da sistemare — nomi quasi uguali per cose diverse — docs: design-ui.
+- Storico del piano: un selettore «Sedute» al posto dei dodici filtri a chip — docs: design-ui.
+- Con un feedback da approvare la Panoramica parte dal feedback; «Prepara il feedback» va in fondo; un clic su una seduta della settimana apre il suo pannello — docs: design-ui.
+- Valori predefiniti scritti «predefinito: N» nei campi vuoti; fasce d'intensità in tabella; salvare modelli di zone cambiati chiede conferma; i ripristini chiedono conferma se ci sono valori personalizzati — docs: design-ui.
+- Le regole tecniche sul formato degli step passano dalle preferenze di generazione alle istruzioni fisse; prompt 2.5.0 — le preferenze del coach restano in italiano semplice — docs: architettura.
+- Eliminazione dell'atleta solo da Profilo › Gestione scheda — la «X» nella barra laterale stava accanto alla navigazione — docs: design-ui.
+
+### Corretto
+- Testi d'aiuto non più veri: soglie (una soglia diversa ferma feedback e invio), modelli di zone (stimano anche la durata delle sedute a distanza), chiave Claude, «Prosegui il piano»; la nota del feedback per un atleta senza email — docs: design-ui.
+- A 320 px la barra delle tab non scorre più in orizzontale; etichette del grafico del carico a 12 px anche su telefono; titolo della pagina in `h1`; «Sincronizza settimana» nascosto in una settimana senza sedute.
+
+### Interno
+- Test sulle etichette citate nei testi d'aiuto, sul glossario degli stati, sulla coerenza della versione fra app, server e CHANGELOG; backend finto degli e2e con la consegna del feedback come il server.
+- `version.json` nella build; intestazione `x-pcoach-version` nelle Edge Function; pubblicazione su GitHub Pages solo dai tag `v*`.
+
+## Prima del versionamento
+
+Voci datate fino al 13 ottobre 2026 (commit `1a98ab3`), nel formato precedente: **data — cambiamento — motivazione — docs aggiornati**.
 
 **2026-10-13 — Zone e soglie bloccano anche l'invio; anomalie senza richiamo sopra le tab**
 - Zone diverse, soglie diverse o soglia mancante fermano anche l'invio delle sedute a Intervals.icu: in «Sincronizza settimana» creazioni e aggiornamenti risultano bloccati con il motivo, e `apply` ricontrolla lato server. Le rimozioni restano possibili.
