@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Shell principale: sidebar + area di lavoro, scelta dalla rotta (vedi router.ts).
-import { onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { onBeforeUnmount, onMounted, ref, watch, watchEffect } from "vue";
 import { useRoute } from "vue-router";
 import { useAthletesStore } from "./stores/athletes";
 import { useSettingsStore } from "./stores/settings";
@@ -13,6 +13,7 @@ import LoginView from "./components/domain/LoginView.vue";
 import ToastHost from "./components/ui/ToastHost.vue";
 import ConfirmDialog from "./components/ui/ConfirmDialog.vue";
 import { Menu } from "lucide-vue-next";
+import { fullName } from "./constants";
 
 const athletes = useAthletesStore();
 const settings = useSettingsStore();
@@ -51,6 +52,23 @@ watch(
   },
   { immediate: true }
 );
+
+// Titolo del documento (scheda del browser, cronologia, annuncio del cambio pagina): dice dove si è
+// (audit A-11). Formato «Pagina – Atleta – PCoach».
+const TAB_TITLES: Record<string, string> = { panoramica: "Panoramica", piano: "Piano", profilo: "Profilo", anomalie: "Anomalie" };
+watchEffect(() => {
+  const parts: string[] = [];
+  if (!auth.loading && !auth.isAuthenticated) parts.push("Accesso");
+  else if (route.name === "home") parts.push("Da fare");
+  else if (route.name === "settings") parts.push("Impostazioni");
+  else if (route.name === "new-athlete") parts.push("Nuovo atleta");
+  else if (route.name === "athlete") {
+    parts.push(TAB_TITLES[String(route.params.tab || "panoramica")] ?? "Scheda");
+    const name = fullName(athletes.athletes[String(route.params.id)]?.identity);
+    if (name) parts.push(name);
+  }
+  document.title = [...parts, "PCoach"].join(" – ");
+});
 
 // Su mobile ogni cambio di pagina chiude l'elenco degli atleti. Il «Da fare» si rilegge: quello che il
 // coach ha sistemato sparisce dalla home e dal numero accanto all'atleta (D-01).

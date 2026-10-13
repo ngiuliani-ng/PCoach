@@ -81,7 +81,7 @@ async function onCreate() {
 <template>
   <section class="block" id="sec-feedback">
     <div class="section-head">
-      <h3 class="section-title">Feedback settimanale</h3>
+      <h2 class="section-title">Feedback settimanale</h2>
       <IconButton label="Guida: Feedback settimanale" @click="guideLayer.open('panoramica-feedback')"><Info :size="18" aria-hidden="true" /></IconButton>
     </div>
 
@@ -95,7 +95,7 @@ async function onCreate() {
     </button>
     <!-- L'azione rara dopo quella frequente (audit UX-10): prima si approva, poi si prepara un'altra settimana.
          Solo a caricamento finito: prima il selettore proporrebbe anche le settimane che hanno gia' un feedback. -->
-    <h4 class="subsection-title">Prepara il feedback di un'altra settimana</h4>
+    <h3 class="subsection-title">Prepara il feedback di un'altra settimana</h3>
     <p v-if="reviews.loading" class="helper-text">Caricamento…</p>
     <p v-else-if="!weekOptions.length" class="helper-text">Le ultime sei settimane hanno già un feedback: per rifarne uno usa «Rigenera».</p>
     <div v-else class="review-create">

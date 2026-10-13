@@ -241,7 +241,7 @@ const exec = computed(() => execState(original.value, todayISO()));
         </template>
         <template v-else>
           <div class="drawer-section-head">
-            <h3>Struttura</h3>
+            <h2>Struttura</h2>
             <span class="muted">{{ formatMinutes(totals.seconds) }}{{ totals.estimated ? " stimati" : "" }}<template v-if="totals.meters">, {{ formatMeters(totals.meters) }} a distanza</template></span>
           </div>
           <div class="field">
@@ -280,7 +280,7 @@ const exec = computed(() => execState(original.value, todayISO()));
       </details>
 
       <section class="drawer-section">
-        <h3>Cronologia</h3>
+        <h2>Cronologia</h2>
         <p v-if="!events.length" class="helper-text">Nessun evento registrato.</p>
         <ul v-else class="timeline">
           <li v-for="e in events" :key="e.id">

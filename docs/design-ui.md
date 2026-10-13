@@ -49,7 +49,9 @@ Regole per chi modifica il layout:
 
 - Font di sistema (`--font-ui`, stack `-apple-system, ...`). Nessun web font viene caricato da remoto. `--font-mono` (`JetBrains Mono` se installato, altrimenti i monospace di sistema) è riservato a chiavi API, identificatori tecnici (modello Claude, fuso orario) e JSON: mai per numeri o etichette.
 - Le cifre sono tabulari ovunque (`font-variant-numeric: tabular-nums` su `body` e sui campi), così i numeri si allineano senza monospace.
-- Gerarchia: titolo di pagina `--fs-2xl` (600, `--fs-xl` su mobile), titolo di sezione `h3` `--fs-lg` (600, colore `--text`), sottosezione `--fs-md` (600), testo `--fs-md`, etichette dei campi e testi di aiuto `--fs-xs` in `--text-muted`. Nessuna etichetta in maiuscolo (`text-transform` non viene usato).
+- Gerarchia: titolo di pagina `h1` `--fs-2xl` (600, `--fs-xl` su mobile), titolo di sezione `h2` `--fs-lg` (600, colore `--text`), sottosezione `h3` `--fs-md` (600), testo `--fs-md`, etichette dei campi e testi di aiuto `--fs-xs` in `--text-muted`. Nessuna etichetta in maiuscolo (`text-transform` non viene usato).
+- Livelli dei titoli senza salti: sotto l'`h1` della pagina le sezioni, i titoli dei dialoghi, del pannello della seduta e le settimane dello storico sono `h2`, le sottosezioni `h3`; sotto un titolo di gruppo come «Avanzate» le sezioni sono `h3` e le loro sottosezioni `h4`. Lo stile viene dalle classi e dal contesto (`section.block h2`, `.section-title`, `.subsection-title`), così cambiare livello non cambia l'aspetto.
+- Titolo del documento (`App.vue`): dice dove si è, «Pagina – Atleta – PCoach» («Piano – Giulia Ferri – PCoach», «Impostazioni – PCoach», «Accesso – PCoach»).
 - I testi lunghi (aiuto, feedback, note) hanno una larghezza massima di 70 caratteri.
 
 ## Testi dell'interfaccia
@@ -76,7 +78,7 @@ Regole per chi modifica il layout:
   In entrambi i casi è un `role="alertdialog"` modale: all'apertura il focus va sul pulsante di annullamento, Tab resta dentro il dialog, Esc annulla, alla chiusura il focus torna all'elemento che lo aveva aperto.
 - **PasswordField**: campo per segreti digitati dall'utente (chiave Intervals.icu, chiave Claude) con toggle mostra/nascondi (`Eye`/`EyeOff`, `aria-label` e `aria-pressed`, senza tooltip nativo), mai loggato né esposto in chiaro nel DOM a riposo. Riceve `input-id` e va etichettato con `<label :for>`, non avvolto in una `<label>`, perché il pulsante interno finirebbe nel nome accessibile del campo.
 - **PageSection** (`PageSection.vue`, stato in `useSections`, decisione in [decisioni/0035](decisioni/0035-pagina-da-fare-sezioni-e-guida.md)): sezione comprimibile di una pagina lunga (Profilo, Impostazioni).
-  - L'intestazione è un `<h3>` che contiene un pulsante (`aria-expanded`, `aria-controls`) con il caret, il titolo e, a sezione chiusa, una riga di riepilogo del contenuto in `--text-muted`, oppure in `--warning` se c'è qualcosa da sistemare.
+  - L'intestazione è un titolo (`h2`, oppure `h3` con `level=3` sotto un titolo di gruppo come «Avanzate») che contiene un pulsante (`aria-expanded`, `aria-controls`) con il caret, il titolo e, a sezione chiusa, una riga di riepilogo del contenuto in `--text-muted`, oppure in `--warning` se c'è qualcosa da sistemare.
   - A destra, se la sezione ha una guida, l'`IconButton` Info («Guida: …»).
   - Il contenuto resta nel DOM anche chiuso (`v-show`). Arrivando sulla pagina, o cambiando atleta, le sezioni sono tutte chiuse (scelta del coach); si aprono a mano, da un link che porta a una sezione (`?sezione=`, indice, anomalie) o da sole quando contengono un errore. Un salvataggio rifiutato per il nome mancante, da qualunque pulsante, apre Identità e porta il focus su «Nome», che mostra l'errore sotto il campo (`aria-invalid`, `aria-describedby`) finché il nome manca.
 - **SectionNav** (`SectionNav.vue`): indice delle sezioni a destra della colonna, sticky, solo da 1360px. Un clic apre la sezione e la porta in vista. Sotto quella larghezza l'indice sono le intestazioni chiuse.
@@ -115,7 +117,7 @@ Regole per chi modifica il layout:
 
   Si apre sulla Panoramica; una bozza di nuovo atleta si apre sul Profilo e il suo primo salvataggio non cambia vista.
 - **Richiamo delle anomalie**: solo il numero nel tondo `--warning` accanto all'etichetta «Anomalie» ([decisioni/0033](decisioni/0033-zone-e-soglie-bloccano-l-invio.md)). In cima alla scheda resta solo l'avviso «Questa scheda è stata modificata altrove».
-- **Sezioni** (`<section class="block">`, stile in `base.css`): piatte, separate da un filetto superiore in `--border`, titolo `h3`. Nelle pagine lunghe sono `PageSection` comprimibili. Le **unità** (`.unit`) sono l'unico livello di card: sfondo `--surface`, bordo, `--radius-md`, intestazione `.unit-head` con titolo e `IconButton` di rimozione.
+- **Sezioni** (`<section class="block">`, stile in `base.css`): piatte, separate da un filetto superiore in `--border`, titolo `h2`. Nelle pagine lunghe sono `PageSection` comprimibili. Le **unità** (`.unit`) sono l'unico livello di card: sfondo `--surface`, bordo, `--radius-md`, intestazione `.unit-head` con titolo e `IconButton` di rimozione.
 - **Soglie**: una sola sezione con un selettore a segmenti (`.segmented`, `aria-pressed`) Corsa / Bici / Nuoto.
 - **Campi**: `<label class="field">` che avvolge `<span class="field-label">` e il controllo, così ogni etichetta è associata al suo campo senza `id`. Le righe di campi (`.field-row`) sono una griglia `auto-fit` con colonne da almeno 150px; nelle rilevazioni delle soglie (`.metric-fields`) da almeno 190px, perché i valori dei selettori («Time trial in campo», «Intervals.icu (sync)») entrino interi.
 - **Pagina iniziale «Da fare»** (`TodoPage.vue`, [decisioni/0035](decisioni/0035-pagina-da-fare-sezioni-e-guida.md)):

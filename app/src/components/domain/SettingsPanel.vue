@@ -236,7 +236,7 @@ async function onSave() {
       <p class="helper-text">Regole che cambiano i calcoli per tutti gli atleti. Di solito i valori predefiniti vanno bene.</p>
     </div>
 
-    <PageSection id="imp-classificazione" title="Classificazione delle sedute" :open="sections.isOpen('imp-classificazione')"
+    <PageSection id="imp-classificazione" title="Classificazione delle sedute" :level="3" :open="sections.isOpen('imp-classificazione')"
       :summary="classificationSummary" :attention="CLASSIFICATION_KEYS.some((k) => paramErrors[k])" guide
       @toggle="sections.toggle('imp-classificazione')" @guide="openGuide('impostazioni-classificazione')">
       <div class="field-row">
@@ -257,7 +257,7 @@ async function onSave() {
       <button type="button" class="link-btn" @click="resetParams(CLASSIFICATION_KEYS, 'le soglie di classificazione e di qualità dei dati')">Ripristina le soglie predefinite</button>
     </PageSection>
 
-    <PageSection id="imp-intensita" title="Intensità per sistema di zone" :open="sections.isOpen('imp-intensita')"
+    <PageSection id="imp-intensita" title="Intensità per sistema di zone" :level="3" :open="sections.isOpen('imp-intensita')"
       :summary="intensitySummary" :attention="INTENSITY_KEYS.some((k) => paramErrors[k])" guide
       @toggle="sections.toggle('imp-intensita')" @guide="openGuide('impostazioni-intensita')">
       <table class="intensity-table">
@@ -283,7 +283,7 @@ async function onSave() {
       <button type="button" class="link-btn" @click="resetParams(INTENSITY_KEYS, 'le fasce d\'intensità')">Ripristina le fasce predefinite</button>
     </PageSection>
 
-    <PageSection id="imp-modelli" title="Modelli di zone" :open="sections.isOpen('imp-modelli')" :summary="zoneModelsInvalid ? 'Un limite non è valido' : modelsSummary"
+    <PageSection id="imp-modelli" title="Modelli di zone" :level="3" :open="sections.isOpen('imp-modelli')" :summary="zoneModelsInvalid ? 'Un limite non è valido' : modelsSummary"
       :attention="zoneModelsInvalid" guide @toggle="sections.toggle('imp-modelli')" @guide="openGuide('impostazioni-modelli')">
       <ZoneModelsEditor />
       <button type="button" class="link-btn" @click="resetModels">Ripristina i modelli predefiniti</button>

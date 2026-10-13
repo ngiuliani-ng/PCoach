@@ -335,7 +335,7 @@ watch(
       <!-- Con un feedback da approvare, il feedback e' la prima cosa della Panoramica (audit UX-10). -->
       <WeeklyReviews v-if="athletes.currentId && feedbackFirst" :athlete-id="athletes.currentId" />
       <section class="block">
-        <h3>Carico e forma</h3>
+        <h2>Carico e forma</h2>
         <LoadMetricsChart :log="profile.training_status!.load_metrics_log as never">
           <template #empty>
             <p v-if="!hasIntervalsKey">
@@ -349,7 +349,7 @@ watch(
       </section>
 
       <section class="block">
-        <h3>Questa settimana</h3>
+        <h2>Questa settimana</h2>
         <p v-if="!athletes.currentId" class="helper-text">Salva la scheda per pianificare le sedute.</p>
         <p v-else-if="!thisWeek.length" class="helper-text">
           Nessuna seduta in programma questa settimana.

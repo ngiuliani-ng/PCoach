@@ -12,7 +12,7 @@ defineProps<{ anomalies: Anomaly[]; checking: boolean; busy: boolean }>();
   <div class="anomalies">
     <p v-if="checking" class="helper-text" role="status">Controllo zone e soglie su Intervals.icu…</p>
     <section v-if="!anomalies.length && !checking" class="block">
-      <h3>Nessuna anomalia</h3>
+      <h2>Nessuna anomalia</h2>
       <p class="helper-text">
         Qui compaiono zone o soglie diverse da Intervals.icu, soglie o email mancanti, sedute da verificare, invii non riusciti e
         feedback fermi, con l'azione per sistemarli.

@@ -133,7 +133,7 @@ const title = computed(() => `Sincronizza la settimana ${formatDate(props.weekSt
     <div ref="root" class="dialog-box" role="dialog" aria-modal="true" aria-labelledby="sync-title">
       <header class="dialog-head">
         <div>
-          <h3 id="sync-title">{{ title }}</h3>
+          <h2 id="sync-title">{{ title }}</h2>
           <p>{{ phase === "done" ? "Esito di ogni operazione." : "Ecco cosa verrà inviato a Intervals.icu. Nulla parte finché non confermi." }}</p>
         </div>
         <button v-if="phase !== 'running'" type="button" class="icon-btn" aria-label="Chiudi" @click="emit('close')"><X :size="18" aria-hidden="true" /></button>
@@ -148,7 +148,7 @@ const title = computed(() => `Sincronizza la settimana ${formatDate(props.weekSt
           </p>
           <p v-if="!ops.length" class="helper-text">Nessuna seduta in questa settimana.</p>
           <div v-for="g in groups" :key="g.kind" class="op-group">
-            <h4>{{ g.label }} <span class="count">{{ g.items.length }}</span></h4>
+            <h3>{{ g.label }} <span class="count">{{ g.items.length }}</span></h3>
             <ul class="op-list">
               <li v-for="op in g.items" :key="op.workoutId">
                 <component :is="disciplineIcon(workout(op.workoutId).discipline)" :size="16" class="op-icon" role="img" :aria-label="disciplineLabel(workout(op.workoutId).discipline)" />

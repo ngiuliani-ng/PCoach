@@ -249,7 +249,7 @@ function rangeText(ws: string) {
       </div>
       <div v-if="!historyGroups.length" class="unit plan-empty"><p>Nessuna seduta corrisponde al filtro.</p></div>
       <div v-for="[ws, items] in historyGroups" :key="ws" class="history-week">
-        <h4>{{ rangeText(ws) }}</h4>
+        <h2>{{ rangeText(ws) }}</h2>
         <div class="week-unit">
           <WorkoutRow v-for="w in items" :key="w.id" :workout="w" :sync="store.syncRows[w.id]" show-date @open="workoutLayer.open($event)" @approve="approve" />
         </div>

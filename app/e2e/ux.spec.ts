@@ -107,7 +107,7 @@ test("pagina «Da fare»: feedback e bozze di tutti gli atleti, con il numero in
   await athlete.getByRole("link", { name: "Apri il feedback" }).click();
   await expect(page).toHaveURL(/panoramica\?feedback=review-1/);
   // Con un feedback da approvare, il feedback viene prima del grafico del carico.
-  const headings = await page.locator("#panel-panoramica h3").allTextContents();
+  const headings = await page.locator("#panel-panoramica h2").allTextContents();
   expect(headings[0]).toBe("Feedback settimanale");
   await expect(page.getByLabel("Testo per l'atleta (modificabile)")).toBeInViewport();
   await page.getByRole("button", { name: "Approva", exact: true }).click();
@@ -409,5 +409,41 @@ test("segnaposto «predefinito: N» leggibile e controlli nativi nel tema della 
     expect(r.opacity).toBe("1");
     expect(r.scheme).toBe(scheme);
     await context.close();
+  }
+});
+
+/** Salti di livello fra titoli visibili consecutivi (h1 → h3, h2 → h4…). */
+async function headingSkips(page: import("@playwright/test").Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const levels = [...document.querySelectorAll("h1, h2, h3, h4, h5")]
+      .filter((h) => (h as HTMLElement).offsetParent !== null || getComputedStyle(h).position === "fixed")
+      .map((h) => ({ level: Number(h.tagName[1]), text: (h.textContent || "").trim().slice(0, 30) }));
+    return levels.flatMap((h, i) => (i && h.level > levels[i - 1].level + 1 ? [`h${levels[i - 1].level} → h${h.level} «${h.text}»`] : []));
+  });
+}
+
+test("titoli senza salti di livello e titolo della pagina che dice dove si è (A-10, A-11)", async ({ page }) => {
+  const state = createState();
+  await installMockBackend(page, state);
+  const seduta = String(state.tables.workouts.find((w) => w.title === "VO2max 5 × 4'")!.id);
+  const pages: [string, string, (() => Promise<void>)?][] = [
+    ["./#/", "Da fare – PCoach"],
+    ["./#/impostazioni", "Impostazioni – PCoach", async () => { await page.evaluate(() => document.querySelectorAll<HTMLButtonElement>(".section-toggle[aria-expanded=false]").forEach((b) => b.click())); }],
+    [`./#/atleta/${ATHLETE_ID}/panoramica`, "Panoramica – Giulia Ferri – PCoach"],
+    [`./#/atleta/${ATHLETE_ID}/piano?settimana=2026-10-12`, "Piano – Giulia Ferri – PCoach", async () => { await page.getByRole("button", { name: "Storico" }).click(); }],
+    [`./#/atleta/${ATHLETE_ID}/profilo`, "Profilo – Giulia Ferri – PCoach", async () => { await page.evaluate(() => document.querySelectorAll<HTMLButtonElement>(".section-toggle[aria-expanded=false]").forEach((b) => b.click())); }],
+    [`./#/atleta/${ATHLETE_ID}/anomalie`, "Anomalie – Giulia Ferri – PCoach"],
+    [`./#/atleta/${ATHLETE_ID}/piano?seduta=${seduta}`, "Piano – Giulia Ferri – PCoach"],
+    [`./#/atleta/${ATHLETE_ID}/piano?dialogo=ripianifica`, "Piano – Giulia Ferri – PCoach"],
+    [`./#/atleta/${ATHLETE_ID}/piano?settimana=2026-10-12&dialogo=sincronizza`, "Piano – Giulia Ferri – PCoach"],
+    ["./#/atleta/nuovo", "Nuovo atleta – PCoach"]
+  ];
+  for (const [url, title, prep] of pages) {
+    await page.goto(url);
+    await expect(page.locator("h1").first()).toBeVisible();
+    await page.waitForTimeout(400);
+    if (prep) { await prep(); await page.waitForTimeout(200); }
+    expect(await headingSkips(page), url).toEqual([]);
+    await expect(page, url).toHaveTitle(title);
   }
 });

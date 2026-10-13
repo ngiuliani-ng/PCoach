@@ -300,7 +300,7 @@ function dayLabel(date: string) {
     <div ref="root" class="dialog-box" role="dialog" aria-modal="true" aria-labelledby="regen-title">
       <header class="dialog-head">
         <div>
-          <h3 id="regen-title">{{ TITLES[kind] }}</h3>
+          <h2 id="regen-title">{{ TITLES[kind] }}</h2>
           <p>{{ step === "preview" ? "Controlla cosa cambia prima di applicare." : replan ? "Scegli da quando ripartire e cosa tenere." : kind === "continue" ? "Le nuove settimane si aggiungono dopo il piano attivo, senza cambiarlo." : "Scegli da quando partire e per quante settimane." }}</p>
         </div>
         <button v-if="!busy()" type="button" class="icon-btn" aria-label="Chiudi" @click="emit('close')"><X :size="18" aria-hidden="true" /></button>
@@ -330,7 +330,7 @@ function dayLabel(date: string) {
           <label class="field"><span class="field-label">{{ replan ? "Cosa è cambiato" : "Indicazioni per Claude (facoltative)" }}</span>
             <textarea v-model="reason" rows="2" :placeholder="!replan ? '' : 'Ad esempio: affaticamento dopo la gara, ridurre l\'intensità per due settimane'"></textarea></label>
           <div v-if="candidates.length" class="op-group">
-            <h4>Sedute dal {{ formatDate(fromDate, false) }} in poi <span class="count">{{ candidates.length }}</span></h4>
+            <h3>Sedute dal {{ formatDate(fromDate, false) }} in poi <span class="count">{{ candidates.length }}</span></h3>
             <p class="helper-text">Le sedute che mantieni vengono passate a Claude come vincoli fissi. Quelle prima del {{ formatDate(fromDate, false) }} non vengono toccate.</p>
             <div class="op-list keep-list">
               <label v-for="w in candidates" :key="w.id">

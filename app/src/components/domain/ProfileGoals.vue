@@ -72,7 +72,7 @@ function removeTargetEvent(i: number) {
   </p>
 
   <template v-if="showTargetEvents">
-    <h4 class="subsection-title">Eventi target</h4>
+    <h3 class="subsection-title">Eventi target</h3>
     <div v-for="(ev, i) in profile.goals.target_events" :key="i" class="unit">
       <div class="unit-head">
         <span class="unit-title">{{ ev.name || "Evento senza nome" }}</span>

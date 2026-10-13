@@ -44,7 +44,7 @@ function toggleLifestyleFactor(value: string) {
     </label>
   </div>
 
-  <h4 class="subsection-title">Fattori di vita</h4>
+  <h3 class="subsection-title">Fattori di vita</h3>
   <div class="checkbox-grid">
     <label v-for="[v, l] in LIFESTYLE_FACTOR_OPTIONS" :key="v" class="checkbox-line">
       <input
