@@ -140,3 +140,19 @@ Stato della verifica: **E** esecuzione, **C** codice.
 | 4 | FB-08, FB-09 | testi |
 
 Nessun punto richiede modifiche al server, salvo l'alternativa di FB-02.
+
+## Esito
+
+Il 13 ottobre 2026 il coach ha approvato tutte le soluzioni, compreso il salvataggio sul server del testo corretto (alternativa di FB-02), con due cambi: nessuna scritta di stato sotto il campo, perché basta la nuvola, e nessun «Ripristina il testo di Claude». Decisione in [decisioni/0038](../../decisioni/0038-bozza-del-feedback-salvata-e-storico-compatto.md), test in `app/e2e/feedback-ui.spec.ts`.
+
+Misure con lo stesso script e gli stessi dati (catture in [`evidence/dopo/`](evidence/dopo/)):
+
+| Misura | Prima | Dopo |
+|---|---|---|
+| Sezione, 4 settimane, 1440 px | 2,2 schermi | 1,3 |
+| Sezione, 4 settimane, 390 px | 2,8 schermi | 1,6 |
+| Sezione, tutte le settimane, 1440 px | 2,7 schermi | 1,6 |
+| Sezione, tutte le settimane, 390 px | 3,4 schermi | 2,1 |
+| Scorrimento dentro il campo del testo | sì | no |
+
+Il criterio di FB-04 (1,2 schermi a 1440 px) non è raggiunto del tutto: la bozza aperta, con il testo intero ora che il campo cresce (FB-05), occupa da sola quasi uno schermo.

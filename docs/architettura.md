@@ -76,6 +76,8 @@ supabase/
   migrations/0010_weekly_feedback_cron_timeout.sql  job orario del feedback, con attesa della risposta fino a 150 s
   migrations/0011_zone_models.sql  modelli di zone per allineare Intervals.icu a PCoach
   migrations/0012_workout_sync_hash.sql  impronta del contenuto inviato a Intervals.icu
+  migrations/0013_athlete_checks.sql  controllo periodico degli atleti su Intervals.icu
+  migrations/0014_weekly_reviews_coach_text.sql  testo della bozza del feedback corretto dal coach
 .github/workflows/deploy.yml  Build + pubblicazione su GitHub Pages
 ```
 
@@ -96,7 +98,8 @@ App.vue
      │    ├─ Panoramica
      │    │    ├─ domain/LoadMetricsChart.vue   (grafico CTL/ATL/TSB, tooltip, legenda con valori attuali)
      │    │    ├─ questa settimana              (domain/WorkoutRow.vue in sola lettura, collegamento al Piano)
-     │    │    └─ domain/WeeklyReviews.vue   (feedback settimanale: esiti, limitazioni, testo da approvare)
+     │    │    └─ domain/WeeklyReviews.vue   (feedback settimanale: elenco e «Prepara il feedback»)
+     │    │         └─ domain/FeedbackWeek.vue  (una settimana: esiti, limiti dei dati, testo salvato in automatico; chiusa se già conclusa)
      │    ├─ Piano: domain/PlanTab.vue          (settimana o storico filtrabile)
      │    │    ├─ domain/WorkoutRow.vue         (riga di una seduta: StructureBar mini + WorkoutBadges)
      │    │    ├─ domain/WorkoutDrawer.vue      (pannello della seduta: dati, StepEditor con StepFields per ogni step, testo per Intervals.icu, cronologia)
@@ -194,10 +197,11 @@ Dettagli e regole in [integrazioni.md](integrazioni.md#intervalsicu-sincronizzaz
 ```
 pg_cron (ogni ora, service-role da Vault) → Edge Function weekly-feedback
   → il lunedì dall'ora configurata: una valutazione «pending» per atleta (settimana appena conclusa),
-    al posto di quella anticipata non ancora approvata
+    al posto di quella anticipata non ancora approvata e non corretta dal coach
   → coda: analisi deterministica (_shared/feedback: abbinamento, metriche, qualità dei dati)
   → Claude scrive il testo con uno strumento a schema fisso → validazione → «draft»
-Coach (Panoramica, WeeklyReviews.vue) → rivede esiti e limitazioni, corregge il testo
+Coach (Panoramica, FeedbackWeek.vue) → rivede esiti e limitazioni, corregge il testo
+  → il testo corretto si salva da solo in weekly_reviews.coach_text (RLS, solo in bozza)
   → «Approva» (weekly-feedback, action approve) → email all'atleta se attiva, con nuovi tentativi
     (se la settimana è già stata inviata, solo se il coach sceglie di inviare anche questa versione)
   → oppure «Rigenera» (nuova revisione) / «Prepara il feedback» per un'altra settimana

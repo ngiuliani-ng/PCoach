@@ -88,7 +88,8 @@ Tabella `weekly_reviews` (migrazione `0007_weekly_reviews.sql`, motivazioni in [
 | `status` | Vedi sotto. |
 | `skip_reason` | Perché la valutazione è `skipped` (`no_assigned_workouts`). |
 | `plan_id`, `analysis_version`, `input`, `metrics` | Piano di riferimento, versione dell'analisi e contratto `feedback_input` usato (con le metriche anche a parte, per le query). |
-| `model`, `prompt_template_hash`, `output`, `output_text` | Modello che ha scritto, hash del template di tono, risposta strutturata di Claude, testo per l'atleta (modificabile dal coach fino all'approvazione). |
+| `model`, `prompt_template_hash`, `output`, `output_text` | Modello che ha scritto, hash del template di tono, risposta strutturata di Claude, testo per l'atleta: quello di Claude fino all'approvazione, poi quello approvato. |
+| `coach_text`, `coach_text_at` | Testo della bozza corretto dal coach e ora del salvataggio automatico; vuoti se il testo è uguale a quello di Claude. L'app li scrive solo su una riga `draft` (migrazione `0014`, [decisioni/0038](decisioni/0038-bozza-del-feedback-salvata-e-storico-compatto.md)). |
 | `error`, `attempts`, `locked_until` | Ultimo errore, tentativi del passo in corso, blocco durante l'elaborazione. |
 | `delivery_status`, `delivery_attempts`, `delivery_error`, `delivered_at` | Consegna dell'email: `not_requested`, `pending`, `sent`, `failed`, `skipped`. |
 | `created_at`, `analyzed_at`, `generated_at`, `approved_at`, `updated_at` | Tempi dei passi. |

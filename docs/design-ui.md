@@ -243,19 +243,31 @@ Altre compattazioni:
 
 ## Feedback settimanale
 
-Sezione della Panoramica (`WeeklyReviews.vue`):
-- **Titolo con l'icona Info**: la guida spiega il flusso (ogni lunedì PCoach prepara il feedback, parte solo all'approvazione).
-- **Elenco delle settimane**, dalla più recente; ne mostra 4 e il resto con «Mostra tutti». Per ogni settimana:
-  - intervallo di date e badge di stato (`.w-badge`, testo e icona, mai solo colore): «Da approvare» in avviso, «Approvato», «Inviato all'atleta», «In preparazione», «Nessuna seduta da valutare», «Non riuscito» o «Approvato, email non inviata» in errore;
-  - riga di conteggi senza punti mediani (sedute assegnate, svolte, senza attività registrata, non valutabili, extra, tasso di completamento solo se comunicabile);
+Sezione della Panoramica (`WeeklyReviews.vue`, una settimana per `FeedbackWeek.vue`; decisioni in [decisioni/0038](decisioni/0038-bozza-del-feedback-salvata-e-storico-compatto.md)):
+- **Titolo con l'icona Info**: la guida spiega il flusso (ogni lunedì PCoach prepara il feedback, parte solo all'approvazione, le correzioni si salvano da sole).
+- **Elenco delle settimane**, dalla più recente; ne mostra 4 e il resto con «Mostra tutti». L'intestazione di ogni settimana ha:
+  - l'intervallo di date;
+  - il badge di stato (`.w-badge`, testo e icona, mai solo colore): «Da approvare» in avviso, «Approvato», «Inviato all'atleta», «In preparazione», «Nessuna seduta da valutare», «Non riuscito» o «Approvato, email non inviata» in errore;
+  - «versione N» per una revisione;
+  - per una settimana approvata, «inviato il …» o «approvato il …».
+- **Settimane chiuse** (approvate, non riuscite): l'intestazione è un pulsante con la freccia (`.feedback-toggle`, `aria-expanded`, alto 44px al tocco) che apre il contenuto. Restano visibili anche da chiuse:
+  - «Email non inviata.» con il motivo e «Riprova l'invio» (oppure come aggiungere l'indirizzo);
+  - l'errore di una valutazione non riuscita, con «Riprova».
+
+  Una settimana senza sedute ha solo l'intestazione. Un link `?feedback=<id>` apre la settimana indicata e la porta in vista, aprendo «Mostra tutti» se serve.
+- **Contenuto di una settimana** (aperto per la bozza, a richiesta per le altre):
+  - i conteggi in una frase: «4 sedute assegnate: 3 svolte, 1 senza attività registrata; completamento 75%» (`domain/feedbackText.ts`; il completamento solo se comunicabile);
   - «Sedute della settimana» (`<details>`): data, titolo ed esito di ogni seduta. Gli esiti che chiedono attenzione («Nessuna attività registrata», «Dato non disponibile», «Non attribuibile con certezza», «Al suo posto un'altra disciplina», «Molto più breve del previsto») sono in `--warning`;
-  - limitazioni dei dati, in testo secondario;
-  - «Per te:» con la sintesi di Claude per il coach.
-- **Bozza**: testo per l'atleta in un campo modificabile, «Approva e invia» e «Rigenera». Il pulsante dice solo «Approva», con una nota, se l'email è disattivata o se l'atleta non ha un indirizzo. Senza indirizzo la nota è in `--danger`: approvando il feedback non arriva e resta fra le anomalie; aggiunto l'indirizzo, «Riprova l'invio».
+  - «Limiti dei dati:» con l'elenco, in testo secondario;
+  - «Sintesi per te:» con la sintesi di Claude per il coach;
+  - per una settimana approvata, il testo inviato e «Rigenera».
+- **Bozza**:
+  - il testo per l'atleta in un campo che cresce con il contenuto, senza scorrimento interno;
+  - il testo corretto si salva da solo un secondo dopo l'ultima battuta e all'uscita dal campo, senza scritte: lo stato è la nuvola dell'intestazione, rossa finché non è salvato. Un salvataggio non riuscito mostra un messaggio d'errore una volta;
+  - sopra i pulsanti, se una versione precedente è già stata inviata, la casella «Invia anche questa versione»;
+  - poi «Approva e invia» (o «Approva», con una nota, se l'email è disattivata o l'atleta non ha un indirizzo; senza indirizzo la nota è in `--danger`) e «Rigenera». Con il testo corretto, «Rigenera» chiede conferma («perdi le tue correzioni»); se non riesce, le correzioni restano.
 - **In preparazione**: la sezione si rilegge da sola ogni 30 secondi finché c'è una valutazione in preparazione, con «Aggiorna ora».
-- **Approvata**: il testo inviato, la data di invio oppure l'errore con «Riprova l'invio», e «Rigenera».
-- **Non riuscita**: il messaggio d'errore e «Riprova».
-- **In fondo**, «Prepara il feedback di un'altra settimana»: un selettore delle ultime sei settimane (in corso compresa) e «Prepara il feedback». Un link `?feedback=<id>` porta la settimana indicata in vista, aprendo «Mostra tutti» se serve.
+- **In fondo**, «Prepara il feedback di un'altra settimana»: un selettore con le sole settimane senza feedback fra le ultime sei (in corso compresa) e «Prepara il feedback». Se le hanno tutte, al posto del selettore: «Le ultime sei settimane hanno già un feedback: per rifarne uno usa «Rigenera».»
 
 ## Impostazioni
 

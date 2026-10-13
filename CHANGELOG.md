@@ -12,11 +12,23 @@ Ordine: più recente in cima. Versioni con [Semantic Versioning](https://semver.
 
 ## [Unreleased]
 
+### Aggiunto
+- Il testo del feedback che correggi si salva da solo, sul server, un secondo dopo l'ultima battuta: la nuvola è rossa finché non è salvato, e uscendo dalla scheda con un salvataggio non riuscito l'app chiede cosa fare — le correzioni si perdevano uscendo dalla scheda (audit FB-02) — docs: modello-dati, backend, design-ui, architettura, decisioni/0038.
+
 ### Modificato
+- «Rigenera» con il testo corretto chiede conferma; se la rigenerazione non riesce, le correzioni restano — prima sparivano senza avviso (audit FB-01) — docs: design-ui, decisioni/0038.
+- Il lunedì non sostituisce più una bozza anticipata di cui hai corretto il testo: decidi tu con «Rigenera» — docs: backend, architettura, decisioni/0038.
+- Feedback settimanale più compatto: le settimane già chiuse sono una riga che si apre con un clic, con l'email non partita e «Riprova l'invio» sempre visibili; il campo del testo cresce con il contenuto; «Invia anche questa versione» sta sopra «Approva»; conteggi in una frase, «Limiti dei dati:» e «Sintesi per te:» — la sezione passa da 2,2 a 1,3 schermi a 1440 px e da 2,8 a 1,6 a 390 px (audit FB-04…FB-09) — docs: design-ui, decisioni/0038.
 - Lo stato del salvataggio è solo una nuvola colorata, senza testo né data: verde se salvato, rossa con modifiche, grigia e barrata per una bozza mai salvata; c'è anche nelle Impostazioni; su telefono «Salva impostazioni» e «Salva il profilo» diventano «Salva», così il titolo non si taglia — richiesta del coach — docs: design-ui, architettura.
+
+### Corretto
+- «Prepara il feedback» propone solo le settimane che non ne hanno ancora uno e non risponde più «Valutazione in corso» per una settimana già approvata; la guida non suggerisce più di usarlo per rivalutare una settimana (audit FB-03) — docs: design-ui, backend.
 
 ### Rimosso
 - «Versione X.Y.Z» in fondo alla barra laterale: la versione resta in Impostazioni › Informazioni — richiesta del coach — docs: design-ui, architettura, sviluppo-deploy, decisioni/0036.
+
+### Interno
+- Feedback diviso in `WeeklyReviews.vue` (elenco) e `FeedbackWeek.vue` (settimana); conteggi in `domain/feedbackText.ts`; e2e `feedback-ui.spec.ts`; il backend finto gestisce «Rigenera» e «Prepara il feedback»; i test della nuvola distinguono `saved` da `unsaved` — docs: architettura, sviluppo-deploy.
 
 ## [1.1.0] — 2026-10-13
 
