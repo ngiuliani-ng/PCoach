@@ -37,3 +37,17 @@ describe.each([["chiaro", light], ["scuro", dark]])("tema %s", (_, t) => {
     for (const bg of ["bg", "surface"]) expect(contrast(t["border-control"], t[bg]), `border-control su ${bg}`).toBeGreaterThanOrEqual(3);
   });
 });
+
+// I controlli nativi (date, menu, caselle, barre di scorrimento) seguono il tema solo se il documento lo
+// dichiara con color-scheme (audit A-05).
+describe("color-scheme", () => {
+  const declared = (selector: string) => {
+    const start = css.indexOf(selector);
+    return css.slice(css.indexOf("{", start) + 1, css.indexOf("}", start)).match(/color-scheme:\s*(\w+)/)?.[1];
+  };
+  it("chiaro nella radice, scuro nei due blocchi del tema scuro", () => {
+    expect(declared(":root {")).toBe("light");
+    expect(declared(':root:not([data-theme="light"])')).toBe("dark");
+    expect(declared(':root[data-theme="dark"]')).toBe("dark");
+  });
+});

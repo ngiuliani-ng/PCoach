@@ -27,6 +27,7 @@ Ordine: più recente in cima. Versioni con [Semantic Versioning](https://semver.
 - Gli errori delle azioni su Intervals.icu dalla tab Anomalie, «Salva o annulla prima le modifiche della scheda.» e «Copia non riuscita» del prompt sono errori che restano, non messaggi che spariscono; il salvataggio non riuscito del testo del feedback non mostra più il messaggio tecnico del server ([audit A-19](docs/audit/2026-10-ux-ui-1-2-0/README.md#a-19)) — docs: design-ui, sviluppo-deploy.
 - Barra laterale su telefono (e con lo zoom al 200%): chiusa non si raggiunge più con il Tab né la legge un lettore di schermo, aperta tiene il focus fino alla chiusura, e chiusa non lascia l'ombra sul bordo sinistro — il Tab passava per sette comandi fuori schermo ([audit A-02, A-12, A-13](docs/audit/2026-10-ux-ui-1-2-0/README.md#a-02)) — docs: design-ui, sviluppo-deploy.
 - Navigando con la tastiera, un campo che riceve il focus non finisce più dietro l'intestazione fissa della pagina — andando indietro con Shift+Tab caselle e campi restavano coperti ([audit A-03](docs/audit/2026-10-ux-ui-1-2-0/README.md#a-03)) — docs: design-ui, sviluppo-deploy.
+- Tema scuro: il segnaposto dei campi («predefinito: N») è leggibile (da 3,55:1 a 6,2:1) e date, menu e caselle native seguono il tema invece di restare chiari, con l'icona del calendario che si vedeva appena ([audit A-05](docs/audit/2026-10-ux-ui-1-2-0/README.md#a-05)) — docs: design-ui, sviluppo-deploy.
 
 ## [1.2.0] — 2026-10-13
 

@@ -388,3 +388,26 @@ test("il focus da tastiera non finisce sotto l'intestazione fissa (A-03, WCAG 2.
     expect(covered, `${size.width}×${size.height}`).toEqual([]);
   }
 });
+
+test("segnaposto «predefinito: N» leggibile e controlli nativi nel tema della pagina (A-05)", async ({ browser }) => {
+  for (const scheme of ["light", "dark"] as const) {
+    const context = await browser.newContext({ colorScheme: scheme, baseURL: "http://localhost:5181/PCoach/", locale: "it-IT" });
+    const page = await context.newPage();
+    await installMockBackend(page, createState());
+    await page.goto(`./#/atleta/${ATHLETE_ID}/profilo?sezione=sec-metodologia`);
+    const input = page.locator("input[placeholder^='predefinito']").first();
+    await expect(input).toBeVisible();
+    const r = await input.evaluate((el) => {
+      const rgb = (c: string) => (c.match(/[\d.]+/g) || []).map(Number);
+      const lum = (c: number[]) => { const f = (v: number) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
+      const ph = getComputedStyle(el, "::placeholder");
+      const fg = rgb(ph.color), bg = rgb(getComputedStyle(el).backgroundColor);
+      const [a, b] = [lum(fg), lum(bg)].sort((x, y) => y - x);
+      return { ratio: (a + 0.05) / (b + 0.05), opacity: ph.opacity, scheme: getComputedStyle(document.documentElement).colorScheme };
+    });
+    expect(r.ratio, `segnaposto, tema ${scheme}`).toBeGreaterThanOrEqual(4.5);
+    expect(r.opacity).toBe("1");
+    expect(r.scheme).toBe(scheme);
+    await context.close();
+  }
+});

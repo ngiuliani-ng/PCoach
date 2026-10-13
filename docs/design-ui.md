@@ -13,7 +13,7 @@ PCoach è uno strumento di lavoro per un coach di endurance, non una vetrina. Le
 
 ## Design token
 
-Variabili CSS definite in `app/src/styles/tokens.css`, con supporto a tema chiaro/scuro tramite `:root:not([data-theme="light"])` (il tema scuro è il default; `data-theme="light"` sul root attiva esplicitamente il tema chiaro).
+Variabili CSS definite in `app/src/styles/tokens.css`, con tema chiaro in `:root` e tema scuro quando il sistema lo chiede (`@media (prefers-color-scheme: dark)` su `:root:not([data-theme="light"])`); `data-theme="light"` o `data-theme="dark"` sul root forzano un tema. Ogni blocco dichiara `color-scheme` (`light` o `dark`), così date, menu, caselle e barre di scorrimento native seguono il tema della pagina.
 
 | Token | Uso |
 |---|---|
@@ -193,7 +193,7 @@ Ogni componente interattivo gestisce esplicitamente: default, hover, focus (visi
 
 ## Accessibilità
 
-- Contrasti dei token verificati da `styles/tokens.test.ts` in entrambi i temi: testo (anche d'avviso ed errore) almeno 4,5:1 sugli sfondi in cui compare, bordo dei campi almeno 3:1.
+- Contrasti dei token verificati da `styles/tokens.test.ts` in entrambi i temi: testo (anche d'avviso ed errore) almeno 4,5:1 sugli sfondi in cui compare, bordo dei campi almeno 3:1. Il segnaposto dei campi usa `--text-muted` con opacità piena (`::placeholder` in `base.css`): porta informazioni come «predefinito: N» e deve essere leggibile quanto il testo secondario.
 - Tutti i controlli interattivi sono elementi nativi (`button`, `input`, `select`) raggiungibili da tastiera; ordine di tabulazione naturale (nessun `tabindex` positivo; l'unico `tabindex="-1"` è sulle tab inattive, secondo il pattern ARIA delle tab).
 - Ogni campo ha un'etichetta associata (vedi [§ Layout](#layout)); i campi senza etichetta visibile (note libere, prompt, JSON del piano) hanno `aria-label`.
 - Icone e pulsanti solo-icona privi di testo visibile accompagnati da `aria-label` (nessun attributo `title`, per evitare tooltip nativi ridondanti).
