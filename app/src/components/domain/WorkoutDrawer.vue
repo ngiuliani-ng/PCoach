@@ -20,7 +20,7 @@ import { availabilityIssues } from "../../domain/availability";
 import StepEditor from "./StepEditor.vue";
 import StructureBar from "./StructureBar.vue";
 import WorkoutBadges from "./WorkoutBadges.vue";
-import FieldHelp from "../ui/FieldHelp.vue";
+import InfoToggle from "../ui/InfoToggle.vue";
 import { Ban, Check, RotateCcw, Trash2, X } from "lucide-vue-next";
 
 const props = defineProps<{ workoutId: string }>();
@@ -245,11 +245,10 @@ const exec = computed(() => execState(original.value, todayISO()));
             <span class="muted">{{ formatMinutes(totals.seconds) }}{{ totals.estimated ? " stimati" : "" }}<template v-if="totals.meters">, {{ formatMeters(totals.meters) }} a distanza</template></span>
           </div>
           <div class="field">
-            <span class="field-label" id="wd-metric">Target espressi in</span>
+            <div class="label-with-info"><span class="field-label" id="wd-metric">Target espressi in</span><InfoToggle field="workout.primary_target" label="Target espressi in" /></div>
             <div class="segmented" role="group" aria-labelledby="wd-metric">
               <button v-for="m in (['power', 'hr', 'pace'] as const)" :key="m" type="button" :aria-pressed="draft.primary_target === m" :disabled="!editable" @click="draft.primary_target = m">{{ TARGET_LABELS[m] }}</button>
             </div>
-            <FieldHelp field="workout.primary_target" />
           </div>
           <StructureBar :discipline="draft.discipline" :structure="draft.structure" :pace="pace" />
           <StepEditor v-if="draft.structure" :structure="draft.structure" :errors="errors" :readonly="!editable" :max-zone="maxZone" />

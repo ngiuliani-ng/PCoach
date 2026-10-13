@@ -2,6 +2,7 @@
 // una scheda o dalle Impostazioni modificate, salvataggi falliti segnalati come tali, stato nell'URL.
 import { expect, test, type Page } from "@playwright/test";
 import { ATHLETE_ID, createState, installMockBackend, type MockState } from "./mockBackend";
+import { openSection } from "./helpers";
 
 const SECOND_ID = "ATL00002";
 
@@ -46,12 +47,14 @@ test("cambiare atleta con modifiche non salvate chiede cosa fare", async ({ page
   await page.goto("./");
   await openAthlete(page, /Giulia Ferri/);
   await page.getByRole("tab", { name: "Profilo" }).click();
+  await openSection(page, "Identità");
   await page.getByLabel("Peso (kg)").fill("61");
 
   await openAthlete(page, /Marco Bianchi/);
   const dialog = page.getByRole("alertdialog");
   await expect(dialog).toContainText("modifiche non salvate alla scheda di Giulia Ferri");
   await dialog.getByRole("button", { name: "Resta" }).click();
+  await openSection(page, "Identità");
   await expect(page.getByLabel("Peso (kg)")).toHaveValue("61");
 
   await openAthlete(page, /Marco Bianchi/);
@@ -64,11 +67,13 @@ test("uscire senza salvare torna all'ultima versione salvata", async ({ page }) 
   const state = twoAthletes();
   await installMockBackend(page, state);
   await page.goto(`./#/atleta/${ATHLETE_ID}/profilo`);
+  await openSection(page, "Identità");
   await page.getByLabel("Peso (kg)").fill("63");
   await openAthlete(page, /Marco Bianchi/);
   await page.getByRole("alertdialog").getByRole("button", { name: "Esci senza salvare" }).click();
   await openAthlete(page, /Giulia Ferri/);
   await page.getByRole("tab", { name: "Profilo" }).click();
+  await openSection(page, "Identità");
   await expect(page.getByLabel("Peso (kg)")).toHaveValue("58");
   expect(weightOf(state)).toBe(58);
 });
@@ -81,7 +86,7 @@ test("dalle Impostazioni si torna all'atleta aperto; le Impostazioni modificate 
   await sidebar(page);
   await page.getByRole("button", { name: "Impostazioni" }).click();
   await expect(page.getByRole("heading", { name: "Impostazioni" })).toBeVisible();
-  await page.getByLabel("Tono del feedback settimanale").fill("Tono asciutto.");
+  await page.getByLabel("Tono del feedback").fill("Tono asciutto.");
   await expect(page.getByRole("button", { name: "Salva impostazioni" })).toBeEnabled();
 
   await openAthlete(page, /Giulia Ferri/);
@@ -116,6 +121,7 @@ test("una scheda esistente non salvata per un errore non risulta salvata", async
   await installMockBackend(page, state);
   await failNext(page, "PATCH");
   await page.goto(`./#/atleta/${ATHLETE_ID}/profilo`);
+  await openSection(page, "Identità");
   await page.getByLabel("Peso (kg)").fill("62");
   const save = page.getByRole("button", { name: "Salva", exact: true });
   await save.click();

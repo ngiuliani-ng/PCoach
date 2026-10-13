@@ -360,6 +360,92 @@ section.block:first-child,
   padding-top: var(--sp-4);
 }
 [role="tabpanel"] > section.block:first-child { padding-top: var(--sp-5); }
+
+/* ---------- Sezioni comprimibili delle pagine lunghe (Profilo, Impostazioni; D-02) ---------- */
+/* L'intestazione e' un pulsante; chiusa, la sezione mostra una riga di riepilogo e occupa poco spazio. */
+.section-nav + section.block { border-top: none; }
+section.page-section { padding: var(--sp-3) 0; }
+section.page-section:not(.closed) { padding-bottom: var(--sp-6); }
+.section-head { display: flex; align-items: flex-start; gap: var(--sp-2); }
+section.block h3.section-title { flex: 1; min-width: 0; margin: 0; font-size: var(--fs-lg); }
+.section-toggle {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  column-gap: var(--sp-2);
+  align-items: center;
+  width: 100%;
+  padding: var(--sp-2) 0;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.section-caret { color: var(--text-muted); transition: transform 0.15s ease; }
+.section-toggle[aria-expanded="true"] .section-caret { transform: rotate(90deg); }
+@media (prefers-reduced-motion: reduce) { .section-caret { transition: none; } }
+.section-summary {
+  grid-column: 2;
+  margin-top: 2px;
+  font-size: var(--fs-sm);
+  font-weight: 400;
+  color: var(--text-muted);
+}
+.section-summary.attention { color: var(--warning); }
+.section-body { padding-top: var(--sp-3); }
+.section-head .icon-btn { margin-top: var(--sp-1); }
+.advanced-head { border-top: 1px solid var(--border); padding-top: var(--sp-6); margin-top: var(--sp-3); }
+.advanced-head h2 { margin: 0; font-size: var(--fs-md); font-weight: 600; color: var(--text-muted); }
+.advanced-head .helper-text { margin: var(--sp-1) 0 0; }
+.advanced-head + section.block { border-top: none; }
+
+/* Indice delle sezioni: a destra della colonna, solo dove c'e' spazio; sticky sotto l'header. */
+.form-wrap { position: relative; }
+.section-nav { display: none; }
+@media (min-width: 1360px) {
+  .section-nav {
+    display: block;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: calc(100% + var(--sp-6));
+    width: 180px;
+  }
+  .section-nav ul {
+    position: sticky;
+    top: calc(var(--titlebar-h) + 120px);
+    list-style: none;
+    margin: 120px 0 0;
+    padding: 0 0 0 var(--sp-3);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+  }
+  .section-nav .link-btn { text-decoration: none; font-size: var(--fs-sm); color: var(--text-muted); text-align: left; }
+  .section-nav .link-btn:hover { color: var(--text); text-decoration: underline; }
+}
+
+/* Guida di un gruppo di dati (D-04): pannello come quello della seduta, testo leggibile. */
+.guide-title { flex: 1; margin: 0; font-size: var(--fs-lg); font-weight: 600; }
+.guide-body { gap: var(--sp-5); }
+.guide-entry h3 { margin: 0 0 var(--sp-1); font-size: var(--fs-md); font-weight: 600; }
+.guide-entry p { margin: 0 0 var(--sp-2); max-width: 70ch; line-height: 1.5; }
+.guide-entry .guide-more { color: var(--text-muted); }
+
+/* Informazione di un singolo campo dentro un pannello: icona che apre il testo sotto. */
+.label-with-info { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--sp-1); }
+.label-with-info .info-toggle { width: 28px; height: 28px; color: var(--text-muted); }
+.info-text { flex-basis: 100%; font-size: var(--fs-sm); color: var(--text-muted); max-width: 70ch; }
+.info-text p { margin: var(--sp-1) 0; }
+
+/* Fasce d'intensita' per sistema di zone: tabella al posto di sei campi sparsi (UX-43). */
+.intensity-table { border-collapse: collapse; margin-bottom: var(--sp-3); }
+.intensity-table th, .intensity-table td { padding: var(--sp-1) var(--sp-3) var(--sp-1) 0; text-align: left; vertical-align: top; }
+.intensity-table thead th { font-size: var(--fs-xs); font-weight: 400; color: var(--text-muted); }
+.intensity-table tbody th { font-weight: 500; padding-top: var(--sp-3); }
+.intensity-table input { width: 96px; }
 section.block h3 {
   font-size: var(--fs-lg);
   font-weight: 600;

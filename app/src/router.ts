@@ -12,6 +12,7 @@ import { useSettingsStore } from "./stores/settings";
 import { choiceDialog } from "./composables/useConfirmDialog";
 import { showResultToast } from "./composables/useToast";
 import { useZoneChange } from "./composables/useZoneChange";
+import { saveSettings } from "./composables/useSettingsSave";
 import { fullName } from "./constants";
 
 export type AthleteTab = "panoramica" | "piano" | "profilo" | "anomalie";
@@ -80,7 +81,8 @@ export async function confirmLeaveSettings(): Promise<boolean> {
     return true;
   }
   if (choice === "save") {
-    const result = await settings.save();
+    const result = await saveSettings();
+    if (result.cancelled) return false;
     showResultToast(result);
     return result.ok;
   }

@@ -1,43 +1,53 @@
 <script setup lang="ts">
-// Pannello impostazioni: chiave/modello Claude, template dei prompt, feedback settimanale e
-// soglie della sua analisi (ADR 0019).
-import { computed } from "vue";
+// Impostazioni (decisioni del coach D-02, D-04): due gruppi d'uso comune, Claude e generazione e
+// Feedback settimanale, poi «Avanzate» con le regole che cambiano i calcoli per tutti gli atleti.
+// Ogni gruppo e' una sezione comprimibile con riepilogo e guida (icona Info).
+import { computed, nextTick, watch } from "vue";
 import { useSettingsStore } from "../../stores/settings";
 import { DEFAULT_FEEDBACK_PARAMS, validateFeedbackParams, type FeedbackParams } from "@shared/feedback/params.ts";
 import { showResultToast } from "../../composables/useToast";
 import { confirmDialog } from "../../composables/useConfirmDialog";
+import { saveSettings } from "../../composables/useSettingsSave";
+import { useSections, scrollToSection } from "../../composables/useSections";
+import { useQueryLayer } from "../../composables/useQueryLayer";
 import { DEFAULT_PLAN_PREFERENCES } from "../../constants";
 import { SUPPORTED_MODELS } from "@shared/claude/models.ts";
 import { isValidTimeZone } from "@shared/feedback/period.ts";
 import { ZONE_COUNTS } from "@shared/workouts/zones.ts";
+import { defaultZoneModels } from "@shared/workouts/zoneModels.ts";
+import { isGuideKey, type GuideKey } from "../../help/guide";
 import PasswordField from "../ui/PasswordField.vue";
-import FieldHelp from "../ui/FieldHelp.vue";
+import PageSection from "../ui/PageSection.vue";
+import SectionNav from "../ui/SectionNav.vue";
+import GuidePanel from "../ui/GuidePanel.vue";
 import ZoneModelsEditor from "./ZoneModelsEditor.vue";
 
 const settings = useSettingsStore();
 const paramErrors = computed(() => validateFeedbackParams(settings.settings.feedback_params));
 
-type ParamField = [keyof FeedbackParams, string, string];
+type ParamField = [keyof FeedbackParams, string];
 const MAIN_PARAMS: ParamField[] = [
-  ["completed_min_pct", "Seduta svolta da (% della durata)", "%"],
-  ["completed_max_pct", "Seduta svolta fino a (% della durata)", "%"],
-  ["partial_min_pct", "Seduta svolta in parte da (% della durata)", "%"],
-  ["deviation_minor_pct", "Scostamento di volume lieve da (%)", "%"],
-  ["deviation_notable_pct", "Scostamento di volume rilevante da (%)", "%"]
+  ["completed_min_pct", "Seduta svolta da (% della durata)"],
+  ["completed_max_pct", "Seduta svolta fino a (% della durata)"],
+  ["partial_min_pct", "Seduta svolta in parte da (% della durata)"],
+  ["deviation_minor_pct", "Scostamento di volume lieve da (%)"],
+  ["deviation_notable_pct", "Scostamento di volume rilevante da (%)"]
 ];
 const DATA_PARAMS: ParamField[] = [
-  ["unknown_max_share_pct", "Sedute non valutabili oltre cui non si dà il tasso di completamento (%)", "%"],
-  ["min_rpe_coverage_pct", "Attività con RPE per parlare della risposta dell'atleta (%)", "%"],
-  ["min_wellness_days", "Giorni con dati di benessere per parlarne (su 7)", "gg"],
-  ["min_distribution_minutes", "Minuti minimi per la distribuzione dell'intensità", "min"]
+  ["unknown_max_share_pct", "Sedute non valutabili oltre cui non si dà il tasso di completamento (%)"],
+  ["min_rpe_coverage_pct", "Attività con RPE per parlare della risposta dell'atleta (%)"],
+  ["min_wellness_days", "Giorni con dati di benessere per parlarne (su 7)"],
+  ["min_distribution_minutes", "Minuti minimi per la distribuzione dell'intensità"]
 ];
-// Domini d'intensita' per sistema di zone (ADR 0028): ogni atleta usa la riga del proprio
-// sistema, per corsa e bici dalla scheda, per il nuoto quella a 7 zone.
+// Domini d'intensita' per sistema di zone (ADR 0028): una riga per sistema, in tabella.
 const ZONE_PARAMS = ZONE_COUNTS.map((n) => ({
   zones: n,
   low: `z${n}_low_max` as keyof FeedbackParams,
   moderate: `z${n}_moderate_max` as keyof FeedbackParams
 }));
+const CLASSIFICATION_KEYS = [...MAIN_PARAMS, ...DATA_PARAMS].map(([k]) => k);
+const INTENSITY_KEYS = ZONE_PARAMS.flatMap((r) => [r.low, r.moderate]);
+
 // Il feedback parte sempre il lunedi', per la settimana appena conclusa (decisione D-11): si sceglie solo l'ora.
 const HOURS = Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, "0")}:00`);
 // Fusi riconosciuti dal browser (gli stessi di Intl sul server): un valore scritto a mano e sbagliato
@@ -46,22 +56,71 @@ const ZONES: string[] = (Intl as unknown as { supportedValuesOf?: (key: string) 
 const tzValid = computed(() => isValidTimeZone(settings.settings.weekly_feedback_timezone));
 const tzOptions = computed(() => (ZONES.includes(settings.settings.weekly_feedback_timezone) ? ZONES : [settings.settings.weekly_feedback_timezone, ...ZONES]));
 
-// Le preferenze personalizzate si perdono: si chiede prima (resta possibile uscire senza salvare).
+// ---------- Sezioni, riepiloghi e guida ----------
+const SECTIONS = [
+  { id: "imp-claude", title: "Claude e generazione" },
+  { id: "imp-feedback", title: "Feedback settimanale" },
+  { id: "imp-classificazione", title: "Classificazione delle sedute" },
+  { id: "imp-intensita", title: "Intensità per sistema di zone" },
+  { id: "imp-modelli", title: "Modelli di zone" }
+];
+const sections = useSections("impostazioni", () => ["imp-claude", "imp-feedback"]);
+const go = (id: string) => scrollToSection(id, sections.reveal, nextTick);
+const guideLayer = useQueryLayer("guida");
+const guideKey = computed(() => (isGuideKey(guideLayer.value.value) ? guideLayer.value.value : null));
+const openGuide = (key: GuideKey) => guideLayer.open(key);
+
+const modelLabel = computed(() => SUPPORTED_MODELS.find((m) => m.id === settings.settings.claude_model)?.label ?? settings.settings.claude_model);
+const claudeSummary = computed(() => `${settings.hasClaudeKey ? "Chiave salvata" : "Nessuna chiave: la generazione copia il prompt"}; ${modelLabel.value}`);
+const feedbackSummary = computed(() =>
+  `Lunedì alle ${settings.settings.weekly_feedback_time} (${settings.settings.weekly_feedback_timezone}); email ${settings.settings.weekly_feedback_email_enabled ? "attiva" : "disattivata"}`
+);
+function customText(n: number, singular: string, plural: string) {
+  return n === 0 ? "Valori predefiniti" : `${n} ${n === 1 ? singular : plural}`;
+}
+const customParams = (keys: (keyof FeedbackParams)[]) => keys.filter((k) => settings.settings.feedback_params[k] !== DEFAULT_FEEDBACK_PARAMS[k]).length;
+const classificationSummary = computed(() => customText(customParams(CLASSIFICATION_KEYS), "valore personalizzato", "valori personalizzati"));
+const intensitySummary = computed(() => customText(customParams(INTENSITY_KEYS), "valore personalizzato", "valori personalizzati"));
+const customModels = computed(() => {
+  const defaults = defaultZoneModels();
+  let n = 0;
+  for (const [key, byCount] of Object.entries(settings.settings.zone_models)) {
+    for (const [count, m] of Object.entries(byCount)) {
+      const d = (defaults as Record<string, Record<string, { preset: string; bounds: number[] }>>)[key]?.[count];
+      if (m && d && (m.preset !== d.preset || m.bounds.join() !== d.bounds.join())) n++;
+    }
+  }
+  return n;
+});
+const modelsSummary = computed(() => (customModels.value ? `${customModels.value} ${customModels.value === 1 ? "modello diverso" : "modelli diversi"} dai predefiniti` : "Modelli predefiniti"));
+
+// ---------- Ripristini: stessa regola per tutti (audit UX-42) ----------
+// Si chiede conferma solo se ci sono valori personalizzati da perdere; nulla si salva senza «Salva impostazioni».
+async function confirmReset(message: string, label: string): Promise<boolean> {
+  return confirmDialog(message, { confirmLabel: label, cancelLabel: "Mantieni i miei" });
+}
 async function resetPreferences() {
   const current = settings.settings.plan_generation_prompt_template.trim();
-  if (current && current !== DEFAULT_PLAN_PREFERENCES.trim()) {
-    const ok = await confirmDialog("Sostituire le tue preferenze con quelle predefinite?", { confirmLabel: "Ripristina le predefinite", cancelLabel: "Mantieni le mie" });
-    if (!ok) return;
-  }
+  if (current && current !== DEFAULT_PLAN_PREFERENCES.trim() && !(await confirmReset("Sostituire le tue preferenze con quelle predefinite?", "Ripristina le predefinite"))) return;
   settings.settings.plan_generation_prompt_template = DEFAULT_PLAN_PREFERENCES;
 }
-
-function resetParams() {
-  settings.settings.feedback_params = { ...DEFAULT_FEEDBACK_PARAMS };
+async function resetParams(keys: (keyof FeedbackParams)[], what: string) {
+  if (customParams(keys) && !(await confirmReset(`Riportare ai valori predefiniti ${what}?`, "Ripristina i predefiniti"))) return;
+  for (const k of keys) settings.settings.feedback_params[k] = DEFAULT_FEEDBACK_PARAMS[k];
+}
+async function resetModels() {
+  if (customModels.value && !(await confirmReset("Riportare tutti i modelli di zone ai predefiniti?", "Ripristina i predefiniti"))) return;
+  settings.settings.zone_models = defaultZoneModels();
 }
 
+// Una sezione con un valore da correggere si apre da sola (poi si puo' richiudere).
+watch(() => CLASSIFICATION_KEYS.some((k) => paramErrors.value[k]), (bad) => bad && sections.reveal("imp-classificazione"), { immediate: true });
+watch(() => INTENSITY_KEYS.some((k) => paramErrors.value[k]), (bad) => bad && sections.reveal("imp-intensita"), { immediate: true });
+watch(() => !tzValid.value, (bad) => bad && sections.reveal("imp-feedback"), { immediate: true });
+
 async function onSave() {
-  showResultToast(await settings.save());
+  const result = await saveSettings();
+  if (!result.cancelled) showResultToast(result);
 }
 </script>
 
@@ -74,13 +133,15 @@ async function onSave() {
         <button type="button" class="primary" :disabled="!settings.isDirty" @click="onSave">Salva impostazioni</button>
       </div>
     </header>
-    <section class="block">
-      <h3>Claude</h3>
+    <SectionNav :sections="SECTIONS" @go="go" />
+
+    <PageSection id="imp-claude" title="Claude e generazione" :open="sections.isOpen('imp-claude')" :summary="claudeSummary"
+      guide @toggle="sections.toggle('imp-claude')" @guide="openGuide('impostazioni-claude')">
       <div class="field-row">
         <div class="field">
           <label class="field-label" for="claude-api-key">{{ settings.hasClaudeKey ? "Nuova chiave API di Claude" : "Chiave API di Claude" }}</label>
-          <PasswordField v-model="settings.settings.claude_api_key" input-id="claude-api-key" />
-          <span class="helper-text">{{ settings.hasClaudeKey ? "Una chiave è già salvata: lascia vuoto per mantenerla." : "Nessuna chiave salvata." }}</span>
+          <PasswordField v-model="settings.settings.claude_api_key" input-id="claude-api-key" described-by="claude-key-note" />
+          <span id="claude-key-note" class="helper-text">{{ settings.hasClaudeKey ? "Una chiave è già salvata: lascia vuoto per mantenerla." : "Nessuna chiave salvata." }}</span>
         </div>
         <label class="field">
           <span class="field-label">Modello</span>
@@ -89,63 +150,15 @@ async function onSave() {
           </select>
         </label>
       </div>
-      <p class="helper-text">Solo modelli verificati con la generazione e con il feedback. Senza chiave, la generazione copia il prompt negli appunti: lo incolli in Claude e poi incolli qui la risposta.</p>
-    </section>
-    <section class="block">
-      <h3>Preferenze per generare il piano</h3>
-      <textarea v-model="settings.settings.plan_generation_prompt_template" rows="6" aria-label="Preferenze per generare il piano"></textarea>
-      <FieldHelp field="settings.plan_generation_prompt_template" />
+      <label class="field">
+        <span class="field-label">Preferenze per generare il piano</span>
+        <textarea v-model="settings.settings.plan_generation_prompt_template" rows="6"></textarea>
+      </label>
       <button type="button" class="link-btn" @click="resetPreferences">Ripristina le preferenze predefinite</button>
-    </section>
-    <section class="block">
-      <h3>Tono del feedback settimanale</h3>
-      <textarea v-model="settings.settings.weekly_feedback_prompt_template" rows="4" aria-label="Tono del feedback settimanale"></textarea>
-      <p class="helper-text">Come scrivere all'atleta: tono, lunghezza, priorità. <span v-pre>{{nome_atleta}}</span> diventa il nome. Cosa il feedback può affermare lo decidono i dati calcolati da PCoach, non questo testo.</p>
-    </section>
-    <section class="block">
-      <h3>Soglie del feedback</h3>
-      <FieldHelp field="settings.feedback_params" />
-      <div class="field-row">
-        <label v-for="[key, label] in MAIN_PARAMS" :key="key" class="field">
-          <span class="field-label">{{ label }}</span>
-          <input type="number" step="1" v-model.number="settings.settings.feedback_params[key]" :aria-invalid="!!paramErrors[key]" />
-          <span v-if="paramErrors[key]" class="error-text helper-text">{{ paramErrors[key] }}</span>
-        </label>
-      </div>
-      <details class="review-sessions">
-        <summary>Soglie sulla qualità dei dati</summary>
-        <div class="field-row">
-          <label v-for="[key, label] in DATA_PARAMS" :key="key" class="field">
-            <span class="field-label">{{ label }}</span>
-            <input type="number" step="1" v-model.number="settings.settings.feedback_params[key]" :aria-invalid="!!paramErrors[key]" />
-            <span v-if="paramErrors[key]" class="error-text helper-text">{{ paramErrors[key] }}</span>
-          </label>
-        </div>
-      </details>
-      <details class="review-sessions">
-        <summary>Intensità bassa, media e alta per sistema di zone</summary>
-        <p class="helper-text">Ogni atleta usa la riga del proprio sistema di zone: corsa e bici come nella scheda, il nuoto sempre 7 zone. Oltre la zona dell'intensità media, l'intensità è alta.</p>
-        <div v-for="row in ZONE_PARAMS" :key="row.zones" class="field-row">
-          <label class="field">
-            <span class="field-label">{{ row.zones }} zone · bassa fino alla zona</span>
-            <input type="number" step="1" min="1" :max="row.zones" v-model.number="settings.settings.feedback_params[row.low]" :aria-invalid="!!paramErrors[row.low]" />
-            <span v-if="paramErrors[row.low]" class="error-text helper-text">{{ paramErrors[row.low] }}</span>
-          </label>
-          <label class="field">
-            <span class="field-label">{{ row.zones }} zone · media fino alla zona</span>
-            <input type="number" step="1" min="1" :max="row.zones" v-model.number="settings.settings.feedback_params[row.moderate]" :aria-invalid="!!paramErrors[row.moderate]" />
-            <span v-if="paramErrors[row.moderate]" class="error-text helper-text">{{ paramErrors[row.moderate] }}</span>
-          </label>
-        </div>
-      </details>
-      <button type="button" class="link-btn" @click="resetParams">Ripristina i valori predefiniti</button>
-    </section>
-    <section class="block">
-      <h3>Zone su Intervals.icu</h3>
-      <ZoneModelsEditor />
-    </section>
-    <section class="block">
-      <h3>Feedback settimanale automatico</h3>
+    </PageSection>
+
+    <PageSection id="imp-feedback" title="Feedback settimanale" :open="sections.isOpen('imp-feedback')" :summary="feedbackSummary"
+      :attention="!tzValid" guide @toggle="sections.toggle('imp-feedback')" @guide="openGuide('impostazioni-feedback')">
       <div class="field-row">
         <label class="field">
           <span class="field-label">Ora del lunedì</span>
@@ -165,7 +178,70 @@ async function onSave() {
         <input type="checkbox" v-model="settings.settings.weekly_feedback_email_enabled" />
         Invia via email all'atleta il feedback che approvi
       </label>
-      <p class="helper-text">Ogni lunedì, dall'ora indicata, il server prepara il feedback della settimana appena conclusa (da lunedì a domenica). Lo trovi da approvare nella Panoramica di ogni atleta: niente parte senza la tua approvazione.</p>
-    </section>
+      <label class="field">
+        <span class="field-label">Tono del feedback</span>
+        <textarea v-model="settings.settings.weekly_feedback_prompt_template" rows="4"></textarea>
+      </label>
+    </PageSection>
+
+    <div class="advanced-head">
+      <h2>Avanzate</h2>
+      <p class="helper-text">Regole che cambiano i calcoli per tutti gli atleti. Di solito i valori predefiniti vanno bene.</p>
+    </div>
+
+    <PageSection id="imp-classificazione" title="Classificazione delle sedute" :open="sections.isOpen('imp-classificazione')"
+      :summary="classificationSummary" :attention="CLASSIFICATION_KEYS.some((k) => paramErrors[k])" guide
+      @toggle="sections.toggle('imp-classificazione')" @guide="openGuide('impostazioni-classificazione')">
+      <div class="field-row">
+        <label v-for="[key, label] in MAIN_PARAMS" :key="key" class="field">
+          <span class="field-label">{{ label }}</span>
+          <input type="number" step="1" v-model.number="settings.settings.feedback_params[key]" :aria-invalid="!!paramErrors[key]" />
+          <span v-if="paramErrors[key]" class="error-text helper-text">{{ paramErrors[key] }}</span>
+        </label>
+      </div>
+      <h4 class="subsection-title">Qualità dei dati</h4>
+      <div class="field-row">
+        <label v-for="[key, label] in DATA_PARAMS" :key="key" class="field">
+          <span class="field-label">{{ label }}</span>
+          <input type="number" step="1" v-model.number="settings.settings.feedback_params[key]" :aria-invalid="!!paramErrors[key]" />
+          <span v-if="paramErrors[key]" class="error-text helper-text">{{ paramErrors[key] }}</span>
+        </label>
+      </div>
+      <button type="button" class="link-btn" @click="resetParams(CLASSIFICATION_KEYS, 'le soglie di classificazione e di qualità dei dati')">Ripristina le soglie predefinite</button>
+    </PageSection>
+
+    <PageSection id="imp-intensita" title="Intensità per sistema di zone" :open="sections.isOpen('imp-intensita')"
+      :summary="intensitySummary" :attention="INTENSITY_KEYS.some((k) => paramErrors[k])" guide
+      @toggle="sections.toggle('imp-intensita')" @guide="openGuide('impostazioni-intensita')">
+      <table class="intensity-table">
+        <thead>
+          <tr><th scope="col">Sistema</th><th scope="col" id="int-low">Bassa fino alla zona</th><th scope="col" id="int-mod">Media fino alla zona</th></tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in ZONE_PARAMS" :key="row.zones">
+            <th scope="row" :id="`int-${row.zones}`">{{ row.zones }} zone</th>
+            <td>
+              <input type="number" step="1" min="1" :max="row.zones" v-model.number="settings.settings.feedback_params[row.low]"
+                :aria-labelledby="`int-${row.zones} int-low`" :aria-invalid="!!paramErrors[row.low]" />
+              <span v-if="paramErrors[row.low]" class="error-text helper-text">{{ paramErrors[row.low] }}</span>
+            </td>
+            <td>
+              <input type="number" step="1" min="1" :max="row.zones" v-model.number="settings.settings.feedback_params[row.moderate]"
+                :aria-labelledby="`int-${row.zones} int-mod`" :aria-invalid="!!paramErrors[row.moderate]" />
+              <span v-if="paramErrors[row.moderate]" class="error-text helper-text">{{ paramErrors[row.moderate] }}</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <button type="button" class="link-btn" @click="resetParams(INTENSITY_KEYS, 'le fasce d\'intensità')">Ripristina le fasce predefinite</button>
+    </PageSection>
+
+    <PageSection id="imp-modelli" title="Modelli di zone" :open="sections.isOpen('imp-modelli')" :summary="modelsSummary"
+      guide @toggle="sections.toggle('imp-modelli')" @guide="openGuide('impostazioni-modelli')">
+      <ZoneModelsEditor />
+      <button type="button" class="link-btn" @click="resetModels">Ripristina i modelli predefiniti</button>
+    </PageSection>
+
+    <GuidePanel v-if="guideKey" :key="guideKey" :guide-key="guideKey" @close="guideLayer.close()" />
   </div>
 </template>

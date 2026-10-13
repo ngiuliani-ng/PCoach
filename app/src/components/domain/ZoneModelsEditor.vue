@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // Modelli di zone per allineare Intervals.icu a PCoach (ADR 0029): per ogni misura e sistema di
-// zone, un modello noto (preset) o limiti personalizzati, in percentuale della soglia.
+// zone, un modello noto (preset) o limiti personalizzati, in percentuale della soglia. Spiegazione nella
+// guida della sezione, ripristino in SettingsPanel.
 import { useSettingsStore } from "../../stores/settings";
 import { boundsError, presetsFor, ZONE_MODEL_INFO, ZONE_MODEL_KEYS, ZONE_PRESETS, type ZoneModelKey } from "@shared/workouts/zoneModels.ts";
 import type { ZoneCount } from "@shared/workouts/zones.ts";
@@ -26,24 +27,14 @@ function setBound(key: ZoneModelKey, n: ZoneCount, i: number, value: number) {
   settings.settings.zone_models[key][n] = { preset: same?.id ?? "custom", bounds };
 }
 
-function resetModels() {
-  for (const key of ZONE_MODEL_KEYS) {
-    for (const n of ZONE_MODEL_INFO[key].counts) choosePreset(key, n, presetsFor(key, n)[0].id);
-  }
-}
 </script>
 
 <template>
-  <p class="helper-text">
-    Limiti delle zone in percentuale della soglia, per tutti gli atleti. PCoach li usa per stimare il passo di ogni zona, e quindi
-    la durata degli step a distanza (totali, durata massima del giorno, feedback), e li scrive su Intervals.icu con «Porta Intervals.icu a N zone».
-    Ogni valore è il limite superiore della zona; l'ultima zona non ha limite. I predefiniti sono i modelli più usati.
-  </p>
   <details v-for="key in ZONE_MODEL_KEYS" :key="key" class="review-sessions zone-models">
     <summary>{{ ZONE_MODEL_INFO[key].label }} <span class="helper-text">({{ ZONE_MODEL_INFO[key].unit }})</span></summary>
     <div v-for="n in ZONE_MODEL_INFO[key].counts" :key="n" class="zone-model">
       <label class="field">
-        <span class="field-label">{{ n }} zone · modello</span>
+        <span class="field-label">Modello a {{ n }} zone</span>
         <select :value="model(key, n).preset" @change="choosePreset(key, n, ($event.target as HTMLSelectElement).value)">
           <option v-for="p in presetsFor(key, n)" :key="p.id" :value="p.id">{{ p.label }}</option>
           <option value="custom">Personalizzato</option>
@@ -61,5 +52,4 @@ function resetModels() {
       <p v-else-if="presetOf(key, model(key, n).preset)" class="helper-text">Fonte: {{ presetOf(key, model(key, n).preset)!.source }}</p>
     </div>
   </details>
-  <button type="button" class="link-btn" @click="resetModels">Ripristina i modelli predefiniti</button>
 </template>

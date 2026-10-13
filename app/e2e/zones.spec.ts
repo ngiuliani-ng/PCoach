@@ -2,6 +2,7 @@
 // con le azioni nei due sensi, e modelli di zone in Impostazioni.
 import { expect, test } from "@playwright/test";
 import { ATHLETE_ID, createState, installMockBackend, type MockState } from "./mockBackend";
+import { openSection } from "./helpers";
 
 const profileOf = (state: MockState) => state.tables.athletes[0].data as Record<string, any>;
 
@@ -62,8 +63,9 @@ test("in Impostazioni si sceglie il modello di zone da un preset o con limiti pr
   const state = createState();
   await installMockBackend(page, state);
   await page.goto("./#/impostazioni");
+  await openSection(page, "Modelli di zone");
   await page.getByText("Bici, potenza").click();
-  const model3 = page.getByRole("combobox", { name: "3 zone · modello" }).first();
+  const model3 = page.getByRole("combobox", { name: "Modello a 3 zone" }).first();
   await expect(model3).toHaveValue("seiler3");
   const z1 = page.getByRole("group", { name: "Bici, potenza, 3 zone: limiti in percentuale" }).getByLabel("Z1 fino a");
   await z1.fill("110");
@@ -71,6 +73,9 @@ test("in Impostazioni si sceglie il modello di zone da un preset o con limiti pr
   await z1.fill("70");
   await expect(model3).toHaveValue("custom");
   await page.getByRole("button", { name: "Salva impostazioni" }).click();
+  // I modelli valgono per tutti gli atleti: il salvataggio lo dice e chiede conferma (UX-41).
+  await expect(page.getByRole("alertdialog")).toContainText("cambiano la durata stimata degli step a distanza");
+  await page.getByRole("alertdialog").getByRole("button", { name: "Salva i modelli" }).click();
   await expect(page.getByText("Impostazioni salvate.")).toBeVisible();
   expect((state.tables.app_settings[0].zone_models as Record<string, any>).cycling_power[3]).toEqual({ preset: "custom", bounds: [70, 100] });
 });
@@ -124,7 +129,8 @@ test("sport praticato senza soglia: l'anomalia porta alle soglie nel Profilo", a
   await expect(page.getByText("Soglia della corsa diversa da Intervals.icu")).toHaveCount(0);
   await page.getByRole("button", { name: "Aggiungila nel Profilo" }).click();
   await expect(page.getByRole("tab", { name: "Profilo" })).toHaveAttribute("aria-selected", "true");
-  await expect(page.getByRole("heading", { name: "Soglie e zone fisiologiche" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Soglie e zone/ })).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByRole("button", { name: /^Soglie e zone/ })).toBeInViewport();
 });
 
 test("seduta da verificare: dalla tab si apre il pannello della seduta, e «indietro» torna alle anomalie", async ({ page }) => {

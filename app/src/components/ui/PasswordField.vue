@@ -5,7 +5,7 @@
 import { ref } from "vue";
 import { Eye, EyeOff } from "lucide-vue-next";
 
-defineProps<{ modelValue: string | undefined; inputId: string; placeholder?: string }>();
+defineProps<{ modelValue: string | undefined; inputId: string; placeholder?: string; describedBy?: string }>();
 defineEmits<{ (e: "update:modelValue", value: string): void }>();
 
 const visible = ref(false);
@@ -18,6 +18,7 @@ const visible = ref(false);
       :type="visible ? 'text' : 'password'"
       class="mono-input"
       :placeholder="placeholder"
+      :aria-describedby="describedBy"
       :value="modelValue"
       @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
     />

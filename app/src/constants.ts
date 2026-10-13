@@ -70,6 +70,11 @@ export const SHARED_OBJECTIVE_OPTIONS = OBJECTIVE_OPTIONS.filter(
 
 export const EVENT_PRIORITIES = ["A", "B", "C"];
 
+export const INTENSITY_OPTIONS: [string, string][] = [
+  ["polarizzato_80_20", "Polarizzato 80/20"], ["piramidale", "Piramidale"],
+  ["soglia_prevalente", "Soglia prevalente"], ["misto", "Misto"]
+];
+
 export const LIFESTYLE_FACTOR_OPTIONS: [string, string][] = [
   ["turni_lavoro_variabili", "Turni di lavoro variabili"],
   ["viaggia_spesso", "Viaggia spesso"],

@@ -6,7 +6,7 @@
 //   stato, obiettivi, vincoli, metodologia, note) e la gestione della scheda.
 // L'header con nome, stato di salvataggio e "Salva" resta sticky in entrambe le viste.
 // Atleta e vista vengono dalla rotta (router.ts): /atleta/:id/:tab, oppure /atleta/nuovo per la bozza.
-import { computed, nextTick, ref, watch } from "vue";
+import { computed, nextTick, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAthletesStore } from "../../stores/athletes";
 import { useWorkoutsStore } from "../../stores/workouts";
@@ -15,7 +15,7 @@ import {
   TRAINING_SPORT_OPTIONS, LEVEL_OPTIONS, VOLUME_UNITS,
   OBJECTIVE_OPTIONS, SHARED_OBJECTIVE_OPTIONS, EVENT_DISCIPLINE_OPTIONS, EVENT_PRIORITIES,
   LIFESTYLE_FACTOR_OPTIONS, DAY_LABELS, RUN_THRESHOLD_FIELDS, BIKE_THRESHOLD_FIELDS, SWIM_THRESHOLD_FIELDS,
-  PERIODIZATION_LABELS,
+  PERIODIZATION_LABELS, INTENSITY_OPTIONS,
   fullName, formatDate, disciplineIcon, disciplineLabel, todayISO, numOrNull
 } from "../../constants";
 import { DEFAULT_TAPER_WEEKS, parseLoadPattern } from "../../domain/planWeeks";
@@ -34,7 +34,15 @@ import IconButton from "../ui/IconButton.vue";
 import AnomaliesTab from "./AnomaliesTab.vue";
 import { useAthleteAnomalies } from "../../composables/useAthleteAnomalies";
 import { useZoneChange } from "../../composables/useZoneChange";
-import FieldHelp from "../ui/FieldHelp.vue";
+import PageSection from "../ui/PageSection.vue";
+import SectionNav from "../ui/SectionNav.vue";
+import GuidePanel from "../ui/GuidePanel.vue";
+import { useSections, scrollToSection } from "../../composables/useSections";
+import { useQueryLayer } from "../../composables/useQueryLayer";
+import { isGuideKey, type GuideKey } from "../../help/guide";
+import {
+  constraintsSummary, disciplinesSummary, goalsSummary, identitySummary, methodologySummary, notesSummary, statusSummary, thresholdsSummary
+} from "../../domain/profileSummaries";
 import { Download, Plus, Trash2 } from "lucide-vue-next";
 
 const athletes = useAthletesStore();
@@ -90,11 +98,35 @@ function onTabKeydown(event: KeyboardEvent) {
   tab.value = list[(i + (event.key === "ArrowRight" ? 1 : list.length - 1)) % list.length][0];
   nextTick(() => document.getElementById(`tab-${tab.value}`)?.focus());
 }
+// ---------- Sezioni del Profilo (D-02) e guida (D-04) ----------
+const PROFILE_SECTIONS = [
+  { id: "sec-identita", title: "Identità" }, { id: "sec-intervals", title: "Intervals.icu" },
+  { id: "sec-discipline", title: "Discipline" }, { id: "sec-soglie", title: "Soglie e zone" },
+  { id: "sec-stato", title: "Stato di allenamento" }, { id: "sec-obiettivi", title: "Obiettivi" },
+  { id: "sec-vincoli", title: "Vincoli e disponibilità" }, { id: "sec-metodologia", title: "Metodologia" },
+  { id: "sec-note", title: "Note libere" }, { id: "sec-gestione", title: "Gestione scheda" }
+];
+// Aperte all'inizio le sezioni che si aggiornano spesso; le altre mostrano il riepilogo.
+const sections = useSections("profilo", () => ["sec-soglie", "sec-obiettivi", "sec-vincoli"]);
+// Una bozza si compila tutta: le sezioni partono aperte.
+const draftClosed = reactive(new Set<string>());
+const isOpen = (id: string) => (isNewRoute.value ? !draftClosed.has(id) : sections.isOpen(id));
+function toggle(id: string) {
+  if (!isNewRoute.value) return sections.toggle(id);
+  if (draftClosed.has(id)) draftClosed.delete(id);
+  else draftClosed.add(id);
+}
+function reveal(id: string) {
+  if (isNewRoute.value) draftClosed.delete(id);
+  else sections.reveal(id);
+}
 async function goToSection(sectionId: string) {
   tab.value = "profilo";
-  await nextTick();
-  document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  await scrollToSection(sectionId, reveal, nextTick);
 }
+const guideLayer = useQueryLayer("guida");
+const guideKey = computed(() => (isGuideKey(guideLayer.value.value) ? guideLayer.value.value : null));
+const openGuide = (key: GuideKey) => guideLayer.open(key);
 
 // ---------- Riepilogo nell'intestazione ----------
 const disciplinesText = computed(() =>
@@ -169,6 +201,13 @@ function setLoadPattern(part: "load" | "deload", raw: string) {
 type ThresholdSport = "running" | "cycling" | "swimming";
 const THRESHOLD_SPORTS: [ThresholdSport, string][] = [["running", "Corsa"], ["cycling", "Bici"], ["swimming", "Nuoto"]];
 const thresholdSport = ref<ThresholdSport>("running");
+const THRESHOLD_FIELDS = { running: RUN_THRESHOLD_FIELDS, cycling: BIKE_THRESHOLD_FIELDS, swimming: SWIM_THRESHOLD_FIELDS };
+const zoneSystem = computed({
+  get: () => (thresholdSport.value === "swimming" ? "7-zone" : profile.value.physiological_thresholds?.[thresholdSport.value]?.zone_system ?? "7-zone"),
+  set: (value) => {
+    if (thresholdSport.value !== "swimming") profile.value.physiological_thresholds![thresholdSport.value]!.zone_system = value as "3-zone" | "5-zone" | "7-zone";
+  }
+});
 
 // ---------- Intervals.icu ----------
 // Sincronizzazione automatica (§7.2/§7.4): la chiave attiva/aggiorna da sola in base ai
@@ -185,6 +224,10 @@ const intervalsStatusText = computed(() => {
   if (status === "offline") return "Non verificabile ora: rete non disponibile.";
   return "";
 });
+
+const intervalsSummary = computed(() =>
+  !hasIntervalsKey.value ? "Nessuna chiave: niente carico né invio delle sedute" : intervalsStatusText.value.replace(/\.$/, "") || "Chiave inserita"
+);
 
 watch(
   () => athletes.currentProfile?.integrations?.intervals_icu_api_key,
@@ -214,6 +257,8 @@ async function onReloadRemote() {
 // dopo, le sedute recenti abbinate con certezza a un'attivita' di Intervals.icu risultano svolte
 // senza aprire «Sincronizza settimana» (ADR 0019).
 const settings = useSettingsStore();
+// Con l'invio email attivo l'indirizzo serve (decisione del coach D-05), ma la scheda si salva anche senza.
+const emailMissing = computed(() => settings.savedEmailEnabled && !profile.value.identity.email?.trim());
 watch(
   () => athletes.currentId,
   async (id) => {
@@ -260,6 +305,10 @@ function openWorkout(id: string) {
 function onExport() {
   athletes.exportCurrent();
 }
+
+// Una sezione con un errore da correggere si apre da sola (poi si puo' richiudere).
+watch(() => ready.value && !loadPattern.value, (bad) => bad && reveal("sec-metodologia"), { immediate: true });
+watch(() => intervalsKeyStatus.value === "invalid", (bad) => bad && reveal("sec-intervals"), { immediate: true });
 
 // ---------- Anomalie (ADR 0031) ----------
 const anomalies = useAthleteAnomalies({
@@ -363,14 +412,18 @@ const anomalyCount = anomalies.count;
     </div>
 
     <!-- ===================== Profilo ===================== -->
+    <!-- Sezioni comprimibili con riepilogo e guida per gruppo (decisioni del coach D-02, D-04). -->
     <div v-show="tab === 'profilo'" id="panel-profilo" role="tabpanel" aria-labelledby="tab-profilo">
-      <section class="block" id="sec-identita">
-        <h3>Identità</h3>
+      <SectionNav :sections="PROFILE_SECTIONS" @go="goToSection" />
+
+      <PageSection id="sec-identita" title="Identità" :open="isOpen('sec-identita')" :summary="identitySummary(profile)"
+        :attention="emailMissing" guide @toggle="toggle('sec-identita')" @guide="openGuide('profilo-identita')">
         <div class="field-row">
           <label class="field"><span class="field-label">Nome</span><input type="text" v-model="profile.identity.nome" /></label>
           <label class="field"><span class="field-label">Cognome</span><input type="text" v-model="profile.identity.cognome" /></label>
           <label class="field"><span class="field-label">Email</span><input type="email" v-model="profile.identity.email" /></label>
         </div>
+        <p v-if="emailMissing" class="helper-text error-text">L'invio via email è attivo: senza indirizzo il feedback approvato non arriva all'atleta.</p>
         <div class="field-row">
           <label class="field"><span class="field-label">Anno di nascita</span><input type="number" v-model.number="profile.identity.birth_year" /></label>
           <label class="field">
@@ -386,22 +439,19 @@ const anomalyCount = anomalies.count;
           <label class="field"><span class="field-label">Altezza (cm)</span><input type="number" v-model.number="profile.identity.height_cm" /></label>
           <label class="field"><span class="field-label">Peso (kg)</span><input type="number" v-model.number="profile.identity.weight_kg" /></label>
         </div>
-        <FieldHelp field="identity.email" />
-        <FieldHelp field="identity" />
-      </section>
+      </PageSection>
 
-      <section class="block" id="sec-intervals">
-        <h3>Intervals.icu</h3>
+      <PageSection id="sec-intervals" title="Intervals.icu" :open="isOpen('sec-intervals')" :summary="intervalsSummary"
+        :attention="intervalsKeyStatus === 'invalid' || !hasIntervalsKey" guide @toggle="toggle('sec-intervals')" @guide="openGuide('profilo-intervals')">
         <div class="field">
           <label class="field-label" for="intervals-api-key">Chiave API di Intervals.icu</label>
           <PasswordField v-model="profile.integrations!.intervals_icu_api_key as string" input-id="intervals-api-key" />
         </div>
         <p v-if="intervalsStatusText" class="helper-text status-text" :class="{ 'error-text': intervalsKeyStatus === 'invalid' }">{{ intervalsStatusText }}</p>
-        <FieldHelp field="integrations.intervals_icu_api_key" />
-      </section>
+      </PageSection>
 
-      <section class="block">
-        <h3>Discipline</h3>
+      <PageSection id="sec-discipline" title="Discipline" :open="isOpen('sec-discipline')" :summary="disciplinesSummary(profile)"
+        guide @toggle="toggle('sec-discipline')" @guide="openGuide('profilo-discipline')">
         <div v-for="(d, i) in profile.disciplines" :key="i" class="unit">
           <div class="unit-head">
             <span class="unit-title">
@@ -439,7 +489,6 @@ const anomalyCount = anomalies.count;
               </select>
             </label>
           </div>
-          <FieldHelp field="disciplines[].current_weekly_volume" />
           <div class="field-row">
             <label class="field">
               <span class="field-label">Picco settimanale negli ultimi 12 mesi</span>
@@ -452,13 +501,12 @@ const anomalyCount = anomalies.count;
               </select>
             </label>
           </div>
-          <FieldHelp field="disciplines[].peak_weekly_volume_last_12_months" />
         </div>
         <button type="button" class="add-row" @click="addDiscipline"><Plus :size="16" aria-hidden="true" />Aggiungi disciplina</button>
-      </section>
+      </PageSection>
 
-      <section class="block" id="sec-soglie">
-        <h3>Soglie e zone fisiologiche</h3>
+      <PageSection id="sec-soglie" title="Soglie e zone" :open="isOpen('sec-soglie')" :summary="thresholdsSummary(profile)"
+        guide @toggle="toggle('sec-soglie')" @guide="openGuide('profilo-soglie')">
         <div class="segmented" role="group" aria-label="Disciplina delle soglie">
           <button
             v-for="[key, label] in THRESHOLD_SPORTS"
@@ -468,51 +516,32 @@ const anomalyCount = anomalies.count;
             @click="thresholdSport = key"
           >{{ label }}</button>
         </div>
-        <template v-if="thresholdSport === 'running'">
-          <div class="field-row">
-            <label class="field">
-              <span class="field-label">Sistema di zone</span>
-              <select v-model="profile.physiological_thresholds!.running!.zone_system">
-                <option value="3-zone">3 zone</option>
-                <option value="5-zone">5 zone</option>
-                <option value="7-zone">7 zone</option>
-              </select>
-            </label>
-          </div>
-          <MetricLogList v-model="profile.physiological_thresholds!.running!.thresholds_log as never" :field-defs="RUN_THRESHOLD_FIELDS" />
-        </template>
-        <template v-else-if="thresholdSport === 'cycling'">
-          <div class="field-row">
-            <label class="field">
-              <span class="field-label">Sistema di zone</span>
-              <select v-model="profile.physiological_thresholds!.cycling!.zone_system">
-                <option value="3-zone">3 zone</option>
-                <option value="5-zone">5 zone</option>
-                <option value="7-zone">7 zone</option>
-              </select>
-            </label>
-          </div>
-          <MetricLogList v-model="profile.physiological_thresholds!.cycling!.thresholds_log as never" :field-defs="BIKE_THRESHOLD_FIELDS" />
-        </template>
-        <template v-else>
-          <div class="field-row">
-            <label class="field">
-              <span class="field-label">Sistema di zone</span>
-              <select disabled aria-describedby="swim-zone-note">
-                <option>7 zone</option>
-              </select>
-            </label>
-          </div>
-          <MetricLogList v-model="profile.physiological_thresholds!.swimming!.thresholds_log as never" :field-defs="SWIM_THRESHOLD_FIELDS" />
-        </template>
-        <FieldHelp v-if="thresholdSport === 'running'" field="physiological_thresholds.running.zone_system" />
-        <FieldHelp v-else-if="thresholdSport === 'cycling'" field="physiological_thresholds.cycling.zone_system" />
-        <p v-else id="swim-zone-note" class="helper-text">Il nuoto usa sempre 7 zone: il valore non si cambia.</p>
-        <FieldHelp field="physiological_thresholds" />
-      </section>
+        <div class="field-row">
+          <label v-if="thresholdSport !== 'swimming'" class="field">
+            <span class="field-label">Sistema di zone</span>
+            <select v-model="zoneSystem">
+              <option value="3-zone">3 zone</option>
+              <option value="5-zone">5 zone</option>
+              <option value="7-zone">7 zone</option>
+            </select>
+          </label>
+          <label v-else class="field">
+            <span class="field-label">Sistema di zone</span>
+            <select disabled aria-describedby="swim-zone-note">
+              <option>7 zone</option>
+            </select>
+            <span id="swim-zone-note" class="helper-text">Il nuoto usa sempre 7 zone.</span>
+          </label>
+        </div>
+        <MetricLogList
+          :key="thresholdSport"
+          v-model="profile.physiological_thresholds![thresholdSport]!.thresholds_log as never"
+          :field-defs="THRESHOLD_FIELDS[thresholdSport]"
+        />
+      </PageSection>
 
-      <section class="block">
-        <h3>Stato di allenamento</h3>
+      <PageSection id="sec-stato" title="Stato di allenamento" :open="isOpen('sec-stato')" :summary="statusSummary(profile)"
+        guide @toggle="toggle('sec-stato')" @guide="openGuide('profilo-stato')">
         <label class="checkbox-line">
           <input type="checkbox" v-model="profile.training_status!.detraining_period!.active" />
           In questo momento ha un calo degli allenamenti
@@ -555,11 +584,10 @@ const anomalyCount = anomalies.count;
           <span class="field-label">Nota sui fattori di vita</span>
           <textarea v-model="profile.training_status!.lifestyle_factors_note"></textarea>
         </label>
-        <FieldHelp field="training_status.lifestyle_factors" />
-      </section>
+      </PageSection>
 
-      <section class="block">
-        <h3>Obiettivi</h3>
+      <PageSection id="sec-obiettivi" title="Obiettivi" :open="isOpen('sec-obiettivi')" :summary="goalsSummary(profile)"
+        guide @toggle="toggle('sec-obiettivi')" @guide="openGuide('profilo-obiettivi')">
         <div class="field-row">
           <label class="field">
             <span class="field-label">Obiettivo principale</span>
@@ -589,7 +617,6 @@ const anomalyCount = anomalies.count;
           <span class="field-label">Periodizzazione</span>
           {{ PERIODIZATION_LABELS[profile.goals.periodization_model] || profile.goals.periodization_model }}
         </p>
-        <FieldHelp field="goals.periodization_model" />
 
         <template v-if="showTargetEvents">
           <h4 class="subsection-title">Eventi target</h4>
@@ -623,7 +650,7 @@ const anomalyCount = anomalies.count;
             <div class="field-row">
               <label class="field">
                 <span class="field-label">Settimane di tapering</span>
-                <input type="number" min="0" max="4" step="1" :placeholder="String(DEFAULT_TAPER_WEEKS[ev.priority ?? 'C'] ?? 0)"
+                <input type="number" min="0" max="4" step="1" :placeholder="`predefinito: ${DEFAULT_TAPER_WEEKS[ev.priority ?? 'C'] ?? 0}`"
                   :value="ev.taper_weeks ?? ''" @input="ev.taper_weeks = numOrNull(($event.target as HTMLInputElement).value) ?? undefined" />
               </label>
               <label class="field">
@@ -632,41 +659,34 @@ const anomalyCount = anomalies.count;
                   :value="ev.taper_volume_decrease_pct ?? ''" @input="ev.taper_volume_decrease_pct = numOrNull(($event.target as HTMLInputElement).value) ?? undefined" />
               </label>
             </div>
-            <FieldHelp field="goals.target_events" />
           </div>
           <button type="button" class="add-row" @click="addTargetEvent"><Plus :size="16" aria-hidden="true" />Aggiungi evento</button>
         </template>
-      </section>
+      </PageSection>
 
-      <section class="block">
-        <h3>Vincoli e disponibilità</h3>
+      <PageSection id="sec-vincoli" title="Vincoli e disponibilità" :open="isOpen('sec-vincoli')" :summary="constraintsSummary(profile)"
+        guide @toggle="toggle('sec-vincoli')" @guide="openGuide('profilo-vincoli')">
         <div v-for="day in profile.constraints.days_available" :key="day.day" class="day-row" :class="{ inactive: !day.active }">
           <span class="day-label">{{ DAY_LABELS.find(([k]) => k === day.day)?.[1] }}</span>
           <label class="checkbox-line"><input type="checkbox" v-model="day.active" /> Disponibile</label>
           <label class="field"><span class="field-label">Durata massima (min)</span><input type="number" v-model.number="day.max_duration_minutes" /></label>
           <label class="field"><span class="field-label">Attività abituale</span><input type="text" v-model="day.fixed_activity" /></label>
         </div>
-        <FieldHelp field="constraints.days_available" />
         <div class="field-row">
           <label class="field"><span class="field-label">Sessioni a settimana (obiettivo)</span><input type="number" v-model.number="profile.constraints.sessions_per_week_target" /></label>
         </div>
-        <FieldHelp field="constraints.sessions_per_week_target" />
-      </section>
+      </PageSection>
 
-      <section class="block">
-        <h3>Metodologia</h3>
+      <PageSection id="sec-metodologia" title="Metodologia" :open="isOpen('sec-metodologia')" :summary="methodologySummary(profile)"
+        :attention="!loadPattern" guide @toggle="toggle('sec-metodologia')" @guide="openGuide('profilo-metodologia')">
         <div class="field-row">
           <label class="field">
             <span class="field-label">Distribuzione dell'intensità</span>
             <select v-model="profile.methodology_preferences.intensity_distribution_model">
-              <option value="polarizzato_80_20">Polarizzato 80/20</option>
-              <option value="piramidale">Piramidale</option>
-              <option value="soglia_prevalente">Soglia prevalente</option>
-              <option value="misto">Misto</option>
+              <option v-for="[v, l] in INTENSITY_OPTIONS" :key="v" :value="v">{{ l }}</option>
             </select>
           </label>
         </div>
-        <FieldHelp field="methodology_preferences.intensity_distribution_model" />
         <div class="field-row">
           <label class="field">
             <span class="field-label">Settimane di carico</span>
@@ -686,37 +706,36 @@ const anomalyCount = anomalies.count;
         <p v-if="!loadPattern" class="helper-text error-text">
           Lo schema salvato «{{ profile.methodology_preferences.load_deload_pattern || "vuoto" }}» non è riconosciuto: finché non scegli le settimane, il piano non avrà fasi di carico e scarico.
         </p>
-        <FieldHelp field="methodology_preferences.load_deload_pattern" />
         <div class="field-row">
           <label class="field">
             <span class="field-label">Aumento fra settimane di carico (% minimo)</span>
-            <input type="number" min="0" max="50" step="1" v-model.number="profile.methodology_preferences.load_increase_min_pct" placeholder="5" />
+            <input type="number" min="0" max="50" step="1" v-model.number="profile.methodology_preferences.load_increase_min_pct" placeholder="predefinito: 5" />
           </label>
           <label class="field">
             <span class="field-label">Aumento fra settimane di carico (% massimo)</span>
-            <input type="number" min="0" max="50" step="1" v-model.number="profile.methodology_preferences.load_increase_max_pct" placeholder="10" />
+            <input type="number" min="0" max="50" step="1" v-model.number="profile.methodology_preferences.load_increase_max_pct" placeholder="predefinito: 10" />
           </label>
           <label class="field">
             <span class="field-label">Calo nella settimana di scarico (%)</span>
-            <input type="number" min="5" max="80" step="1" v-model.number="profile.methodology_preferences.deload_decrease_pct" placeholder="33" />
+            <input type="number" min="5" max="80" step="1" v-model.number="profile.methodology_preferences.deload_decrease_pct" placeholder="predefinito: 33" />
           </label>
         </div>
-        <FieldHelp field="methodology_preferences.load_increase_min_pct" />
-      </section>
+      </PageSection>
 
-      <section class="block">
-        <h3>Note libere</h3>
+      <PageSection id="sec-note" title="Note libere" :open="isOpen('sec-note')" :summary="notesSummary(profile)"
+        guide @toggle="toggle('sec-note')" @guide="openGuide('profilo-note')">
         <textarea v-model="profile.notes_free_text" rows="4" aria-label="Note libere"></textarea>
-        <FieldHelp field="notes_free_text" />
-      </section>
+      </PageSection>
 
-      <section class="block">
-        <h3>Gestione scheda</h3>
+      <PageSection id="sec-gestione" title="Gestione scheda" :open="isOpen('sec-gestione')" summary="Esporta o elimina la scheda"
+        @toggle="toggle('sec-gestione')">
         <div class="action-bar">
           <button type="button" class="secondary" @click="onExport"><Download :size="16" aria-hidden="true" />Esporta JSON</button>
           <button type="button" class="danger" v-if="athletes.currentId" @click="onDelete"><Trash2 :size="16" aria-hidden="true" />Elimina scheda</button>
         </div>
-      </section>
+      </PageSection>
     </div>
+
+    <GuidePanel v-if="guideKey" :key="guideKey" :guide-key="guideKey" @close="guideLayer.close()" />
   </div>
 </template>

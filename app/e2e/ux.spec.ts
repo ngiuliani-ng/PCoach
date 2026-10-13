@@ -48,3 +48,43 @@ test("righe delle sedute con i soli stati da sistemare; storico filtrato da un s
   await expect(page.locator(".w-row-open")).toHaveCount(1);
   await expect(page.getByRole("button", { name: /^Apri VO2max/ })).toBeVisible();
 });
+
+test("Profilo: sezioni chiuse con il riepilogo, guida dall'icona Info chiusa da «indietro» senza perdere le modifiche (D-02, D-04)", async ({ page }) => {
+  await installMockBackend(page, createState());
+  await page.goto(`./#/atleta/${ATHLETE_ID}/profilo`);
+  const identity = page.getByRole("button", { name: /^Identità/ });
+  await expect(identity).toHaveAttribute("aria-expanded", "false");
+  await expect(identity).toContainText("Giulia Ferri, 36 anni, senza email");
+  // Nessun testo d'aiuto sotto i campi: la spiegazione e' nella guida.
+  await expect(page.getByText("Come lo usa PCoach")).toHaveCount(0);
+  await page.getByLabel("Sessioni a settimana (obiettivo)").fill("4");
+  await page.getByRole("button", { name: "Guida: Vincoli e disponibilità" }).click();
+  const guide = page.getByRole("dialog", { name: "Vincoli e disponibilità" });
+  await expect(guide).toContainText("Disponibilità e durata massima sono vincoli");
+  await page.goBack();
+  await expect(guide).toHaveCount(0);
+  await expect(page.getByLabel("Sessioni a settimana (obiettivo)")).toHaveValue("4");
+  await expect(page.getByRole("button", { name: "Salva", exact: true })).toBeEnabled();
+  await identity.click();
+  await expect(page.getByLabel("Peso (kg)")).toBeVisible();
+});
+
+test("Impostazioni: le regole avanzate partono chiuse con il riepilogo; un ripristino senza valori personalizzati non chiede nulla (D-02, UX-42)", async ({ page }) => {
+  await installMockBackend(page, createState());
+  await page.goto("./#/impostazioni");
+  await expect(page.getByRole("heading", { name: "Avanzate" })).toBeVisible();
+  for (const title of ["Classificazione delle sedute", "Intensità per sistema di zone"]) {
+    const toggle = page.getByRole("button", { name: new RegExp(`^${title}`) });
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await expect(toggle).toContainText("Valori predefiniti");
+  }
+  await expect(page.getByRole("button", { name: /^Modelli di zone/ })).toContainText("Modelli predefiniti");
+  await page.getByRole("button", { name: /^Classificazione delle sedute/ }).click();
+  await page.getByLabel("Seduta svolta da (% della durata)").fill("75");
+  await expect(page.getByRole("button", { name: /^Classificazione delle sedute/ })).toHaveAttribute("aria-expanded", "true");
+  await page.getByRole("button", { name: "Ripristina le soglie predefinite" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Ripristina i predefiniti" }).click();
+  await expect(page.getByLabel("Seduta svolta da (% della durata)")).toHaveValue("80");
+  await page.getByRole("button", { name: "Ripristina le soglie predefinite" }).click();
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+});

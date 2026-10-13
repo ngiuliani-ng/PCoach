@@ -5,6 +5,7 @@ import schema from "../schema/athlete_profile.schema.json";
 import { FIELD_HELP, type FieldHelp } from "./fieldHelp";
 import { blankProfile, todayISO } from "../constants";
 import { buildAthleteContextForPrompt } from "../services/planPrompt";
+import { GUIDES } from "./guide";
 
 type SchemaNode = { properties?: Record<string, SchemaNode>; items?: SchemaNode };
 
@@ -51,5 +52,32 @@ describe("aiuti contestuali", () => {
     expect(text).not.toContain("CHIAVE-SEGRETA");
     expect(text).not.toContain("Ferri");
     expect(entries.filter(([, h]) => h.claude === false).map(([k]) => k)).toEqual(["identity.email", "integrations.intervals_icu_api_key"]);
+  });
+});
+
+// Sorgenti dell'interfaccia, per controllare che le etichette citate esistano (audit UX-51).
+const SOURCES = Object.values(
+  import.meta.glob(["../components/**/*.vue", "../composables/*.ts", "../domain/*.ts", "../stores/*.ts", "../constants.ts"], { query: "?raw", import: "default", eager: true })
+) as string[];
+// Citazioni che sono esempi o valori calcolati, non etichette dell'interfaccia.
+const EXAMPLES = new Set(["uscita in bici col gruppo", "carico 1", "carico 1 di 3", "scarico"]);
+
+describe("guida dei gruppi di dati (D-04)", () => {
+  it("ogni voce della guida ha un testo, e ogni testo e' in una guida o nel pannello della seduta", () => {
+    const used = new Set<string>(Object.values(GUIDES).flatMap((g) => g.entries.map((e) => e.help)));
+    used.add("workout.primary_target");
+    expect(entries.map(([k]) => k).filter((k) => !used.has(k))).toEqual([]);
+  });
+
+  it("le etichette citate fra «» esistono nell'interfaccia", () => {
+    const quoted = entries.flatMap(([, h]) => [...`${h.text} ${h.more ?? ""}`.matchAll(/«([^»]+)»/g)].map((m) => m[1]));
+    const missing = quoted.filter((q) => {
+      if (EXAMPLES.has(q)) return false;
+      // «Porta Intervals.icu a N zone»: N sta per un numero calcolato nel codice.
+      const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const pattern = new RegExp(escaped.replace(/\bN\b/g, "(\\$\\{[^}]+\\}|\\d+)"));
+      return !SOURCES.some((src) => src.split(`«${q}»`).join("").match(pattern));
+    });
+    expect(missing).toEqual([]);
   });
 });

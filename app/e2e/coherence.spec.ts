@@ -2,6 +2,7 @@
 // o promette e' cio' che il sistema usa davvero.
 import { expect, test, type Page } from "@playwright/test";
 import { ATHLETE_ID, createState, installMockBackend, type MockState } from "./mockBackend";
+import { openSection } from "./helpers";
 
 const profileOf = (state: MockState) => state.tables.athletes[0].data as Record<string, any>;
 
@@ -166,8 +167,8 @@ test("le intensità del feedback si impostano per sistema di zone; il nuoto most
   const state = createState();
   await installMockBackend(page, state);
   await page.goto("./#/impostazioni");
-  await page.getByText("Intensità bassa, media e alta per sistema di zone").click();
-  const moderate3 = page.getByLabel("3 zone · media fino alla zona");
+  await openSection(page, "Intensità per sistema di zone");
+  const moderate3 = page.getByRole("spinbutton", { name: "3 zone Media fino alla zona" });
   await moderate3.fill("4");
   await expect(page.getByText("Valore tra 2 e 3.")).toBeVisible();
   await moderate3.fill("3");
