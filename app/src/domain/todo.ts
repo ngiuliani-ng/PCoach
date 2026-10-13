@@ -124,7 +124,7 @@ export function buildTodo(input: TodoInput): AthleteTodo[] {
       items.push({
         key: "drafts", tone: "info",
         title: drafts.length === 1 ? "Una seduta in bozza da approvare" : `${drafts.length} sedute in bozza da approvare`,
-        detail: `Dal ${formatDate(drafts[0].planned_date, false)}: finché non le approvi non vanno su Intervals.icu.`,
+        detail: `Dal ${formatDate(drafts[0].planned_date, false)}: finché non ${drafts.length === 1 ? "la approvi non va" : "le approvi non vanno"} su Intervals.icu.`,
         links: [{ text: "Apri il piano", to: athleteRoute(a.id, "piano", { settimana: drafts[0].planned_date }) }]
       });
     }

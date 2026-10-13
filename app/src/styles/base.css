@@ -317,6 +317,7 @@ section.block.todo-athlete h2 { margin: 0 0 var(--sp-3); font-size: var(--fs-lg)
 .todo-athlete h2 a { color: inherit; text-decoration: none; }
 .todo-athlete h2 a:hover { text-decoration: underline; }
 .todo-athlete .anomaly-unit { margin-top: 0; }
+.anomaly-items a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 .todo-empty { display: flex; gap: var(--sp-3); align-items: flex-start; color: var(--text-muted); }
 .todo-empty h2 { margin: 0 0 var(--sp-1); font-size: var(--fs-lg); color: var(--text); }
 .todo-note { margin-top: var(--sp-4); }
