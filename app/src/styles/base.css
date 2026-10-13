@@ -999,16 +999,37 @@ button.ghost.danger-text { color: var(--danger); }
 .feedback-head {
   display: flex;
   flex-wrap: wrap;
-  gap: 0 var(--sp-3);
+  align-items: center;
+  gap: var(--sp-1) var(--sp-3);
   margin: 0 0 var(--sp-1);
   font-size: var(--fs-sm);
   color: var(--text-muted);
 }
 .feedback-head time { color: var(--text); font-weight: 600; }
+/* Settimana chiusa (audit FB-04): la riga si apre con un clic, come le sezioni del Profilo. */
+.feedback-item.closed { padding: var(--sp-3) 0; }
+.feedback-item.closed .feedback-head { margin: 0; }
+.feedback-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  margin-left: -4px;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  font: inherit;
+  cursor: pointer;
+}
+.feedback-toggle:hover time { text-decoration: underline; }
+.feedback-toggle[aria-expanded="true"] .section-caret { transform: rotate(90deg); }
+.feedback-body { margin-top: var(--sp-2); }
+.feedback-alert { margin: var(--sp-2) 0 0; }
+.feedback-alert .error-text { margin: 0 0 var(--sp-2); }
 .feedback-note { margin: 0; white-space: pre-wrap; max-width: 70ch; }
 .review-create { display: flex; flex-wrap: wrap; align-items: end; gap: var(--sp-3); margin: var(--sp-3) 0 var(--sp-4); }
 .review-create .field { min-width: 220px; }
-.review-counts { display: flex; flex-wrap: wrap; gap: 0 var(--sp-3); margin: 0 0 var(--sp-2); font-size: var(--fs-sm); color: var(--text-muted); }
+.review-counts { margin: 0 0 var(--sp-2); font-size: var(--fs-sm); color: var(--text-muted); max-width: 70ch; }
 .review-sessions { margin: 0 0 var(--sp-2); font-size: var(--fs-sm); }
 .review-sessions summary { cursor: pointer; color: var(--text-muted); }
 .review-sessions ul { list-style: none; padding: 0; margin: var(--sp-2) 0 0; }
@@ -1022,10 +1043,12 @@ button.ghost.danger-text { color: var(--danger); }
 .review-session-date { min-width: 52px; color: var(--text-muted); }
 .review-caution { color: var(--warning); }
 .review-muted { color: var(--text-muted); }
-.review-limits { margin: 0 0 var(--sp-2); padding-left: var(--sp-4); font-size: var(--fs-sm); color: var(--text-muted); max-width: 70ch; }
+.review-limits { margin: 0 0 var(--sp-2); font-size: var(--fs-sm); color: var(--text-muted); max-width: 70ch; }
+.review-limits-title { margin: 0; }
+.review-limits ul { margin: 0; padding-left: var(--sp-5); }
 .review-summary { margin: 0 0 var(--sp-3); font-size: var(--fs-sm); max-width: 70ch; }
 .review-text { max-width: 70ch; }
-.review-text textarea { width: 100%; }
+.review-text textarea { width: 100%; overflow: hidden; resize: none; }
 .review-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-2); }
 
 /* ---------- Disponibilita' settimanale ---------- */
@@ -1273,7 +1296,7 @@ body:has(.drawer-foot) .toast, body:has(.dialog-foot) .toast { bottom: calc(var(
   input:not([type="checkbox"]):not([type="radio"]), select { min-height: 44px; }
   button.primary, button.secondary, button.ghost, button.danger, .segmented button { min-height: 44px; }
   .icon-btn { min-width: 44px; min-height: 44px; }
-  .tab, .athlete-select, .new-athlete-card .athlete-select, button.add-row { min-height: 44px; }
+  .tab, .athlete-select, .new-athlete-card .athlete-select, button.add-row, .feedback-toggle { min-height: 44px; }
   summary { padding-block: var(--sp-2); }
   .checkbox-line, .op-choice label { min-height: 44px; }
   .link-btn { padding-block: var(--sp-2); }

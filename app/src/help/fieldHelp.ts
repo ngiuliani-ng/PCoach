@@ -128,7 +128,7 @@ export const FIELD_HELP = {
   },
   "review.flow": {
     text: "Ogni lunedì PCoach confronta la settimana appena finita con le sedute approvate e Claude scrive un feedback. Lo rivedi qui: parte verso l'atleta solo quando lo approvi.",
-    more: "Puoi modificare il testo prima di approvarlo, o chiedere a Claude di riscriverlo con «Rigenera». Per una settimana senza feedback, o per rivalutarla, usa «Prepara il feedback». Un feedback già inviato si può rigenerare: all'approvazione scegli se inviarlo di nuovo."
+    more: "Puoi correggere il testo prima di approvarlo: le correzioni si salvano da sole (la nuvola in alto è verde quando sono salvate). «Rigenera» chiede a Claude di riscriverlo e rifà la valutazione con i dati aggiornati. Per una settimana che non ha ancora un feedback usa «Prepara il feedback». Un feedback già inviato si può rigenerare: all'approvazione scegli se inviarlo di nuovo. Le settimane chiuse si aprono con un clic."
   },
   "workout.primary_target": {
     text: "La misura con cui l'atleta vede le zone su Intervals.icu: potenza, frequenza cardiaca o passo.",

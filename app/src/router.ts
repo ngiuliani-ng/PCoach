@@ -9,6 +9,7 @@ import AthleteEditor from "./components/domain/AthleteEditor.vue";
 import SettingsPanel from "./components/domain/SettingsPanel.vue";
 import { useAthletesStore } from "./stores/athletes";
 import { useSettingsStore } from "./stores/settings";
+import { useReviewsStore } from "./stores/reviews";
 import { choiceDialog } from "./composables/useConfirmDialog";
 import { showResultToast } from "./composables/useToast";
 import { useZoneChange } from "./composables/useZoneChange";
@@ -40,6 +41,7 @@ function profileKey(route: RouteLocationNormalized): string | null {
  * true se si puo' proseguire.
  */
 export async function confirmLeaveProfile(): Promise<boolean> {
+  if (!(await confirmLeaveFeedbackText())) return false;
   const athletes = useAthletesStore();
   if (!athletes.isDirty) return true;
   const name = fullName(athletes.currentProfile?.identity) || "nuovo atleta";
@@ -62,6 +64,23 @@ export async function confirmLeaveProfile(): Promise<boolean> {
     return result.ok;
   }
   return false;
+}
+
+/**
+ * Testo di un feedback in bozza non ancora salvato (ADR 0038): si prova a salvarlo subito; se il
+ * salvataggio non riesce, il coach sceglie se uscire perdendo le correzioni o restare.
+ */
+async function confirmLeaveFeedbackText(): Promise<boolean> {
+  const reviews = useReviewsStore();
+  if (!reviews.hasUnsavedText || (await reviews.flushAllTexts())) return true;
+  const choice = await choiceDialog(
+    "Le correzioni al testo del feedback non sono state salvate.",
+    [{ value: "discard", label: "Esci senza salvare", tone: "danger" }],
+    "Resta"
+  );
+  if (choice !== "discard") return false;
+  reviews.discardTexts();
+  return true;
 }
 
 /** Uscita dalle Impostazioni con modifiche non salvate: stesse scelte della scheda. */

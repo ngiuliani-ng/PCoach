@@ -48,6 +48,7 @@ import { Download, Trash2 } from "lucide-vue-next";
 
 const athletes = useAthletesStore();
 const workouts = useWorkoutsStore();
+const reviewsStore = useReviewsStore();
 const route = useRoute();
 const router = useRouter();
 
@@ -133,8 +134,9 @@ const disciplinesText = computed(() =>
   profile.value.disciplines.map((d) => disciplineLabel(d.sport)).filter(Boolean).join(", ")
 );
 // Stato del salvataggio accanto a «Salva»: solo la nuvola, senza data (decisioni del coach).
+// Conta anche il testo di un feedback in bozza non ancora salvato (ADR 0038).
 const saveStatus = computed(() => {
-  if (athletes.isDirty) return { state: "unsaved" as const, text: "Modifiche non salvate" };
+  if (athletes.isDirty || reviewsStore.hasUnsavedText) return { state: "unsaved" as const, text: "Modifiche non salvate" };
   if (!athletes.currentId) return { state: "draft" as const, text: "Bozza non ancora salvata" };
   return { state: "saved" as const, text: "Scheda salvata" };
 });
@@ -264,7 +266,6 @@ const anomalies = useAthleteAnomalies({
   openWorkout: (id) => void router.push({ name: "athlete", params: { id: routeId.value, tab: "piano" }, query: { seduta: id } })
 });
 const anomalyCount = anomalies.count;
-const reviewsStore = useReviewsStore();
 // Si decide all'apertura della scheda: dopo l'approvazione il feedback resta dov'era, senza saltare in fondo.
 const feedbackFirst = ref(false);
 watch(

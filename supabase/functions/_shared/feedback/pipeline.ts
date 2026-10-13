@@ -45,6 +45,8 @@ export interface ReviewRow {
   input: FeedbackInput | null;
   output: FeedbackOutput | null;
   output_text: string | null;
+  /** Testo della bozza corretto dal coach e salvato in automatico (ADR 0038); null se non l'ha toccato. */
+  coach_text?: string | null;
   delivery_status: DeliveryStatus;
   delivery_attempts: number;
   created_at: string;
@@ -346,9 +348,13 @@ export async function runScheduled(deps: Deps, budgetMs = 100_000): Promise<{ pl
   return { planned, processed };
 }
 
-/** Valutazione creata prima della fine del periodo (nel fuso del coach) e non ancora approvata. */
+/**
+ * Valutazione creata prima della fine del periodo (nel fuso del coach) e non ancora approvata. Una
+ * bozza di cui il coach ha corretto il testo non si sostituisce: decide lui con «Rigenera» (ADR 0038).
+ */
 export function isEarly(row: ReviewRow, period: Period, timeZone: string): boolean {
   if (row.status === "approved" || row.status === "superseded") return false;
+  if (row.coach_text != null) return false;
   return localDayHour(new Date(row.created_at), timeZone).date <= period.end;
 }
 

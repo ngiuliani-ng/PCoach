@@ -142,6 +142,16 @@ describe("pipeline del feedback", () => {
     expect(store.rows).toHaveLength(2);
   });
 
+  it("ADR 0038: una bozza anticipata di cui il coach ha corretto il testo non viene sostituita il lunedi'", async () => {
+    const store = new MemoryStore();
+    store.createdAt = "2026-10-16T10:00:00Z";
+    await store.claim("A1", PERIOD);
+    Object.assign(store.rows[0], { status: "draft", coach_text: "Testo corretto dal coach." });
+    const { d } = deps(store);
+    await runScheduled(d);
+    expect(store.rows.map((r) => [r.revision, r.status, r.coach_text])).toEqual([[1, "draft", "Testo corretto dal coach."]]);
+  });
+
   it("D-08: una valutazione anticipata gia' approvata resta", async () => {
     const store = new MemoryStore();
     store.createdAt = "2026-10-16T10:00:00Z";

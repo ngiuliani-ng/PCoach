@@ -31,7 +31,7 @@ function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
 }
 
-const REVIEW_COLUMNS = "id, athlete_id, period_start, period_end, revision, status, skip_reason, attempts, error, input, output, output_text, delivery_status, delivery_attempts, locked_until, created_at";
+const REVIEW_COLUMNS = "id, athlete_id, period_start, period_end, revision, status, skip_reason, attempts, error, input, output, output_text, coach_text, delivery_status, delivery_attempts, locked_until, created_at";
 const WORKOUT_COLUMNS = "id, revision, planned_date, slot, discipline, title, objective, duration_min, structure, primary_target, completed_at, workout_sync(provider, remote_event_id)";
 
 // ---------- Database ----------

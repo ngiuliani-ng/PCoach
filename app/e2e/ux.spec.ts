@@ -248,7 +248,7 @@ test("intestazione della scheda: su telefono solo il prossimo evento e le tab in
   for (const tab of ["Panoramica", "Piano", "Profilo", "Anomalie"]) {
     await page.getByRole("tab", { name: new RegExp(`^${tab}`) }).click();
     await expect(status.locator(".save-icon")).toBeVisible();
-    await expect(status).toHaveClass(/saved/);
+    await expect(status).toHaveClass(/\bsaved\b/);
     await expect(status).toContainText("Scheda salvata");
   }
   // Modifiche non salvate: la nuvola resta, con l'avviso.
@@ -260,7 +260,7 @@ test("intestazione della scheda: su telefono solo il prossimo evento e le tab in
   await expect(status).toContainText("Modifiche non salvate");
   if (info.project.name === "mobile") {
     await page.getByRole("button", { name: "Salva", exact: true }).click();
-    await expect(status).toHaveClass(/saved/);
+    await expect(status).toHaveClass(/\bsaved\b/);
     await expect(sub.getByText("Corsa, Bici")).toBeHidden();
     const tabs = (await page.getByRole("tablist", { name: "Sezioni della scheda" }).boundingBox())!;
     expect(tabs.y).toBeLessThanOrEqual(200);
@@ -319,7 +319,7 @@ test("Impostazioni: solo la nuvola del salvataggio, colorata per stato, salvata 
   await page.goto("./#/impostazioni");
   const status = page.locator(".page-header .save-status");
   await expect(status.locator(".save-icon")).toBeVisible();
-  await expect(status).toHaveClass(/saved/);
+  await expect(status).toHaveClass(/\bsaved\b/);
   await expect(status).toContainText("Impostazioni salvate");
   // Solo la nuvola: nessun testo visibile, il colore cambia con lo stato.
   expect((await status.boundingBox())!.width).toBeLessThanOrEqual(24);

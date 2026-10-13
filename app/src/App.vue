@@ -4,6 +4,7 @@ import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useAthletesStore } from "./stores/athletes";
 import { useSettingsStore } from "./stores/settings";
+import { useReviewsStore } from "./stores/reviews";
 import { useAuthStore } from "./stores/auth";
 import { useTodoStore } from "./stores/todo";
 import { useMobileSidebar } from "./composables/useMobileSidebar";
@@ -26,8 +27,9 @@ const {
 } = useMobileSidebar({ sidebarId: "athlete-sidebar", toggleEl: sidebarToggleEl });
 
 // Chiudere o ricaricare la pagina con modifiche non salvate: avviso del browser (decisione D-UX-1).
+const reviews = useReviewsStore();
 function onBeforeUnload(event: BeforeUnloadEvent) {
-  if (!athletes.isDirty && !settings.isDirty) return;
+  if (!athletes.isDirty && !settings.isDirty && !reviews.hasUnsavedText) return;
   event.preventDefault();
   event.returnValue = "";
 }
