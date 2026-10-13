@@ -31,11 +31,6 @@ export const useTodoStore = defineStore("todo", {
         emailEnabled: settings.savedEmailEnabled,
         today: todayISO()
       });
-    },
-    /** Ora dell'ultimo controllo su Intervals.icu, fra gli atleti con la chiave. */
-    lastCheckAt(state): string | null {
-      const times = state.checks.filter((c) => c.key_status !== "none").map((c) => c.checked_at).sort();
-      return times.at(-1) ?? null;
     }
   },
   actions: {

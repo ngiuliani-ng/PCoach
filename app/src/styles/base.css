@@ -313,12 +313,18 @@ button:focus-visible, a:focus-visible {
 .anomaly-icon { margin-top: 3px; color: var(--warning); }
 .anomaly.err .anomaly-icon { color: var(--danger); }
 .anomaly.info .anomaly-icon { color: var(--text-muted); }
-/* Contatore globale delle cose da fare (sidebar): grigio se ci sono solo approvazioni, giallo con almeno un'anomalia. */
+/* Contatore globale delle cose da fare (sidebar): quadrato, grigio se ci sono solo approvazioni, giallo con almeno un'anomalia; stessa forma nei due casi. */
 .todo-count {
+  display: inline-grid;
+  place-items: center;
+  box-sizing: border-box;
+  min-width: 22px;
+  height: 22px;
   margin-left: var(--sp-2);
-  padding: 0 6px;
-  border-radius: 999px;
+  padding: 0 4px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border-control);
+  font-variant-numeric: tabular-nums;
   font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--text);
@@ -326,7 +332,7 @@ button:focus-visible, a:focus-visible {
 }
 .todo-item .athlete-select { display: flex; align-items: center; justify-content: flex-start; gap: var(--sp-2); text-align: left; }
 .todo-item .todo-count { margin-left: auto; }
-.todo-count.attention { color: var(--warning); background: var(--warning-bg); border-color: transparent; }
+.todo-count.has-anomaly { color: var(--warning); background: var(--warning-bg); border-color: var(--warning); }
 
 /* ---------- Pagina iniziale «Da fare» (D-01): un'unita' per atleta, come la tab Anomalie ---------- */
 .todo-page .page-header + section.block, .todo-page .page-header + .helper-text { border-top: none; }
@@ -337,7 +343,6 @@ section.block.todo-athlete h2 { margin: 0 0 var(--sp-3); font-size: var(--fs-lg)
 .anomaly-items a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 .todo-empty { display: flex; gap: var(--sp-3); align-items: flex-start; color: var(--text-muted); }
 .todo-empty h2 { margin: 0 0 var(--sp-1); font-size: var(--fs-lg); color: var(--text); }
-.todo-note { margin-top: var(--sp-4); }
 .anomaly-main { min-width: 0; }
 .anomaly-title { margin: 0; font-weight: 600; }
 .anomaly-stops { margin: 2px 0 0; font-size: var(--fs-sm); font-weight: 600; color: var(--text); }
@@ -431,7 +436,7 @@ section.block h3.section-title { flex: 1; min-width: 0; margin: 0; font-size: va
   font-weight: 400;
   color: var(--text-muted);
 }
-.section-summary.attention { color: var(--warning); }
+.section-summary.has-anomaly { color: var(--warning); }
 .section-body { padding-top: var(--sp-3); }
 .section-head .icon-btn { margin-top: var(--sp-1); }
 .advanced-head { border-top: 1px solid var(--border); padding-top: var(--sp-6); margin-top: var(--sp-3); }
@@ -486,15 +491,11 @@ section.block h3.section-title { flex: 1; min-width: 0; margin: 0; font-size: va
 .intensity-table tbody th { font-weight: 500; padding-top: var(--sp-3); }
 .intensity-table input { width: 96px; }
 
-/* Informazioni sull'app (ADR 0036): versione, build, server e novita'. */
+/* Informazioni sull'app (ADR 0036): versione, build e server. */
 .app-info { display: grid; grid-template-columns: max-content 1fr; gap: var(--sp-1) var(--sp-4); margin: 0 0 var(--sp-4); }
 .app-info dt { color: var(--text-muted); font-size: var(--fs-sm); }
 .app-info dd { margin: 0; }
 .app-info .mono { font-family: var(--font-mono); }
-.release-notes { margin-bottom: var(--sp-3); max-width: 70ch; }
-.release-heading { margin: 0 0 var(--sp-1); font-weight: 600; font-size: var(--fs-sm); }
-.release-notes ul { margin: 0; padding-left: var(--sp-5); }
-.release-notes li { margin-bottom: var(--sp-1); }
 section.block h3 {
   font-size: var(--fs-lg);
   font-weight: 600;

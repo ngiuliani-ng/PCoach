@@ -5,12 +5,22 @@
 Ordine: più recente in cima. Versioni con [Semantic Versioning](https://semver.org/lang/it/) adattato a un'app senza API pubbliche: MAJOR se serve un'azione o si rompe la compatibilità di dati o flussi, MINOR per una funzione nuova o cambiata che il coach vede, PATCH per correzioni e testi ([decisioni/0036](docs/decisioni/0036-versione-dell-app-e-rilasci.md)).
 
 - `## [Unreleased]` in cima raccoglie ciò che è nel codice ma non ancora rilasciato. Al rilascio diventa `## [X.Y.Z] — AAAA-MM-GG`, con la versione in `app/package.json` e in `supabase/functions/_shared/version.ts` e il tag `vX.Y.Z`.
-- Categorie: **Aggiunto**, **Modificato**, **Corretto**, **Rimosso**, **Sicurezza** per ciò che il coach nota o che cambia i dati; **Interno** per test, refactoring, documentazione e dipendenze. Le note di rilascio in Impostazioni › Informazioni escludono «Interno».
+- Categorie: **Aggiunto**, **Modificato**, **Corretto**, **Rimosso**, **Sicurezza** per ciò che il coach nota o che cambia i dati; **Interno** per test, refactoring, documentazione e dipendenze.
 - Formato per voce: **cambiamento — motivazione — docs aggiornati**, in una riga che inizia con «- ».
 
 ---
 
 ## [Unreleased]
+
+### Modificato
+- Il contatore «Da fare» nella barra laterale è sempre un quadrato della stessa misura, grigio o giallo: il giallo prendeva lo stile del riquadro d'avviso del Piano e cambiava forma — richiesta del coach — docs: design-ui.
+- La pagina «Da fare» non dice più a che ora sono state controllate chiave, zone e soglie — richiesta del coach — docs: design-ui, decisioni/0037.
+
+### Rimosso
+- Novità della versione in Impostazioni › Informazioni: l'utente non le deve leggere — decisione del coach — docs: design-ui, architettura, sviluppo-deploy, decisioni/0036.
+
+### Corretto
+- Il riepilogo giallo di una sezione chiusa (per esempio «Manca l'email») prendeva il bordo e lo sfondo del riquadro d'avviso del Piano; ora cambia solo il colore del testo.
 
 ## [1.0.0] — 2026-10-13
 

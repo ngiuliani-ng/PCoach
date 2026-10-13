@@ -3,7 +3,22 @@ import { describe, expect, it } from "vitest";
 import pkg from "../package.json";
 import changelog from "../../CHANGELOG.md?raw";
 import { PCOACH_VERSION } from "@shared/version.ts";
-import { APP_VERSION, releaseNotes, reportLine } from "./version";
+import { APP_VERSION, reportLine } from "./version";
+
+/** Voci della sezione `## [version]` del CHANGELOG, escluse quelle di «Interno». */
+function coachEntries(version: string, text: string): string[] {
+  const lines = text.split(/\r?\n/);
+  const start = lines.findIndex((l) => l.startsWith(`## [${version}]`));
+  if (start < 0) return [];
+  const entries: string[] = [];
+  let internal = false;
+  for (const line of lines.slice(start + 1)) {
+    if (line.startsWith("## ")) break;
+    if (line.startsWith("### ")) internal = line.slice(4).trim() === "Interno";
+    else if (!internal && line.startsWith("- ")) entries.push(line);
+  }
+  return entries;
+}
 
 describe("versione dell'app", () => {
   it("una versione SemVer, la stessa nell'app e nelle funzioni del server", () => {
@@ -19,15 +34,7 @@ describe("versione dell'app", () => {
     const current = versions.find(([v]) => v === pkg.version);
     expect(current, `sezione ## [${pkg.version}] nel CHANGELOG`).toBeDefined();
     expect(current![1]).toMatch(/^— \d{4}-\d{2}-\d{2}$/);
-    expect(releaseNotes(pkg.version, changelog).flatMap((n) => n.items).length).toBeGreaterThan(0);
-    // La build porta nell'app proprio quella sezione.
-    expect(releaseNotes(pkg.version)).toEqual(releaseNotes(pkg.version, changelog));
-  });
-
-  it("note di rilascio senza «Interno» e senza markdown", () => {
-    const text = "## [Unreleased]\n\n## [2.0.0] — 2026-11-01\n\n### Aggiunto\n- **Pagina** `Da fare`, vedi [ADR](x.md)\n\n### Interno\n- Test\n\n## [1.0.0] — 2026-10-13\n- vecchia";
-    expect(releaseNotes("2.0.0", text)).toEqual([{ heading: "Aggiunto", items: ["Pagina Da fare, vedi ADR"] }]);
-    expect(releaseNotes("3.0.0", text)).toEqual([]);
+    expect(coachEntries(pkg.version, changelog).length).toBeGreaterThan(0);
   });
 
   it("la riga per una segnalazione non contiene dati sensibili, solo versione, build e browser", () => {

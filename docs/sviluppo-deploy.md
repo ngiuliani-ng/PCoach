@@ -108,8 +108,7 @@ L'ambiente `github-pages` deve ammettere il deploy dai tag `v*` (Settings › En
 
 Una sola fonte: `app/package.json` › `version`. `vite.config.ts` la passa all'app (`__APP_VERSION__`) con:
 - il commit della build (`__APP_COMMIT__`: `GITHUB_SHA` in CI, `git rev-parse --short HEAD` in locale, con `-modificato` se ci sono modifiche non committate, `locale` senza git);
-- la data di build;
-- la sezione del CHANGELOG di quella versione.
+- la data di build.
 
 `src/version.ts` le espone all'interfaccia (barra laterale, Impostazioni › Informazioni). La build scrive `dist/version.json` (`{ version, commit, builtAt }`). `supabase/functions/_shared/version.ts` ripete la versione per le Edge Function, e un test verifica che coincida.
 

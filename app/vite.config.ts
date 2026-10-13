@@ -25,14 +25,6 @@ function buildCommit(): string {
   }
 }
 const APP_COMMIT = buildCommit()
-// Solo la sezione del CHANGELOG di questa versione entra nell'app (note di rilascio in Informazioni).
-function releaseSection(version: string): string {
-  const lines = readFileSync(new URL('../CHANGELOG.md', import.meta.url), 'utf8').split(/\r?\n/)
-  const start = lines.findIndex((l) => l.startsWith(`## [${version}]`))
-  if (start < 0) return ''
-  const end = lines.findIndex((l, i) => i > start && l.startsWith('## '))
-  return lines.slice(start, end < 0 ? undefined : end).join('\n')
-}
 const APP_BUILD_DATE = new Date().toISOString()
 
 // https://vite.dev/config/
@@ -41,7 +33,6 @@ export default defineConfig({
     __APP_VERSION__: JSON.stringify(APP_VERSION),
     __APP_COMMIT__: JSON.stringify(APP_COMMIT),
     __APP_BUILD_DATE__: JSON.stringify(APP_BUILD_DATE),
-    __APP_RELEASE_SECTION__: JSON.stringify(releaseSection(APP_VERSION)),
   },
   base: '/PCoach/',
   // Moduli puri condivisi con le Edge Function (supabase/functions/_shared): stesso codice
@@ -50,7 +41,7 @@ export default defineConfig({
     alias: { '@shared': fileURLToPath(new URL('../supabase/functions/_shared', import.meta.url)) },
   },
   server: {
-    // Il CHANGELOG alla radice serve alle note di rilascio in Impostazioni › Informazioni.
+    // Il CHANGELOG alla radice serve al test di coerenza della versione (version.test.ts).
     fs: { allow: [searchForWorkspaceRoot(process.cwd()), '../supabase/functions/_shared', '../CHANGELOG.md'] },
   },
   test: {

@@ -115,7 +115,7 @@ test("pagina «Da fare»: feedback e bozze di tutti gli atleti, con il numero in
   await expect(page.locator(".todo-athlete")).not.toContainText("Feedback della settimana del 5 ott da approvare");
 });
 
-test("la versione in fondo alla barra laterale porta a Informazioni, con build, server e novità (D-08)", async ({ page }) => {
+test("la versione in fondo alla barra laterale porta a Informazioni, con build e server, senza novità (D-08)", async ({ page }) => {
   await installMockBackend(page, createState());
   await page.goto("./");
   const menu = page.getByRole("button", { name: "Apri la barra laterale" });
@@ -126,7 +126,7 @@ test("la versione in fondo alla barra laterale porta a Informazioni, con build, 
   await expect(info).toContainText("Versione");
   await expect(info).toContainText("Build");
   await expect(info.locator("dd").nth(2)).toHaveText(/^\d+\.\d+\.\d+$/);
-  await expect(info).toContainText("Novità della versione");
+  await expect(info).not.toContainText("Novità");
   await expect(info).not.toContainText("e2e-anon-key");
 });
 
@@ -153,11 +153,32 @@ test("il contatore «Da fare» diventa giallo con almeno un'anomalia, in qualunq
   if (await menu.isVisible().catch(() => false)) await menu.click();
   const counter = page.locator(".todo-item .todo-count");
   await expect(counter).toHaveText("3");
-  await expect(counter).toHaveClass(/attention/);
+  await expect(counter).toHaveClass(/has-anomaly/);
   await expect(page.getByRole("button", { name: /^Da fare, 3 in tutto, con anomalie da sistemare$/ })).toBeVisible();
 });
 
-test("la home mostra l'ultimo controllo su Intervals.icu: zone diverse e l'ora del controllo (ADR 0037)", async ({ page }) => {
+test("il contatore «Da fare» è un quadrato della stessa misura, grigio o giallo", async ({ page }) => {
+  async function counterBox(withAnomaly: boolean) {
+    const state = createState();
+    if (withAnomaly) (state.tables.workouts[0] as Record<string, unknown>).needs_review = "Durata oltre il massimo del giorno.";
+    await installMockBackend(page, state);
+    await page.goto("./");
+    const menu = page.getByRole("button", { name: "Apri la barra laterale" });
+    if (await menu.isVisible().catch(() => false)) await menu.click();
+    const counter = page.locator(".todo-item .todo-count");
+    await expect(counter).toHaveClass(withAnomaly ? /has-anomaly/ : /^todo-count$/);
+    const box = (await counter.boundingBox())!;
+    const radius = await counter.evaluate((el) => getComputedStyle(el).borderTopLeftRadius);
+    return { width: box.width, height: box.height, radius };
+  }
+  const grey = await counterBox(false);
+  const yellow = await counterBox(true);
+  expect(grey.width).toBe(grey.height);
+  expect(yellow).toEqual(grey);
+  expect(parseFloat(grey.radius)).toBeLessThan(grey.height / 3);
+});
+
+test("la home mostra l'esito dell'ultimo controllo su Intervals.icu: zone diverse, senza l'ora del controllo (ADR 0037)", async ({ page }) => {
   const state = createState();
   state.tables.athlete_checks = [{
     athlete_id: ATHLETE_ID, checked_at: "2026-10-10T07:50:00Z", key_status: "valid",
@@ -168,10 +189,11 @@ test("la home mostra l'ultimo controllo su Intervals.icu: zone diverse e l'ora d
   const athlete = page.locator(".todo-athlete", { has: page.getByRole("heading", { name: "Giulia Ferri" }) });
   await expect(athlete).toContainText("Zone diverse da Intervals.icu");
   await expect(athlete).toContainText("Corsa (passo): 5 zone in PCoach, 7 su Intervals.icu");
-  await expect(page.getByText(/Chiave, zone e soglie controllate su Intervals\.icu oggi alle 09:50/)).toBeVisible();
+  // Nessuna riga sull'ora del controllo: il coach vede solo cosa c'è da fare.
+  await expect(page.locator(".todo-page")).not.toContainText("controllate su Intervals.icu");
   await athlete.getByRole("link", { name: "Sistemale nelle Anomalie" }).click();
   await expect(page.getByRole("tab", { name: /Anomalie/ })).toHaveAttribute("aria-selected", "true");
   const menu = page.getByRole("button", { name: "Apri la barra laterale" });
   if (await menu.isVisible().catch(() => false)) await menu.click();
-  await expect(page.locator(".todo-item .todo-count")).toHaveClass(/attention/);
+  await expect(page.locator(".todo-item .todo-count")).toHaveClass(/has-anomaly/);
 });

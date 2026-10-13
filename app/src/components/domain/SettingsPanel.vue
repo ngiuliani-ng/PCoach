@@ -8,7 +8,7 @@ import { DEFAULT_FEEDBACK_PARAMS, validateFeedbackParams, type FeedbackParams } 
 import { showResultToast, showToast } from "../../composables/useToast";
 import { useRoute } from "vue-router";
 import { supabaseUrl } from "../../services/supabase";
-import { APP_BUILD_DATE, APP_COMMIT, APP_ENVIRONMENT, APP_VERSION, releaseNotes, reportLine } from "../../version";
+import { APP_BUILD_DATE, APP_COMMIT, APP_ENVIRONMENT, APP_VERSION, reportLine } from "../../version";
 import { confirmDialog } from "../../composables/useConfirmDialog";
 import { saveSettings } from "../../composables/useSettingsSave";
 import { useSections, scrollToSection } from "../../composables/useSections";
@@ -77,9 +77,8 @@ watch(() => route.query.sezione, (id) => {
   if (typeof id === "string" && SECTIONS.some((s) => s.id === id)) void go(id);
 }, { immediate: true });
 
-// ---------- Informazioni (ADR 0036): versione, build, server, note di rilascio ----------
+// ---------- Informazioni (ADR 0036): versione, build, server ----------
 const buildDate = formatDate(APP_BUILD_DATE.slice(0, 10));
-const notes = releaseNotes(APP_VERSION);
 const serverVersion = ref<string | null>(null);
 const serverChecked = ref(false);
 // La versione delle funzioni arriva nell'intestazione della risposta a una richiesta OPTIONS: nessun dato,
@@ -293,13 +292,6 @@ async function onSave() {
         </dd>
       </dl>
       <button type="button" class="secondary" @click="copyReport">Copia per una segnalazione</button>
-      <template v-if="notes.length">
-        <h4 class="subsection-title">Novità della versione {{ APP_VERSION }}</h4>
-        <div v-for="n in notes" :key="n.heading" class="release-notes">
-          <p class="release-heading">{{ n.heading }}</p>
-          <ul><li v-for="item in n.items" :key="item">{{ item }}</li></ul>
-        </div>
-      </template>
     </PageSection>
 
     <GuidePanel v-if="guideKey" :key="guideKey" :guide-key="guideKey" @close="guideLayer.close()" />

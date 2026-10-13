@@ -16,7 +16,7 @@ defineEmits<{ (e: "toggle"): void; (e: "guide"): void }>();
         <button type="button" class="section-toggle" :aria-expanded="open" :aria-controls="`${id}-body`" @click="$emit('toggle')">
           <ChevronRight :size="18" class="section-caret" aria-hidden="true" />
           <span class="section-name">{{ title }}</span>
-          <span v-if="!open && summary" class="section-summary" :class="{ attention }">{{ summary }}</span>
+          <span v-if="!open && summary" class="section-summary" :class="{ 'has-anomaly': attention }">{{ summary }}</span>
         </button>
       </h3>
       <IconButton v-if="guide" :label="`Guida: ${title}`" @click="$emit('guide')"><Info :size="18" aria-hidden="true" /></IconButton>

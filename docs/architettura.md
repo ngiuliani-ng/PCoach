@@ -47,7 +47,7 @@ app/
     stores/      Pinia: athletes.ts (schede atleti, CRUD, polling), workouts.ts (sedute, piani e stato di sincronizzazione dell'atleta aperto), reviews.ts (valutazioni settimanali dell'atleta aperto), todo.ts (cosa c'è da fare per tutti gli atleti), settings.ts (impostazioni globali del coach), auth.ts (sessione del coach)
     services/    Accesso a sistemi esterni: supabase.ts, intervals.ts (lettura del carico), intervalsSync.ts (Edge Function intervals-sync), feedback.ts (azioni del coach sulla Edge Function weekly-feedback), claude.ts, planPrompt.ts
     help/        fieldHelp.ts: testi d'aiuto dei campi, con cosa va a Claude; guide.ts: la guida di ogni gruppo di dati (verificati da fieldHelp.test.ts)
-    version.ts   Versione, commit e data della build, note di rilascio (iniettati da vite.config.ts, ADR 0036)
+    version.ts   Versione, commit e data della build (iniettati da vite.config.ts, ADR 0036)
     schema/      athlete_profile.schema.json (sorgente di verità, vedi modello-dati.md), types.generated.ts (generato, non modificare a mano)
     styles/      tokens.css (variabili di design), base.css (stili globali)
   public/

@@ -96,7 +96,7 @@ Regole per chi modifica il layout:
 ## Layout
 
 - **Desktop**: sidebar atleti a sinistra (260px, `flex-shrink: 0`, sticky), contenuto a destra (`.main`, `flex: 1`) in una colonna centrata di 680px massimi (`.form-wrap`). Lo scroll è quello della pagina: `.main` non ha `overflow`, così l'header sticky funziona.
-- **Sidebar**: il marchio «PCoach» porta alla pagina iniziale; poi «Da fare» (la pagina iniziale), "Nuovo atleta" (pulsante tratteggiato in colore accento) e gli atleti in ordine alfabetico. «Da fare» ha l'unico contatore della barra: il totale di tutti gli atleti in un tondo grigio (`--surface-2`, bordo `--border-control`) se ci sono solo cose da approvare, giallo (`--warning` su `--warning-bg`) se c'è almeno un'anomalia da sistemare; il nome accessibile lo dice («Da fare, 3 in tutto, con anomalie da sistemare»). Ogni atleta è una riga resa come `<button>`:
+- **Sidebar**: il marchio «PCoach» porta alla pagina iniziale; poi «Da fare» (la pagina iniziale), "Nuovo atleta" (pulsante tratteggiato in colore accento) e gli atleti in ordine alfabetico. «Da fare» ha l'unico contatore della barra: il totale di tutti gli atleti in un quadrato di 22 px (raggio `--radius-sm`, cifre tabulari), grigio (`--surface-2`, bordo `--border-control`) se ci sono solo cose da approvare, giallo (`--warning` su `--warning-bg`, bordo `--warning`) se c'è almeno un'anomalia da sistemare; la forma è la stessa nei due casi; il nome accessibile lo dice («Da fare, 3 in tutto, con anomalie da sistemare»). Ogni atleta è una riga resa come `<button>`:
   - il nome, che va a capo invece di essere troncato, senza contatori;
   - sotto, su righe proprie, le discipline e l'ultimo TSB, così il TSB è sempre allineato a sinistra qualunque sia la lunghezza del nome.
 
@@ -116,7 +116,7 @@ Regole per chi modifica il layout:
 - **Pagina iniziale «Da fare»** (`TodoPage.vue`, [decisioni/0035](decisioni/0035-pagina-da-fare-sezioni-e-guida.md)):
   - una sezione per atleta, con il nome come link alla scheda, e un'unità con una riga per voce, come la tab Anomalie: icona (`CircleAlert` `--danger` per ciò che è fallito, `TriangleAlert` `--warning` per ciò che va sistemato, `Clock` `--text-muted` per ciò che aspetta un'approvazione), titolo, dettaglio e link al punto esatto;
   - gli atleti senza nulla da fare non compaiono; senza voci, «Niente da fare» con una frase su cosa compare qui;
-  - comprende chiave non valida, zone e soglie diverse da Intervals.icu dall'ultimo controllo ([decisioni/0037](decisioni/0037-controllo-periodico-degli-atleti.md)), con il link «Sistemale nelle Anomalie»; in fondo, una riga dice l'ora dell'ultimo controllo e che si ripete ogni 30 minuti;
+  - comprende chiave non valida, zone e soglie diverse da Intervals.icu dall'ultimo controllo ([decisioni/0037](decisioni/0037-controllo-periodico-degli-atleti.md)), con il link «Sistemale nelle Anomalie»; la pagina non mostra l'ora del controllo;
   - senza atleti: «Nessun atleta» e come crearne uno.
 
 ### Tab Piano
@@ -263,7 +263,7 @@ Sezione della Panoramica (`WeeklyReviews.vue`):
   - «Modelli di zone»: per misura e sistema, un preset o limiti propri, con la fonte del preset. Salvare modelli cambiati chiede conferma, perché cambiano la durata stimata delle sedute a distanza per tutti gli atleti.
 
   Ogni sezione ha il suo «Ripristina…», che chiede conferma solo se ci sono valori personalizzati.
-- **Informazioni**: versione, build e data, versione del server, «Copia per una segnalazione», novità della versione ([decisioni/0036](decisioni/0036-versione-dell-app-e-rilasci.md)).
+- **Informazioni**: versione, build e data, versione del server, «Copia per una segnalazione»; nessuna nota di rilascio ([decisioni/0036](decisioni/0036-versione-dell-app-e-rilasci.md)).
 
 Nel Profilo, la sezione Metodologia ha lo schema di carico e scarico come due selettori («Settimane di carico» 1-8, «Settimane di scarico» 1-4; un valore salvato non riconosciuto è segnalato) e i tre campi della progressione del carico.
 

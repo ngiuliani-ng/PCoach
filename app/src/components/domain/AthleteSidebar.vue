@@ -75,7 +75,7 @@ async function onSignOut() {
       <!-- La pagina iniziale «Da fare» (D-01), con il totale di tutti gli atleti. -->
       <li class="athlete-item todo-item" :class="{ active: isHome }">
         <button type="button" class="athlete-select" :aria-current="isHome ? 'page' : undefined" :aria-label="todoLabel" @click="go({ name: 'home' }, isHome)">
-          <ListTodo :size="16" aria-hidden="true" />Da fare<span v-if="todoTotal" class="todo-count" :class="{ attention: todoHasAnomaly }" aria-hidden="true">{{ todoTotal }}</span>
+          <ListTodo :size="16" aria-hidden="true" />Da fare<span v-if="todoTotal" class="todo-count" :class="{ 'has-anomaly': todoHasAnomaly }" aria-hidden="true">{{ todoTotal }}</span>
         </button>
       </li>
       <li class="athlete-item new-athlete-card" :class="{ active: isDraftOpen }">

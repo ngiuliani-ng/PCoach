@@ -22,13 +22,14 @@ Dopo la pagina «Da fare» restavano fuori tre anomalie, perché richiedono una 
 4. **Pagina «Da fare» e contatore**:
    - chiave non valida (errore), zone diverse e soglie diverse (da sistemare), con il link alla scheda;
    - Intervals.icu non raggiungibile non aggiunge anomalie;
-   - in fondo alla pagina, l'ora dell'ultimo controllo.
+   - nessuna riga sull'ora dell'ultimo controllo: la pagina mostra solo cosa c'è da fare (decisione del coach del 13 ottobre 2026, dopo la 1.0.0, che la mostrava).
 
-Scelte dell'assistente, da confermare:
+Confermate dal coach il 13 ottobre 2026:
 - minuti 20 e 50, per stare lontano dal job del feedback al minuto 5;
-- un atleta alla volta, con un tempo massimo di 15 s per richiesta a Intervals.icu;
 - riuso della chiave di Vault `weekly_feedback_service_role_key`, invece di crearne una nuova con lo stesso valore;
 - «Sistemale nelle Anomalie» come link per zone e soglie.
+
+Scelta dell'assistente, da confermare: un atleta alla volta, con un tempo massimo di 15 s per richiesta a Intervals.icu.
 
 ## Conseguenze
 
