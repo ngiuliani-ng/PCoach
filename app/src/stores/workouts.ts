@@ -101,9 +101,18 @@ export const useWorkoutsStore = defineStore("workouts", {
     plans: [] as PlanRecord[],
     syncRows: {} as Record<string, SyncRow>,
     loading: false,
-    loadError: ""
+    loadError: "",
+    /** Atleta le cui sedute sono state lette con successo almeno una volta (null: mai, o altro atleta). */
+    loadedFor: null as string | null
   }),
   getters: {
+    /**
+     * Sedute e piani dell'atleta completi: letti senza errori. Chi calcola valori iniziali da questi dati
+     * (dialogo di generazione) aspetta questo stato, non la sola assenza di caricamento in corso.
+     */
+    isLoadedFor(state): (athleteId: string | null) => boolean {
+      return (athleteId) => !!athleteId && state.loadedFor === athleteId && !state.loadError;
+    },
     activePlan(state): PlanRecord | null {
       return state.plans.find((p) => p.status === "active") ?? null;
     },
@@ -117,6 +126,7 @@ export const useWorkoutsStore = defineStore("workouts", {
         this.workouts = [];
         this.plans = [];
         this.syncRows = {};
+        this.loadedFor = null;
       }
       this.athleteId = athleteId;
       if (!athleteId || !supabase) return;
@@ -141,6 +151,7 @@ export const useWorkoutsStore = defineStore("workouts", {
         rows[row.workout_id] = row;
       });
       this.syncRows = rows;
+      this.loadedFor = athleteId;
     },
 
     async reload() {

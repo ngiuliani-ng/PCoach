@@ -12,6 +12,9 @@ Ordine: più recente in cima. Versioni con [Semantic Versioning](https://semver.
 
 ## [Unreleased]
 
+### Corretto
+- «Prosegui il piano» e «Ripianifica», riaperti da un ricaricamento o da un link, partivano da domani invece che dopo il piano attivo e non tenevano più le sedute bloccate: ora aspettano che sedute e piano siano letti, e con una lettura non riuscita mostrano l'errore con «Riprova» e non preparano né applicano la proposta — i valori iniziali si calcolavano prima del caricamento ([audit A-01](docs/audit/2026-10-ux-ui-1-2-0/README.md#a-01)) — docs: design-ui, sviluppo-deploy.
+
 ## [1.2.0] — 2026-10-13
 
 Feedback settimanale rivisto dopo la verifica UI/UX ([docs/audit/2026-10-feedback-settimanale-ui](docs/audit/2026-10-feedback-settimanale-ui/README.md)): il testo corretto si salva da solo e non si perde più. Stato del salvataggio come sola nuvola colorata; versione tolta dalla barra laterale.

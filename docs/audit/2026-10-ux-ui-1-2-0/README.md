@@ -496,3 +496,10 @@ Scelte che posso fare io senza chiedere, salvo indicazione diversa:
 | Matrice delle rotte | `rotte.audit.ts` | 168 misure, 8 esecuzioni superate |
 | Flussi mirati | `flussi.audit.ts` | F01-F24: tutti eseguiti; tre falliti al primo giro per errori dello script (settimana vuota nei dati, selettore ambiguo), corretti e rieseguiti |
 
+## H. Stato delle correzioni
+
+Decisioni del coach (13 ottobre 2026): D-01 **A**, D-02 durata adattiva con pausa (gli errori bloccanti restano, quelli di validazione stanno sul campo), D-03 axe-core con Playwright dopo una verifica di compatibilità (ESLint a parte, più avanti), D-04 **A**. Lavoro sul ramo `correzioni-ux-1-2-1`.
+
+| ID | Stato | Modifica | Test che riproduce il difetto |
+|---|---|---|---|
+| A-01 | **risolto** | `stores/workouts.ts`: `loadedFor` e `isLoadedFor(id)` distinguono «mai letto», «letto» e «lettura non riuscita». `RegenerateDialog.vue` calcola partenza, sedute da mantenere e proposta in sospeso una volta sola, a sedute lette; prima mostra «Carico le sedute dell'atleta…», con un errore «Riprova»; «Genera la proposta» e «Applica» restano disattivati, e `generate()`/`apply()` ricontrollano lo stato | 5 e2e in `plan.spec.ts` (desktop e mobile): falliscono tutti e 5 sul codice di `d9c4996`, passano con la correzione. Script dell'audit: F23 ora 9 nov sia dal pulsante sia dopo il ricaricamento, 0 sedute; F24 seduta bloccata spuntata in entrambi i casi |

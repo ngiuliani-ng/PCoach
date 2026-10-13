@@ -112,3 +112,103 @@ test("zone o soglie non allineate: «Sincronizza settimana» blocca creazioni e 
   await expect(dialog.getByText(/Tutte le|riuscita/).first()).toBeVisible();
   expect(state.applyCalls.map((c) => c.op)).toEqual(["delete"]);
 });
+
+// ---------- Audit A-01: dialoghi di generazione aperti prima che le sedute siano caricate ----------
+// Lo stato nell'URL riapre il dialogo dopo un ricaricamento (ADR 0023): i valori iniziali devono essere
+// gli stessi dell'apertura dal pulsante, e niente si genera o si applica su sedute non lette.
+
+/** Trattiene le letture della tabella workouts finché il test non chiama il rilascio. */
+async function holdWorkouts(page: Page) {
+  let release!: () => void;
+  const gate = new Promise<void>((r) => (release = r));
+  await page.route("http://e2e.supabase.test/rest/v1/workouts?**", async (route) => {
+    if (route.request().method() === "GET") await gate;
+    await route.fallback();
+  });
+  return release;
+}
+
+test("Prosegui il piano: stessa partenza dal pulsante e dopo un ricaricamento (A-01)", async ({ page }) => {
+  await openPlan(page, createState());
+  await page.getByRole("button", { name: "Prosegui il piano" }).click();
+  const dialog = page.getByRole("dialog");
+  // Il piano attivo finisce l'8 novembre: si prosegue dal 9, senza toccare sedute esistenti.
+  await expect(dialog.getByLabel("Primo giorno")).toHaveValue("2026-11-09");
+  await expect(dialog.locator(".keep-list label")).toHaveCount(0);
+
+  await page.reload();
+  await expect(page.getByRole("dialog").getByLabel("Primo giorno")).toHaveValue("2026-11-09");
+  await expect(page.getByRole("dialog").locator(".keep-list label")).toHaveCount(0);
+});
+
+test("Ripianifica: la seduta bloccata resta da mantenere anche dopo un ricaricamento (A-01)", async ({ page }) => {
+  const state = createState();
+  state.tables.workouts.find((w) => w.title === "Tempo")!.locked = true;
+  await openPlan(page, state);
+  await page.getByRole("button", { name: /Ripianifica da/ }).click();
+  const locked = () => page.getByRole("dialog").locator(".keep-list label", { hasText: "Tempo" }).getByRole("checkbox");
+  await expect(locked()).toBeChecked();
+
+  await page.reload();
+  await expect(locked()).toBeChecked();
+});
+
+test("dialogo aperto dall'URL: niente parametri né generazione finché le sedute non sono caricate (A-01)", async ({ page }) => {
+  await installMockBackend(page, createState());
+  const release = await holdWorkouts(page);
+  await page.goto("./#/atleta/ATL00001/piano?dialogo=prosegui");
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByText("Carico le sedute dell'atleta…")).toBeVisible();
+  await expect(dialog.getByLabel("Primo giorno")).toHaveCount(0);
+  await expect(dialog.getByRole("button", { name: "Genera la proposta" })).toBeDisabled();
+
+  release();
+  await expect(dialog.getByLabel("Primo giorno")).toHaveValue("2026-11-09");
+  await expect(dialog.getByRole("button", { name: "Genera la proposta" })).toBeEnabled();
+});
+
+test("sedute non lette: errore, generazione bloccata e «Riprova» (A-01)", async ({ page }) => {
+  await installMockBackend(page, createState());
+  let fail = true;
+  await page.route("http://e2e.supabase.test/rest/v1/workouts?**", async (route) => {
+    if (fail && route.request().method() === "GET" && route.request().url().includes("athlete_id=eq.")) {
+      return route.fulfill({ status: 500, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: JSON.stringify({ message: "errore" }) });
+    }
+    await route.fallback();
+  });
+  await page.goto("./#/atleta/ATL00001/piano?dialogo=prosegui");
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("alert")).toContainText("Non riesco a leggere le sedute");
+  await expect(dialog.getByRole("button", { name: "Genera la proposta" })).toBeDisabled();
+
+  fail = false;
+  await dialog.getByRole("button", { name: "Riprova" }).click();
+  await expect(dialog.getByLabel("Primo giorno")).toHaveValue("2026-11-09");
+  await expect(dialog.getByRole("button", { name: "Genera la proposta" })).toBeEnabled();
+});
+
+test("proposta in sospeso ripresa dopo un ricaricamento: confronto e applicazione solo a sedute caricate (A-01)", async ({ page }) => {
+  const state = createState();
+  const tempo = state.tables.workouts.find((w) => w.title === "Tempo")!;
+  tempo.locked = true;
+  state.tables.plan_generations.push({
+    id: "gen-pending", athlete_id: "ATL00001", kind: "regenerate", from_date: "2026-10-14", weeks: 1, reason: "", status: "proposed",
+    kept_workout_ids: [tempo.id], created_at: "2026-10-10T08:00:00Z",
+    proposal: {
+      plan_name: "Ripresa", weeks: [{ week_start: "2026-10-12", label: "Ripresa", is_deload: false }],
+      workouts: [{ date: "2026-10-17", discipline: "running", title: "Corsa facile", steps: [{ kind: "step", role: "steady", duration_sec: 2400, zone: "Z2" }] }]
+    }
+  });
+  await installMockBackend(page, state);
+  const release = await holdWorkouts(page);
+  await page.goto("./#/atleta/ATL00001/piano?dialogo=ripianifica");
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByText("Carico le sedute dell'atleta…")).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Applica la nuova programmazione" })).toHaveCount(0);
+
+  release();
+  // La seduta bloccata e scelta nella proposta resta: nell'anteprima è «Mantenuta».
+  await expect(dialog.locator(".diff-item", { hasText: "Tempo" })).toContainText("Mantenuta");
+  await expect(dialog.getByRole("button", { name: "Applica la nuova programmazione" })).toBeEnabled();
+});
+

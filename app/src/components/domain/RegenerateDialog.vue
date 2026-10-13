@@ -5,7 +5,7 @@
 // 2. proposta di Claude, salvata subito in plan_generations (si ritrova dopo un ricaricamento);
 // 3. anteprima delle differenze e applicazione in un'unica transazione (apply_plan_generation).
 // Nulla cambia finche' il coach non applica la proposta.
-import { computed, onMounted, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { onBeforeRouteLeave, onBeforeRouteUpdate } from "vue-router";
 import { useWorkoutsStore, type GenerationKind, type GenerationRecord } from "../../stores/workouts";
 import { useAthletesStore } from "../../stores/athletes";
@@ -24,7 +24,7 @@ import { buildApplyPayload, defaultKeep, diffCounts, isForcedKeep, parseProposal
 import { workoutTotals } from "@shared/workouts/structure.ts";
 import { loadProgressionOf } from "@shared/feedback/params.ts";
 import { formatMinutes } from "../../domain/workoutState";
-import { ChevronLeft, LoaderCircle, Sparkles, X } from "lucide-vue-next";
+import { ChevronLeft, LoaderCircle, RotateCcw, Sparkles, X } from "lucide-vue-next";
 
 const props = defineProps<{ kind: GenerationKind }>();
 const emit = defineEmits<{ (e: "close"): void; (e: "applied", fromDate: string): void }>();
@@ -52,9 +52,8 @@ const TITLES: Record<GenerationKind, string> = { initial: "Genera il piano", con
 
 type Step = "params" | "generating" | "paste" | "preview";
 const step = ref<Step>("params");
-const fromDate = ref(props.kind === "continue"
-  ? continueFromDate(store.activePlan?.end_date, store.workouts.filter((w) => w.status === "draft" || w.status === "approved").map((w) => w.planned_date), todayISO())
-  : addDaysISO(todayISO(), 1));
+// Valorizzata all'inizializzazione, quando sedute e piani dell'atleta sono caricati (audit A-01).
+const fromDate = ref("");
 const weeks = ref(props.kind === "regenerate" ? 2 : MAX_PLAN_WEEKS);
 const reason = ref("");
 const keep = ref<Record<string, boolean>>({});
@@ -74,7 +73,24 @@ function resetKeep() {
   candidates.value.forEach((w) => { k[w.id] = defaultKeep(w); });
   keep.value = k;
 }
-onMounted(async () => {
+// Data di partenza, sedute da mantenere e proposta in sospeso si calcolano dalle sedute e dal piano
+// attivo: solo quando sono caricati senza errori (audit A-01). Aperto da un ricaricamento o da un link,
+// il dialogo arriva prima dei dati: calcolarli subito darebbe «domani» come partenza di «Prosegui» e
+// nessuna seduta bloccata da mantenere.
+const dataReady = computed(() => store.isLoadedFor(athleteId.value));
+const initialized = ref(false);
+let initializing = false;
+watch(dataReady, async (ok) => {
+  if (!ok || initialized.value || initializing) return;
+  initializing = true;
+  await initialize();
+  initialized.value = true;
+}, { immediate: true });
+
+async function initialize() {
+  fromDate.value = props.kind === "continue"
+    ? continueFromDate(store.activePlan?.end_date, store.workouts.filter((w) => w.status === "draft" || w.status === "approved").map((w) => w.planned_date), todayISO())
+    : addDaysISO(todayISO(), 1);
   resetKeep();
   const pending = await store.pendingGeneration(athleteId.value);
   // Una proposta che parte da una data ormai passata non si riprende: applicarla sostituirebbe
@@ -101,7 +117,7 @@ onMounted(async () => {
       step.value = "preview";
     }
   }
-});
+}
 
 function onFromDateChange(value: string) {
   fromDate.value = value < todayISO() ? todayISO() : value;
@@ -142,7 +158,7 @@ function candidateReason(w: (typeof candidates.value)[number]): string {
 }
 
 async function generate() {
-  if (starting.value) return;
+  if (starting.value || !dataReady.value) return;
   starting.value = true;
   try {
     await startGeneration();
@@ -226,7 +242,8 @@ const remoteRemovals = computed(() =>
 const oldPlan = computed(() => store.activePlan);
 
 async function apply() {
-  if (!proposal.value || !generationId.value || applying.value) return;
+  // Mai applicare una proposta confrontata con sedute non caricate o lette con errore (audit A-01).
+  if (!proposal.value || !generationId.value || applying.value || !dataReady.value) return;
   applying.value = true;
   const payload = buildApplyPayload({
     generationId: generationId.value, athleteId: athleteId.value, fromDate: fromDate.value,
@@ -277,7 +294,15 @@ function dayLabel(date: string) {
       </header>
 
       <div class="dialog-body">
-        <template v-if="step === 'params'">
+        <template v-if="!initialized || !dataReady">
+          <template v-if="store.loadError">
+            <div class="drawer-note error" role="alert">{{ store.loadError }} Finché le sedute non sono lette, la proposta non si prepara né si applica.</div>
+            <button type="button" class="secondary" :disabled="store.loading" @click="store.reload()"><RotateCcw :size="16" aria-hidden="true" />Riprova</button>
+          </template>
+          <p v-else class="progress-line" role="status"><LoaderCircle :size="18" class="spin" aria-hidden="true" />Carico le sedute dell'atleta…</p>
+        </template>
+
+        <template v-else-if="step === 'params'">
           <div class="field-row">
             <label class="field"><span class="field-label">{{ replan ? "Ripianifica da" : "Primo giorno" }}</span>
               <input type="date" :min="todayISO()" :value="fromDate" @change="onFromDateChange(($event.target as HTMLInputElement).value)" /></label>
@@ -348,7 +373,7 @@ function dayLabel(date: string) {
       <footer class="dialog-foot">
         <template v-if="step === 'params'">
           <button type="button" class="secondary" :disabled="starting" @click="emit('close')">Annulla</button>
-          <button type="button" class="primary" :disabled="starting" @click="generate">
+          <button type="button" class="primary" :disabled="starting || !initialized || !dataReady" @click="generate">
             <LoaderCircle v-if="starting" :size="16" class="spin" aria-hidden="true" /><Sparkles v-else :size="16" aria-hidden="true" />{{ starting ? "Preparo la richiesta…" : "Genera la proposta" }}
           </button>
         </template>
@@ -359,7 +384,7 @@ function dayLabel(date: string) {
         <template v-else-if="step === 'preview'">
           <button type="button" class="ghost dialog-left" :disabled="applying" @click="backToParams"><ChevronLeft :size="16" aria-hidden="true" />Modifica i parametri</button>
           <button type="button" class="secondary" :disabled="applying" @click="discard">Scarta la proposta</button>
-          <button type="button" class="primary" :disabled="applying" @click="apply">{{ applying ? "Applicazione in corso…" : "Applica la nuova programmazione" }}</button>
+          <button type="button" class="primary" :disabled="applying || !dataReady" @click="apply">{{ applying ? "Applicazione in corso…" : "Applica la nuova programmazione" }}</button>
         </template>
       </footer>
     </div>
