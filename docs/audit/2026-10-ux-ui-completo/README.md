@@ -273,7 +273,7 @@ Rispetto ai criteri del §8:
 - **Glossario** senza etichette duplicate: rispettato (test).
 - **Storico**: al massimo 2 righe di filtri, sostituiti da un selettore.
 
-**Risposte del coach sulle scelte dell'assistente** (13 ottobre): sezioni sempre tutte chiuse; confermate le bozze delle prossime due settimane, l'indice da 1360 px, la Panoramica che parte dal feedback, la data della 1.0.0 e la versione del server da `weekly-feedback`. Su sua richiesta: voce «Da fare» nella barra laterale per tornare alla home, numeri in un tondo neutro per non confonderli con il giallo delle anomalie, nota della home riscritta (commit `72ba036`).
+**Risposte del coach sulle scelte dell'assistente** (13 ottobre): sezioni sempre tutte chiuse; confermate le bozze delle prossime due settimane, l'indice da 1360 px, la Panoramica che parte dal feedback, la data della 1.0.0 e la versione del server da `weekly-feedback`. Su sua richiesta: voce «Da fare» nella barra laterale per tornare alla home, nota della home riscritta (commit `72ba036`); poi un solo contatore globale su «Da fare», grigio con sole approvazioni e giallo con almeno un'anomalia, senza numeri accanto agli atleti.
 
 **Non fatto o ancora aperto**:
 - **Pubblicazione**: serve la tua conferma. Nell'ordine:

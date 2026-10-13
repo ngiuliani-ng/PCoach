@@ -96,8 +96,8 @@ Regole per chi modifica il layout:
 ## Layout
 
 - **Desktop**: sidebar atleti a sinistra (260px, `flex-shrink: 0`, sticky), contenuto a destra (`.main`, `flex: 1`) in una colonna centrata di 680px massimi (`.form-wrap`). Lo scroll è quello della pagina: `.main` non ha `overflow`, così l'header sticky funziona.
-- **Sidebar**: il marchio «PCoach» porta alla pagina iniziale; poi «Da fare» (la pagina iniziale, con il totale nello stesso tondo neutro), "Nuovo atleta" (pulsante tratteggiato in colore accento) e gli atleti in ordine alfabetico. Ogni atleta è una riga resa come `<button>`:
-  - il nome, che va a capo invece di essere troncato, seguito dal numero di cose da fare in un tondo neutro (`--surface-2`, bordo `--border-control`, `aria-label` «, N da fare»): il giallo resta solo per il numero delle anomalie;
+- **Sidebar**: il marchio «PCoach» porta alla pagina iniziale; poi «Da fare» (la pagina iniziale), "Nuovo atleta" (pulsante tratteggiato in colore accento) e gli atleti in ordine alfabetico. «Da fare» ha l'unico contatore della barra: il totale di tutti gli atleti in un tondo grigio (`--surface-2`, bordo `--border-control`) se ci sono solo cose da approvare, giallo (`--warning` su `--warning-bg`) se c'è almeno un'anomalia da sistemare; il nome accessibile lo dice («Da fare, 3 in tutto, con anomalie da sistemare»). Ogni atleta è una riga resa come `<button>`:
+  - il nome, che va a capo invece di essere troncato, senza contatori;
   - sotto, su righe proprie, le discipline e l'ultimo TSB, così il TSB è sempre allineato a sinistra qualunque sia la lunghezza del nome.
 
   La riga aperta ha sfondo `--surface-2` e un filetto d'accento a sinistra (`aria-current`). Nell'elenco non ci sono azioni: l'eliminazione è solo in Profilo › Gestione scheda. Nel piede, sotto lo stato della connessione, «Versione X.Y.Z» in `--fs-xs` e `--text-muted`, link a Impostazioni › Informazioni ([decisioni/0036](decisioni/0036-versione-dell-app-e-rilasci.md)).

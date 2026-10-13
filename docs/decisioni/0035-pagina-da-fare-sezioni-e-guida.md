@@ -22,7 +22,7 @@ Decisioni del coach del 13 ottobre 2026: D-01, D-02, D-03 e D-04, dettagliate ne
    - le sedute da verificare e gli invii non riusciti;
    - le bozze delle prossime due settimane.
    
-   Ogni voce porta al punto esatto (`?feedback=`, `?sezione=`, `?seduta=`, `?settimana=`). Nella barra laterale la voce «Da fare» (anche il marchio PCoach) riporta alla pagina, con il totale; accanto a ogni atleta il suo numero. I numeri sono neutri, non gialli: il giallo resta per le anomalie (richiesta del coach, che li confondeva). Zone e soglie diverse da Intervals.icu restano nella tab Anomalie: richiedono una lettura da Intervals.icu per atleta.
+   Ogni voce porta al punto esatto (`?feedback=`, `?sezione=`, `?seduta=`, `?settimana=`). Nella barra laterale la voce «Da fare» (anche il marchio PCoach) riporta alla pagina. Ha l'unico contatore, globale: grigio se ci sono solo cose da approvare, giallo se c'è anche una sola anomalia da sistemare. Nessun numero accanto agli atleti, che confondeva (decisioni del coach). Zone e soglie diverse da Intervals.icu restano nella tab Anomalie: richiedono una lettura da Intervals.icu per atleta.
 2. **Sezioni comprimibili con riepilogo** (D-02). Ogni sezione di Profilo e Impostazioni ha un'intestazione che apre e chiude; chiusa, mostra una riga di riepilogo. Sugli schermi larghi c'è un indice a destra.
    - Arrivando sulla pagina, anche per una bozza e cambiando atleta, le sezioni sono **tutte chiuse** (decisione del coach); nessuna memoria fra una visita e l'altra.
    - Le Impostazioni hanno due gruppi d'uso comune (Claude e generazione, Feedback settimanale), poi «Avanzate» (classificazione, intensità, modelli di zone), poi Informazioni.
@@ -35,7 +35,7 @@ Decisioni del coach del 13 ottobre 2026: D-01, D-02, D-03 e D-04, dettagliate ne
 Confermate dal coach: le due settimane delle bozze, l'indice solo da 1360 px, la Panoramica che parte dal feedback quando ce n'è uno da approvare.
 
 Scelte dell'assistente, da confermare:
-- il numero in sidebar che conta una per una le sedute raggruppate, come la tab Anomalie;
+- il contatore che conta una per una le sedute raggruppate, come la tab Anomalie, e considera anomalia tutto ciò che non è un'approvazione (errori e cose da sistemare);
 - l'apertura automatica di una sezione con un errore, anche con le sezioni sempre chiuse.
 
 ## Conseguenze
