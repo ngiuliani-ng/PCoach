@@ -6,6 +6,8 @@ import { confirmDialog } from "./useConfirmDialog";
 
 export async function saveSettings(): Promise<{ ok: boolean; message: string; cancelled?: boolean }> {
   const settings = useSettingsStore();
+  // Prima la validazione: non si chiede di confermare un salvataggio che verrebbe rifiutato (audit A-14).
+  if (settings.validationError) return { ok: false, message: settings.validationError };
   if (JSON.stringify(settings.settings.zone_models) !== JSON.stringify(settings.savedZoneModels)) {
     const ok = await confirmDialog(
       "Hai cambiato i modelli di zone. Valgono per tutti gli atleti: cambiano la durata stimata degli step a distanza (totali, durata massima del giorno, feedback) e i limiti che PCoach scrive su Intervals.icu. Salvare?",

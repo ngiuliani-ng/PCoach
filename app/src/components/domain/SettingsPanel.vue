@@ -17,7 +17,7 @@ import { DEFAULT_PLAN_PREFERENCES, formatDate } from "../../constants";
 import { SUPPORTED_MODELS } from "@shared/claude/models.ts";
 import { isValidTimeZone } from "@shared/feedback/period.ts";
 import { ZONE_COUNTS } from "@shared/workouts/zones.ts";
-import { defaultZoneModels } from "@shared/workouts/zoneModels.ts";
+import { defaultZoneModels, zoneModelsErrors } from "@shared/workouts/zoneModels.ts";
 import { isGuideKey, type GuideKey } from "../../help/guide";
 import PasswordField from "../ui/PasswordField.vue";
 import PageSection from "../ui/PageSection.vue";
@@ -156,10 +156,14 @@ async function resetModels() {
 watch(() => CLASSIFICATION_KEYS.some((k) => paramErrors.value[k]), (bad) => bad && sections.reveal("imp-classificazione"), { immediate: true });
 watch(() => INTENSITY_KEYS.some((k) => paramErrors.value[k]), (bad) => bad && sections.reveal("imp-intensita"), { immediate: true });
 watch(() => !tzValid.value, (bad) => bad && sections.reveal("imp-feedback"), { immediate: true });
+const zoneModelsInvalid = computed(() => Object.keys(zoneModelsErrors(settings.settings.zone_models)).length > 0);
+watch(zoneModelsInvalid, (bad) => bad && sections.reveal("imp-modelli"), { immediate: true });
 
 async function onSave() {
   const result = await saveSettings();
   if (!result.cancelled) showResultToast(result);
+  // Un salvataggio rifiutato porta alla sezione con l'errore (audit A-14).
+  if (!result.ok && zoneModelsInvalid.value) void go("imp-modelli");
 }
 </script>
 
@@ -279,8 +283,8 @@ async function onSave() {
       <button type="button" class="link-btn" @click="resetParams(INTENSITY_KEYS, 'le fasce d\'intensità')">Ripristina le fasce predefinite</button>
     </PageSection>
 
-    <PageSection id="imp-modelli" title="Modelli di zone" :open="sections.isOpen('imp-modelli')" :summary="modelsSummary"
-      guide @toggle="sections.toggle('imp-modelli')" @guide="openGuide('impostazioni-modelli')">
+    <PageSection id="imp-modelli" title="Modelli di zone" :open="sections.isOpen('imp-modelli')" :summary="zoneModelsInvalid ? 'Un limite non è valido' : modelsSummary"
+      :attention="zoneModelsInvalid" guide @toggle="sections.toggle('imp-modelli')" @guide="openGuide('impostazioni-modelli')">
       <ZoneModelsEditor />
       <button type="button" class="link-btn" @click="resetModels">Ripristina i modelli predefiniti</button>
     </PageSection>

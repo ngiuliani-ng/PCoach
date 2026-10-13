@@ -65,7 +65,14 @@ export const useSettingsStore = defineStore("settings", {
     /** Modelli di zone salvati (non le modifiche in corso in Impostazioni): quelli che legge il server. */
     savedZoneModels: (s): ZoneModels => resolveZoneModels((JSON.parse(s.baseline) as Partial<AppSettings>).zone_models),
     /** Invio email attivo secondo le impostazioni salvate (non quelle in modifica). */
-    savedEmailEnabled: (s): boolean => !!(JSON.parse(s.baseline) as Partial<AppSettings>).weekly_feedback_email_enabled
+    savedEmailEnabled: (s): boolean => !!(JSON.parse(s.baseline) as Partial<AppSettings>).weekly_feedback_email_enabled,
+    /** Primo motivo per cui le impostazioni in modifica non si possono salvare, o "" se sono valide. */
+    validationError: (s): string => {
+      if (Object.keys(validateFeedbackParams(s.settings.feedback_params)).length) return "Correggi le soglie del feedback prima di salvare.";
+      if (Object.keys(zoneModelsErrors(s.settings.zone_models)).length) return "Correggi i modelli di zone prima di salvare.";
+      if (!isValidTimeZone(s.settings.weekly_feedback_timezone)) return "Scegli un fuso orario dall'elenco prima di salvare.";
+      return "";
+    }
   },
   actions: {
     /** Scarta le modifiche non salvate: tornano i valori letti o salvati per ultimi. */
@@ -106,15 +113,7 @@ export const useSettingsStore = defineStore("settings", {
       if (!this.loaded) {
         return { ok: false, message: "Impostazioni non ancora caricate: ricarica la pagina e riprova." };
       }
-      if (Object.keys(validateFeedbackParams(this.settings.feedback_params)).length) {
-        return { ok: false, message: "Correggi le soglie del feedback prima di salvare." };
-      }
-      if (Object.keys(zoneModelsErrors(this.settings.zone_models)).length) {
-        return { ok: false, message: "Correggi i modelli di zone prima di salvare." };
-      }
-      if (!isValidTimeZone(this.settings.weekly_feedback_timezone)) {
-        return { ok: false, message: "Scegli un fuso orario dall'elenco prima di salvare." };
-      }
+      if (this.validationError) return { ok: false, message: this.validationError };
       const { claude_api_key, ...rest } = this.settings;
       const newKey = claude_api_key.trim();
       const row: Record<string, unknown> = {

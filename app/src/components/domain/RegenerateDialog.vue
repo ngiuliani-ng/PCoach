@@ -14,6 +14,7 @@ import { useReviewsStore } from "../../stores/reviews";
 import { useModalFocus } from "../../composables/useModalFocus";
 import { useIntervalsSync } from "../../composables/useIntervalsSync";
 import { showToast } from "../../composables/useToast";
+import { confirmDialog } from "../../composables/useConfirmDialog";
 import { addDaysISO, DEFAULT_PLAN_PREFERENCES, formatDate, todayISO } from "../../constants";
 import { buildPlanPrompt, promptAsText } from "../../services/planPrompt";
 import { callClaudeProxy, copyToClipboardFallback, extractJsonBlock } from "../../services/claude";
@@ -157,8 +158,13 @@ function candidateReason(w: (typeof candidates.value)[number]): string {
   return w.status === "draft" ? "Bozza" : "Approvata";
 }
 
+// Un numero di settimane fuori dai limiti si segnala sul campo, invece di essere corretto in silenzio (audit A-27).
+const weeksError = computed(() =>
+  Number.isInteger(weeks.value) && weeks.value >= 1 && weeks.value <= MAX_PLAN_WEEKS ? "" : `Scegli da 1 a ${MAX_PLAN_WEEKS} settimane.`
+);
+
 async function generate() {
-  if (starting.value || !dataReady.value) return;
+  if (starting.value || !dataReady.value || weeksError.value) return;
   starting.value = true;
   try {
     await startGeneration();
@@ -168,8 +174,7 @@ async function generate() {
 }
 
 async function startGeneration() {
-  const w = Math.max(1, Math.min(MAX_PLAN_WEEKS, Math.round(weeks.value || 1)));
-  weeks.value = w;
+  const w = weeks.value;
   // Carico aggiornato prima di chiedere il piano (trigger di sincronizzazione "generazione").
   await useIntervalsSync().syncNow(athleteId.value, profile.value.integrations?.intervals_icu_api_key);
   const preferences = settings.settings.plan_generation_prompt_template;
@@ -261,11 +266,18 @@ async function apply() {
   emit("applied", fromDate.value);
 }
 
-// Tornare ai parametri richiede una nuova proposta: quella attuale viene scartata.
+// Tornare ai parametri richiede una nuova proposta: quella attuale viene scartata. Una proposta di Claude
+// (o una risposta incollata) e' lavoro che costa tempo: si scarta solo con una conferma (decisione D-01, audit A-07).
 async function backToParams() {
+  const losing = proposal.value ? "la proposta di Claude" : pastedText.value.trim() ? "la risposta incollata" : "";
+  if (losing && !(await confirmDialog(
+    `Tornando ai parametri perdi ${losing}: per averne una nuova serve un'altra generazione.`,
+    { confirmLabel: proposal.value ? "Scarta la proposta e modifica i parametri" : "Scarta la risposta e modifica i parametri", cancelLabel: proposal.value ? "Tieni la proposta" : "Tieni la risposta" }
+  ))) return;
   if (generationId.value) await store.discardGeneration(generationId.value);
   generationId.value = null;
   proposal.value = null;
+  pastedText.value = "";
   resumed.value = null;
   step.value = "params";
 }
@@ -306,7 +318,9 @@ function dayLabel(date: string) {
           <div class="field-row">
             <label class="field"><span class="field-label">{{ replan ? "Ripianifica da" : "Primo giorno" }}</span>
               <input type="date" :min="todayISO()" :value="fromDate" @change="onFromDateChange(($event.target as HTMLInputElement).value)" /></label>
-            <label class="field"><span class="field-label">Settimane da generare</span><input type="number" min="1" :max="MAX_PLAN_WEEKS" v-model.number="weeks" /></label>
+            <label class="field"><span class="field-label">Settimane da generare</span>
+              <input type="number" min="1" :max="MAX_PLAN_WEEKS" step="1" v-model.number="weeks" :aria-invalid="!!weeksError" :aria-describedby="weeksError ? 'regen-weeks-error' : undefined" />
+              <span v-if="weeksError" id="regen-weeks-error" class="error-text helper-text">{{ weeksError }}</span></label>
           </div>
           <div v-if="patternMissing" class="drawer-note warn" role="note">
             Lo schema di carico e scarico dell'atleta non è riconosciuto: le settimane non avranno una fase e Claude deciderà da solo carichi e scarichi. Sceglilo nel Profilo, sezione Metodologia.
@@ -373,7 +387,7 @@ function dayLabel(date: string) {
       <footer class="dialog-foot">
         <template v-if="step === 'params'">
           <button type="button" class="secondary" :disabled="starting" @click="emit('close')">Annulla</button>
-          <button type="button" class="primary" :disabled="starting || !initialized || !dataReady" @click="generate">
+          <button type="button" class="primary" :disabled="starting || !initialized || !dataReady || !!weeksError" @click="generate">
             <LoaderCircle v-if="starting" :size="16" class="spin" aria-hidden="true" /><Sparkles v-else :size="16" aria-hidden="true" />{{ starting ? "Preparo la richiesta…" : "Genera la proposta" }}
           </button>
         </template>

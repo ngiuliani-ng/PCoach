@@ -212,3 +212,73 @@ test("proposta in sospeso ripresa dopo un ricaricamento: confronto e applicazion
   await expect(dialog.getByRole("button", { name: "Applica la nuova programmazione" })).toBeEnabled();
 });
 
+// ---------- Audit A-07 e A-27: proposta che si perde, settimane fuori dai limiti ----------
+
+test("«Modifica i parametri» chiede conferma prima di scartare la proposta di Claude (A-07, D-01)", async ({ page }) => {
+  const state = createState();
+  state.claudeResponse = {
+    plan_name: "Prosecuzione", weeks: [{ week_start: "2026-11-09", label: "Carico", is_deload: false }],
+    workouts: [{ date: "2026-11-10", discipline: "running", title: "Corsa facile", steps: [{ kind: "step", role: "steady", duration_sec: 2400, zone: "Z2" }] }]
+  };
+  await openPlan(page, state);
+  await page.getByRole("button", { name: "Prosegui il piano" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Settimane da generare").fill("1");
+  await dialog.getByRole("button", { name: "Genera la proposta" }).click();
+  await expect(dialog.getByRole("button", { name: "Applica la nuova programmazione" })).toBeVisible();
+
+  await dialog.getByRole("button", { name: "Modifica i parametri" }).click();
+  const confirm = page.getByRole("alertdialog");
+  await expect(confirm).toContainText("perdi la proposta di Claude");
+  await confirm.getByRole("button", { name: "Tieni la proposta" }).click();
+  await expect(dialog.getByRole("button", { name: "Applica la nuova programmazione" })).toBeVisible();
+  expect(state.tables.plan_generations[0].status).toBe("proposed");
+
+  await dialog.getByRole("button", { name: "Modifica i parametri" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Scarta la proposta e modifica i parametri" }).click();
+  await expect(dialog.getByRole("button", { name: "Genera la proposta" })).toBeVisible();
+  expect(state.tables.plan_generations[0].status).toBe("discarded");
+});
+
+test("settimane da generare oltre il massimo: errore sul campo e generazione disattivata (A-27)", async ({ page }) => {
+  await openPlan(page, createState());
+  await page.getByRole("button", { name: "Prosegui il piano" }).click();
+  const dialog = page.getByRole("dialog");
+  const weeks = dialog.getByLabel("Settimane da generare");
+  await weeks.fill("9");
+  await expect(weeks).toHaveAttribute("aria-invalid", "true");
+  await expect(dialog.getByText("Scegli da 1 a 4 settimane.")).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Genera la proposta" })).toBeDisabled();
+  await weeks.fill("2");
+  await expect(dialog.getByRole("button", { name: "Genera la proposta" })).toBeEnabled();
+});
+
+test("«Indietro» dal passo manuale: conferma solo con una risposta incollata, e la si può tenere (A-07)", async ({ page }) => {
+  const state = createState();
+  await installMockBackend(page, state);
+  // Senza chiave di Claude la generazione passa dal prompt copiato e dalla risposta incollata.
+  await page.route("http://e2e.supabase.test/rest/v1/rpc/claude_key_configured", (route) =>
+    route.fulfill({ status: 200, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: "false" }));
+  await page.goto("./#/atleta/ATL00001/piano?dialogo=prosegui");
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Settimane da generare").fill("1");
+  await dialog.getByRole("button", { name: "Genera la proposta" }).click();
+  await expect(dialog.getByLabel("Risposta di Claude")).toBeVisible();
+
+  // Niente da perdere: nessuna conferma.
+  await dialog.getByRole("button", { name: "Indietro" }).click();
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+  await expect(dialog.getByRole("button", { name: "Genera la proposta" })).toBeVisible();
+
+  await dialog.getByRole("button", { name: "Genera la proposta" }).click();
+  await dialog.getByLabel("Risposta di Claude").fill("{ \"plan_name\": \"x\" }");
+  await dialog.getByRole("button", { name: "Indietro" }).click();
+  const confirm = page.getByRole("alertdialog");
+  await expect(confirm).toContainText("perdi la risposta incollata");
+  await confirm.getByRole("button", { name: "Tieni la risposta" }).click();
+  await expect(dialog.getByLabel("Risposta di Claude")).toHaveValue("{ \"plan_name\": \"x\" }");
+
+  await dialog.getByRole("button", { name: "Indietro" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Scarta la risposta e modifica i parametri" }).click();
+  await expect(dialog.getByRole("button", { name: "Genera la proposta" })).toBeVisible();
+});

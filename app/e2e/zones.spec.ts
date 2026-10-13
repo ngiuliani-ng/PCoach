@@ -148,3 +148,21 @@ test("seduta da verificare: dalla tab si apre il pannello della seduta, e «indi
   await page.goBack();
   await expect(page.getByText("Ferma: invio a Intervals.icu", { exact: true })).toBeVisible();
 });
+
+test("modello di zone non valido: niente conferma prima del rifiuto, sezione segnata e riaperta (A-14)", async ({ page }) => {
+  await installMockBackend(page, createState());
+  await page.goto("./#/impostazioni?sezione=imp-modelli");
+  const section = page.locator("#imp-modelli");
+  await section.locator("details").first().evaluate((d) => ((d as HTMLDetailsElement).open = true));
+  await section.locator("details").first().locator("input[type=number]").first().fill("500");
+  await expect(section.getByText("Ogni valore va da 1 a 400.")).toBeVisible();
+  await section.locator(".section-toggle").click();
+  await expect(section.locator(".section-summary")).toHaveText("Un limite non è valido");
+  await expect(section.locator(".section-summary")).toHaveClass(/has-anomaly/);
+
+  await page.getByRole("button", { name: "Salva impostazioni" }).click();
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+  await expect(page.getByRole("alert")).toContainText("Correggi i modelli di zone prima di salvare.");
+  await expect(section.locator(".section-toggle")).toHaveAttribute("aria-expanded", "true");
+  await expect(section.getByText("Ogni valore va da 1 a 400.")).toBeVisible();
+});

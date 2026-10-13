@@ -2,6 +2,7 @@
 // Modelli di zone per allineare Intervals.icu a PCoach (ADR 0029): per ogni misura e sistema di
 // zone, un modello noto (preset) o limiti personalizzati, in percentuale della soglia. Spiegazione nella
 // guida della sezione, ripristino in SettingsPanel.
+import { watch } from "vue";
 import { useSettingsStore } from "../../stores/settings";
 import { boundsError, presetsFor, ZONE_MODEL_INFO, ZONE_MODEL_KEYS, ZONE_PRESETS, type ZoneModelKey } from "@shared/workouts/zoneModels.ts";
 import type { ZoneCount } from "@shared/workouts/zones.ts";
@@ -27,10 +28,15 @@ function setBound(key: ZoneModelKey, n: ZoneCount, i: number, value: number) {
   settings.settings.zone_models[key][n] = { preset: same?.id ?? "custom", bounds };
 }
 
+// Una misura con un limite non valido si apre da sola, cosi' l'errore sotto i campi si vede (audit A-14);
+// non si richiude quando l'errore sparisce, per non chiuderla mentre il coach scrive.
+const detailsEls: Partial<Record<ZoneModelKey, HTMLDetailsElement>> = {};
+const invalidKeys = () => ZONE_MODEL_KEYS.filter((key) => ZONE_MODEL_INFO[key].counts.some((n) => boundsError(key, n, model(key, n).bounds)));
+watch(invalidKeys, (keys) => keys.forEach((key) => { const el = detailsEls[key]; if (el) el.open = true; }), { immediate: true, flush: "post" });
 </script>
 
 <template>
-  <details v-for="key in ZONE_MODEL_KEYS" :key="key" class="review-sessions zone-models">
+  <details v-for="key in ZONE_MODEL_KEYS" :key="key" :ref="(el) => { if (el) detailsEls[key] = el as HTMLDetailsElement; }" class="review-sessions zone-models">
     <summary>{{ ZONE_MODEL_INFO[key].label }} <span class="helper-text">({{ ZONE_MODEL_INFO[key].unit }})</span></summary>
     <div v-for="n in ZONE_MODEL_INFO[key].counts" :key="n" class="zone-model">
       <label class="field">

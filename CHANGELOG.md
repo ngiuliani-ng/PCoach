@@ -12,8 +12,13 @@ Ordine: più recente in cima. Versioni con [Semantic Versioning](https://semver.
 
 ## [Unreleased]
 
+### Modificato
+- «Modifica i parametri» dopo una proposta di Claude, e «Indietro» con una risposta incollata, chiedono conferma («Scarta la proposta e modifica i parametri» / «Tieni la proposta») — la proposta si perdeva con un clic — decisione del coach D-01 ([audit A-07](docs/audit/2026-10-ux-ui-1-2-0/README.md#a-07)) — docs: design-ui, sviluppo-deploy.
+
 ### Corretto
 - «Prosegui il piano» e «Ripianifica», riaperti da un ricaricamento o da un link, partivano da domani invece che dopo il piano attivo e non tenevano più le sedute bloccate: ora aspettano che sedute e piano siano letti, e con una lettura non riuscita mostrano l'errore con «Riprova» e non preparano né applicano la proposta — i valori iniziali si calcolavano prima del caricamento ([audit A-01](docs/audit/2026-10-ux-ui-1-2-0/README.md#a-01)) — docs: design-ui, sviluppo-deploy.
+- Impostazioni con un modello di zone non valido: l'app non chiede più «Salvare?» prima di rifiutare il salvataggio; la sezione «Modelli di zone» si apre sulla misura con l'errore e, chiusa, dice «Un limite non è valido» — la conferma arrivava prima della validazione e l'errore restava nascosto ([audit A-14](docs/audit/2026-10-ux-ui-1-2-0/README.md#a-14)) — docs: design-ui, sviluppo-deploy.
+- «Settimane da generare» oltre il massimo è segnato sul campo e blocca «Genera la proposta», invece di essere ridotto in silenzio ([audit A-27](docs/audit/2026-10-ux-ui-1-2-0/README.md#a-27)) — docs: design-ui.
 
 ## [1.2.0] — 2026-10-13
 
