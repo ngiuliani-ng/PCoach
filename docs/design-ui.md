@@ -283,7 +283,7 @@ Sezione della Panoramica (`WeeklyReviews.vue`, una settimana per `FeedbackWeek.v
   - «Modelli di zone»: per misura e sistema, un preset o limiti propri, con la fonte del preset. Salvare modelli cambiati chiede conferma, perché cambiano la durata stimata delle sedute a distanza per tutti gli atleti; la conferma arriva solo se i limiti sono validi. Un limite non valido apre la sezione e la misura che lo contiene, e a sezione chiusa il riepilogo dice «Un limite non è valido» in `--warning`.
 
   Ogni sezione ha il suo «Ripristina…», che chiede conferma solo se ci sono valori personalizzati.
-- **Informazioni**: versione, build e data, versione del server, «Copia per una segnalazione»; nessuna nota di rilascio ([decisioni/0036](decisioni/0036-versione-dell-app-e-rilasci.md)).
+- **Informazioni**: versione, build e data, versione del server; nessun pulsante e nessuna nota di rilascio ([decisioni/0036](decisioni/0036-versione-dell-app-e-rilasci.md)).
 
 Nel Profilo, la sezione Metodologia ha lo schema di carico e scarico come due selettori («Settimane di carico» 1-8, «Settimane di scarico» 1-4; un valore salvato non riconosciuto è segnalato) e i tre campi della progressione del carico.
 

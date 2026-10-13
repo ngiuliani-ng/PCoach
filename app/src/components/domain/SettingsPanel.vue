@@ -5,10 +5,10 @@
 import { computed, nextTick, ref, watch } from "vue";
 import { useSettingsStore } from "../../stores/settings";
 import { DEFAULT_FEEDBACK_PARAMS, validateFeedbackParams, type FeedbackParams } from "@shared/feedback/params.ts";
-import { showResultToast, showToast } from "../../composables/useToast";
+import { showResultToast } from "../../composables/useToast";
 import { useRoute } from "vue-router";
 import { supabaseUrl } from "../../services/supabase";
-import { APP_BUILD_DATE, APP_COMMIT, APP_ENVIRONMENT, APP_VERSION, reportLine } from "../../version";
+import { APP_BUILD_DATE, APP_COMMIT, APP_ENVIRONMENT, APP_VERSION } from "../../version";
 import { confirmDialog } from "../../composables/useConfirmDialog";
 import { saveSettings } from "../../composables/useSettingsSave";
 import { useSections, scrollToSection } from "../../composables/useSections";
@@ -96,15 +96,6 @@ async function loadServerVersion() {
 }
 watch(() => sections.isOpen("imp-info"), (open) => open && void loadServerVersion(), { immediate: true });
 const infoSummary = computed(() => `Versione ${APP_VERSION}, build ${APP_COMMIT} del ${buildDate}`);
-async function copyReport() {
-  const text = reportLine(undefined, serverVersion.value);
-  try {
-    await navigator.clipboard.writeText(text);
-    showToast("Informazioni copiate: incollale nella segnalazione.");
-  } catch {
-    showToast(`Copia non riuscita. Copia a mano: ${text}`, "error");
-  }
-}
 const guideLayer = useQueryLayer("guida");
 const guideKey = computed(() => (isGuideKey(guideLayer.value.value) ? guideLayer.value.value : null));
 const openGuide = (key: GuideKey) => guideLayer.open(key);
@@ -300,7 +291,6 @@ async function onSave() {
           <template v-else>…</template>
         </dd>
       </dl>
-      <button type="button" class="secondary" @click="copyReport">Copia per una segnalazione</button>
     </PageSection>
 
     <GuidePanel v-if="guideKey" :key="guideKey" :guide-key="guideKey" @close="guideLayer.close()" />

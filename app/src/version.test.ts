@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import pkg from "../package.json";
 import changelog from "../../CHANGELOG.md?raw";
 import { PCOACH_VERSION } from "@shared/version.ts";
-import { APP_VERSION, reportLine } from "./version";
+import { APP_VERSION } from "./version";
 
 /** Voci della sezione `## [version]` del CHANGELOG, escluse quelle di «Interno». */
 function coachEntries(version: string, text: string): string[] {
@@ -35,10 +35,5 @@ describe("versione dell'app", () => {
     expect(current, `sezione ## [${pkg.version}] nel CHANGELOG`).toBeDefined();
     expect(current![1]).toMatch(/^— \d{4}-\d{2}-\d{2}$/);
     expect(coachEntries(pkg.version, changelog).length).toBeGreaterThan(0);
-  });
-
-  it("la riga per una segnalazione non contiene dati sensibili, solo versione, build e browser", () => {
-    const line = reportLine("Mozilla/5.0 Test", "1.0.0");
-    expect(line).toMatch(/^PCoach \d+\.\d+\.\d+ \(build [^ ]+ del \d{2}\/\d{2}\/\d{4}, server 1\.0\.0\), Mozilla\/5\.0 Test$/);
   });
 });

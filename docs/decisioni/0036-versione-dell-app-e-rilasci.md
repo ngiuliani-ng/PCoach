@@ -20,7 +20,7 @@ Analisi nel [report 07 dell'audit](../audit/2026-10-ux-ui-completo/07-versioname
 2. **Server**: `supabase/functions/_shared/version.ts` ha la stessa versione (un test di Vitest lo verifica). Le Edge Function la restituiscono nell'intestazione `x-pcoach-version`, esposta via CORS. L'app la legge con una richiesta `OPTIONS`, senza dati né chiavi.
 3. **Interfaccia**:
    - la versione si legge solo in Impostazioni › Informazioni: «Versione X.Y.Z» in fondo alla barra laterale, presente nelle versioni 1.0.0 e 1.1.0, è stata tolta su richiesta del coach;
-   - in Informazioni: versione, build e data, versione del server (con «diversa dall'app» se non coincide), «Copia per una segnalazione». Le novità della versione non compaiono nell'app: il coach non vuole che l'utente le legga (decisione del 13 ottobre 2026, dopo la 1.0.0, che le mostrava); il CHANGELOG resta la loro unica casa;
+   - in Informazioni: versione, build e data, versione del server (con «diversa dall'app» se non coincide). «Copia per una segnalazione», presente fino alla 1.2.0, è stato tolto su decisione del coach del 13 ottobre 2026. Le novità della versione non compaiono nell'app: il coach non vuole che l'utente le legga (decisione del 13 ottobre 2026, dopo la 1.0.0, che le mostrava); il CHANGELOG resta la loro unica casa;
    - l'ambiente compare solo fuori dalla produzione.
 4. **SemVer adattato**:
    - MAJOR se serve un'azione o si rompe la compatibilità di dati o flussi;

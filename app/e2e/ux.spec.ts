@@ -129,6 +129,8 @@ test("la versione non è nella barra laterale: sta in Impostazioni › Informazi
   await expect(info).toContainText("Build");
   await expect(info.locator("dd").nth(2)).toHaveText(/^\d+\.\d+\.\d+$/);
   await expect(info).not.toContainText("Novità");
+  // Niente «Copia per una segnalazione» (decisione del coach del 13 ottobre 2026).
+  await expect(info.getByRole("button", { name: "Copia per una segnalazione" })).toHaveCount(0);
   await expect(info).not.toContainText("e2e-anon-key");
 });
 

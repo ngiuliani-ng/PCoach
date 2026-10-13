@@ -7,9 +7,3 @@ export const APP_BUILD_DATE = __APP_BUILD_DATE__;
 /** Etichetta d'ambiente: solo fuori dalla produzione. */
 export const APP_ENVIRONMENT = import.meta.env.DEV ? "Sviluppo locale" : APP_COMMIT.endsWith("-modificato") || APP_COMMIT === "locale" ? "Build locale" : null;
 
-/** Riga da incollare in una segnalazione: versione, build, browser. */
-export function reportLine(userAgent = typeof navigator === "undefined" ? "" : navigator.userAgent, serverVersion: string | null = null): string {
-  const date = APP_BUILD_DATE.slice(0, 10).split("-").reverse().join("/");
-  const server = serverVersion ? `, server ${serverVersion}` : "";
-  return `PCoach ${APP_VERSION} (build ${APP_COMMIT} del ${date}${server}), ${userAgent}`;
-}

@@ -497,7 +497,7 @@ section.block .section-title { flex: 1; min-width: 0; margin: 0; font-size: var(
 .intensity-table input { width: 96px; }
 
 /* Informazioni sull'app (ADR 0036): versione, build e server. */
-.app-info { display: grid; grid-template-columns: max-content 1fr; gap: var(--sp-1) var(--sp-4); margin: 0 0 var(--sp-4); }
+.app-info { display: grid; grid-template-columns: max-content 1fr; gap: var(--sp-1) var(--sp-4); margin: 0; }
 .app-info dt { color: var(--text-muted); font-size: var(--fs-sm); }
 .app-info dd { margin: 0; }
 .app-info .mono { font-family: var(--font-mono); }

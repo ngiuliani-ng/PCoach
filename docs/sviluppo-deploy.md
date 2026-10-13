@@ -31,7 +31,7 @@ Rigenera `app/src/schema/types.generated.ts` da `app/src/schema/athlete_profile.
 npm run test
 ```
 
-Esegue Vitest (`vitest run`) sui file `src/**/*.test.ts`: 223 test in 26 file al 13 ottobre 2026. Il dettaglio per file lo dà `npx vitest run --reporter=verbose`. Coprono:
+Esegue Vitest (`vitest run`) sui file `src/**/*.test.ts`: 222 test in 26 file al 13 ottobre 2026. Il dettaglio per file lo dà `npx vitest run --reporter=verbose`. Coprono:
 - domini puri delle sedute e del feedback, compresi i moduli condivisi con le Edge Function: calendario, struttura, conversione per Intervals.icu, zone e soglie, pipeline del feedback;
 - prompt della generazione e testi d'aiuto: cosa va a Claude, voci della guida ed etichette citate;
 - glossario degli stati, conteggi del feedback in una frase, riepiloghi delle sezioni del Profilo, pagina «Da fare», controllo periodico su Intervals.icu e unione del carico;
