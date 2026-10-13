@@ -202,6 +202,7 @@ Ogni componente interattivo gestisce esplicitamente: default, hover, focus (visi
 - Dialoghi (`ConfirmDialog`, drawer mobile, pannello della seduta, guida, dialoghi di generazione e «Sincronizza settimana») intrappolano il focus e lo restituiscono all'elemento che li ha aperti alla chiusura; Esc chiude (tranne durante un'operazione in corso). Pannello della seduta e dialoghi del piano si chiudono anche con «indietro» del browser o del telefono (vedi [architettura.md](architettura.md#flussi-principali)). Gli esiti asincroni dei dialoghi sono in una regione `aria-live`.
 - Il grafico del carico ha un `aria-label` con periodo e valori attuali; il tooltip è solo visivo (`aria-hidden`).
 - Animazioni continue e transizioni rispettano `prefers-reduced-motion`.
+- Un controllo automatico con axe-core (regole WCAG A e AA) gira negli e2e sulle schermate principali, nei due temi: vedi [sviluppo-deploy.md](sviluppo-deploy.md#controllo-automatico-di-accessibilità). Non sostituisce le verifiche con tastiera e lettore di schermo.
 
 ## Zone e discipline
 

@@ -540,7 +540,25 @@ Decisioni del coach (13 ottobre 2026): D-01 **A**, D-02 durata adattiva con paus
 | A-05 | **risolto** | `tokens.css`: `color-scheme: light` in `:root`, `dark` nei due blocchi scuri; `base.css`: `::placeholder { color: var(--text-muted); opacity: 1 }`. Corretta anche la frase di design-ui sul tema predefinito (una delle quattro di A-22) | unitario `tokens.test.ts` (`color-scheme` nei tre blocchi) ed e2e `ux.spec.ts` (contrasto calcolato del segnaposto ≥ 4,5:1 e `color-scheme` nei due temi), entrambi falliscono su `83079cc`. Script F22: 6,19:1 scuro (era 3,55), 5,39:1 chiaro (era 4,61). `evidence/dopo-A-05-seduta-scura-1440.png`: icona del calendario chiara, segnaposto leggibili. Menu a tendina e selettore di data aperti non verificati a schermo (finestre del sistema) |
 | A-10 | **risolto** | Sezioni, dialoghi, pannello della seduta e settimane dello storico `h2`, sottosezioni `h3`; `PageSection` con `level` (3 sotto «Avanzate», dove «Qualità dei dati» resta `h4`). In `base.css` lo stile passa a classi e contesto (`section.block h2`, `section.block .section-title` con peso e colore espliciti, `.history-week h2`, `.drawer-section h2`, `.dialog-head h2`, `.op-group h3`). Nessun cambio visivo, verificato pixel per pixel sugli screenshot dell'audit prima e dopo: restano solo il pallino «Online» (animazione, differenza ≤ 18 su 255), la riga «Build» con il commit e 35 pixel di antialiasing (differenza 1). Una differenza vera, «Niente da fare» nella home vuota passato da 700 a 600, è stata riportata a 700 per non cambiare l'aspetto. È un'incoerenza preesistente: gli altri titoli di sezione usano 600 | e2e `ux.spec.ts`: nessun salto di livello in dieci schermate (fallisce su `d7c0f12`). Un test esistente cercava i titoli della Panoramica con `#panel-panoramica h3`: il selettore ora è `h2`, la verifica (il feedback prima del grafico) è la stessa |
 | A-11 | **risolto** | `App.vue`: `watchEffect` sul titolo del documento, «Pagina – Atleta – PCoach», «Accesso – PCoach» senza sessione; il nome arriva anche se l'elenco degli atleti si carica dopo. Formato scelto da me, come proposto nel report: da confermare | stesso e2e: titolo atteso in dieci schermate (fallisce su `d7c0f12`, «PCoach» ovunque) |
+| D-03 | **fatto** | `@axe-core/playwright` 4.13.0 (2026-08-11; peer `playwright-core >= 1.0.0`, compatibile con 1.56.1; licenza MPL-2.0, solo sviluppo). `e2e/a11y.spec.ts`: regole WCAG 2.0, 2.1, 2.2 A e AA, 14 schermate × 2 temi × desktop e mobile, più un test di sensibilità (un pulsante senza nome deve essere segnalato) | 58 test, nessuna violazione WCAG. Esplorazione con `best-practice` (non bloccante), sotto |
 
 **Instabilità osservate nei test** (non attribuite ad A-xx):
 - con 2 worker, timeout intermittenti di `newPage` e di attesa in test diversi a ogni giro; con un solo worker e ripetuti, gli stessi test passano (50 su 50). Da qui in poi gli e2e girano con `--workers=1`;
 - una volta, nella suite completa in serie, `ux.spec.ts` «la versione non è nella barra laterale…»: la versione del server (`OPTIONS weekly-feedback`) non è arrivata entro l'attesa. Ripetuto 10 volte isolato e 2 volte con tutto `ux.spec.ts`, passa sempre. La lettura avviene una sola volta, senza nuovi tentativi: se la richiesta si interrompe, Informazioni mostra «non disponibile» fino al ricaricamento. Nessun intervento: è da tenere d'occhio.
+
+**Problemi trovati dai controlli automatici** (axe-core 4.13, 13 ottobre, sul codice dopo A-10):
+- regole WCAG A e AA: nessuna violazione nelle 14 schermate, nei due temi;
+- regole `best-practice`, non bloccanti:
+  - `aria-dialog-name` sul dialogo di conferma: è A-09, ancora aperto;
+  - `aria-allowed-role` (minore) sul pannello della seduta, un `<aside>` con `role="dialog"`: da correggere con A-09, insieme a `GuidePanel`, che usa lo stesso schema.
+
+**Problemi che richiedono verifiche manuali** (axe non li rileva o non li può rilevare):
+- nomi accessibili che nascondono informazioni (A-04, riga della seduta);
+- comandi con lo stesso nome (A-17);
+- focus coperto (A-03), ordine del focus e trappole (A-02, A-12);
+- durata dei messaggi (A-08);
+- dimensione dei bersagli al tocco (A-16);
+- tastiera virtuale su dispositivo (A-21);
+- comportamento con un lettore di schermo reale.
+
+Gran parte dei problemi di questo audit appartiene a questa seconda lista: un controllo axe verde non dice che l'app sia accessibile.
