@@ -234,3 +234,60 @@ Le fasi 0 e 5 sono indipendenti e si possono fare subito. La fase 2 è la più g
 | D-08 | **Sì** a `1.0.0` e pubblicazione sui tag; chiesto dove si mostra la versione |
 | D-09 | **Sì**: cartella rinominata `2026-10-ux-ui-completo` |
 | GitHub | Repository e pubblicazione restano come sono |
+
+## 11. Resoconto dell'implementazione (13 ottobre 2026)
+
+Commit sul ramo `ux-ui-completo`, non ancora su `main` né pubblicati:
+
+| Commit | Contenuto | Problemi risolti |
+|---|---|---|
+| `db137f5` | testi d'aiuto veritieri, tab a 320 px, titoli `h1`, grafico leggibile, eliminazione solo dal Profilo, regole tecniche nel prompt fisso (2.5.0) | UX-03, UX-06, UX-12, UX-13, UX-23, UX-24, UX-33, UX-41 (testo), UX-45, D-06, D-07 |
+| `3bfb0fe` | anomalia «Manca l'email», tab Anomalie in un solo elenco con «Ferma: …» | UX-11, D-05 |
+| `326762f` | glossario degli stati, righe con i soli stati da sistemare, storico con un selettore | UX-20, UX-21, UX-22, D-03 |
+| `415f38c` | sezioni comprimibili con riepilogo e indice, «Avanzate», guida per gruppo, segnaposto «predefinito», conferme e ripristini | UX-30, UX-31, UX-32, UX-40, UX-41 (conferma), UX-42, UX-43, UX-44, UX-46, UX-50, UX-51, D-02, D-04 |
+| `c4a93a1`, `6bb07ed` | pagina «Da fare», numero in sidebar, link al punto esatto, feedback in cima alla Panoramica | UX-01, UX-10, UX-14, D-01 |
+| `fe292d7`, `0d09b1d` | CHANGELOG con versioni; versione 1.0.0 nell'app, nel server e nel workflow | V-01…V-05, D-08 |
+
+Documenti: ADR [0034](../../decisioni/0034-anomalie-in-un-elenco-ed-email-dell-atleta.md), [0035](../../decisioni/0035-pagina-da-fare-sezioni-e-guida.md) e [0036](../../decisioni/0036-versione-dell-app-e-rilasci.md) (nuove); 0027 e 0031 superate; aggiornati design-ui, architettura, integrazioni, sviluppo-deploy, limiti-roadmap (D-DOC compreso) e `CLAUDE.md` (regola 4).
+
+**Verifiche eseguite** sull'ultimo commit:
+- `vue-tsc -b` senza errori, build di produzione riuscita, `version.json` generato;
+- 209 test unitari in 23 file;
+- 76 test end-to-end, desktop e mobile, sul backend finto.
+
+**Misure prima e dopo**, con lo stesso script e gli stessi dati di prova (`evidence/runtime/misure.jsonl` e `evidence/dopo/misure.jsonl`):
+
+| Pagina | Prima | Dopo |
+|---|---|---|
+| Impostazioni a 1440 px | 2,2 schermi, 4,6 con le sezioni aperte; 74 campi visibili; ≈4.000 caratteri d'aiuto | 1,4 schermi; 7 campi visibili; ≈150 caratteri |
+| Impostazioni a 390 px | 2,8 / 6,8 schermi | 1,7 schermi |
+| Profilo a 1440 px | 6,7 schermi; 91 campi; ≈7.500 caratteri d'aiuto | 3,7 schermi con le tre sezioni aperte di default; 55 campi visibili; nessun testo d'aiuto sotto i campi |
+| Profilo a 390 / 320 px | 10,6 / 14,1 schermi | 5,9 / 7,8 schermi |
+| Schede a 320 px | scorrimento orizzontale | nessuno |
+| Testi sotto i 12 px | 7 (grafico) | 0 |
+
+Rispetto ai criteri del §8:
+- **Impostazioni** ≤ 1,5 schermi: rispettato.
+- **Testo d'aiuto visibile** ridotto di almeno la metà: rispettato.
+- **Profilo** ≤ 2,5 schermi: non rispettato con le tre sezioni aperte di default (3,7). Si rispetterebbe chiudendone una o tutte, ma le sezioni aperte di default sono una scelta da confermare.
+- **Feedback da approvare** a un clic dalla home e primo contenuto della Panoramica: rispettato (e2e).
+- **Glossario** senza etichette duplicate: rispettato (test).
+- **Storico**: al massimo 2 righe di filtri, sostituiti da un selettore.
+
+**Scelte mie, da confermare** (sono elencate anche nelle ADR 0034-0036):
+- sezioni aperte di default nel Profilo (Soglie e zone, Obiettivi, Vincoli) e nelle Impostazioni (Claude, Feedback);
+- bozze delle prossime due settimane nella home;
+- indice delle sezioni solo da 1360 px;
+- Panoramica che parte dal feedback, deciso all'apertura della scheda;
+- versione del server letta da `weekly-feedback`;
+- data della 1.0.0 al 13 ottobre.
+
+**Non fatto o ancora aperto**:
+- **Pubblicazione**: serve la tua conferma. Nell'ordine:
+  1. ripubblicare le tre Edge Function per l'intestazione `x-pcoach-version` (nessuna migrazione);
+  2. unire il ramo su `main`;
+  3. creare e inviare il tag `v1.0.0`.
+  
+  Prima va permesso il deploy dai tag nell'ambiente `github-pages` (Settings › Environments): non è verificabile da qui. Senza questo, il workflow sul tag fallisce al deploy.
+- **UX-05** (riga di riepilogo dell'intestazione su mobile), **UX-25** (etichette visibili dell'editor della struttura), **UX-35** (testo tagliato nei selettori delle rilevazioni) e **UX-55** (`AthleteEditor.vue` diviso in componenti): non affrontati, P3.
+- Linter (U-28), verifiche su dispositivo e con lettore di schermo: come nell'audit precedente.

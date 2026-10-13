@@ -26,7 +26,7 @@ La struttura v2 (vedi [modello-dati.md](modello-dati.md#sedute-e-piani)) ha ques
 - **Rampe e cadenza**: non sono modellate.
 - **Palestra**: è testo libero più una durata.
 
-Le zone sono quelle impostate sull'account Intervals.icu dell'atleta. PCoach non le legge; il feedback confronta solo FTP e soglia anaerobica registrati sulle attività con quelli della scheda e segnala una differenza oltre il 3%.
+Le zone delle sedute si riferiscono a quelle dell'account Intervals.icu dell'atleta: PCoach ne confronta numero e soglie con la scheda (vedi [§ Feedback settimanale](#feedback-settimanale)). In più il feedback confronta FTP e soglia anaerobica registrati sulle singole attività con quelli della scheda e lo segnala fra le limitazioni oltre il 3%.
 
 ## Sincronizzazione delle sedute con Intervals.icu
 
@@ -61,3 +61,10 @@ Limiti noti dell'analisi ([decisioni/0019](decisioni/0019-feedback-analisi-deter
 
 Il nuoto non ha un sistema di zone proprio nella scheda: le sue sedute e il suo feedback usano sempre 7 zone. Nel Profilo il campo è visibile ma non modificabile.
 
+## Pagina «Da fare»
+
+La pagina iniziale e il numero accanto agli atleti usano solo dati già nel database ([decisioni/0035](decisioni/0035-pagina-da-fare-sezioni-e-guida.md)). Zone o soglie diverse da Intervals.icu e una chiave non valida richiedono una lettura da Intervals.icu per atleta: compaiono nella tab Anomalie all'apertura della scheda, non nella pagina iniziale. Un controllo lato server pianificato permetterebbe di mostrarle anche lì.
+
+## Versione del server
+
+La versione delle Edge Function si legge dall'intestazione `x-pcoach-version` di `weekly-feedback` ([decisioni/0036](decisioni/0036-versione-dell-app-e-rilasci.md)): se le altre due funzioni fossero pubblicate da un altro commit, Impostazioni › Informazioni non lo mostrerebbe. Il contatore di versione di Supabase resta l'unico riferimento per ognuna.

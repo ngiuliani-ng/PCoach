@@ -39,14 +39,15 @@ Applicazione mono-coach, pensata per uso personale con un link non condiviso pub
 app/
   src/
     components/
-      ui/        Componenti generici riutilizzabili (toast, dialog di conferma, IconButton, ...)
+      ui/        Componenti generici riutilizzabili (toast, dialog di conferma, IconButton, sezioni comprimibili, indice, guida, ...)
       domain/    Componenti specifici del dominio PCoach (scheda atleta, sidebar, grafico carico, ...)
     composables/ Logica riutilizzabile con stato reattivo (toast, dialog di conferma, stato mobile sidebar, livelli nella query dell'URL, ...)
     constants.ts Opzioni condivise tra componenti (discipline, obiettivi, ...), prompt predefiniti e helper di presentazione (formatDate, formatSigned, icone ed etichette delle discipline)
     domain/      Funzioni pure delle sedute (e test dei moduli condivisi del feedback): calendario e vincoli di disponibilità, settimane e ciclo di carico, lettura della proposta di Claude e differenze di una rigenerazione, stati derivati
-    stores/      Pinia: athletes.ts (schede atleti, CRUD, polling), workouts.ts (sedute, piani e stato di sincronizzazione dell'atleta aperto), reviews.ts (valutazioni settimanali dell'atleta aperto), settings.ts (impostazioni globali del coach), auth.ts (sessione del coach)
+    stores/      Pinia: athletes.ts (schede atleti, CRUD, polling), workouts.ts (sedute, piani e stato di sincronizzazione dell'atleta aperto), reviews.ts (valutazioni settimanali dell'atleta aperto), todo.ts (cosa c'è da fare per tutti gli atleti), settings.ts (impostazioni globali del coach), auth.ts (sessione del coach)
     services/    Accesso a sistemi esterni: supabase.ts, intervals.ts (lettura del carico), intervalsSync.ts (Edge Function intervals-sync), feedback.ts (azioni del coach sulla Edge Function weekly-feedback), claude.ts, planPrompt.ts
-    help/        fieldHelp.ts: testi degli aiuti contestuali dei campi tecnici, con cosa va a Claude (verificato da fieldHelp.test.ts)
+    help/        fieldHelp.ts: testi d'aiuto dei campi, con cosa va a Claude; guide.ts: la guida di ogni gruppo di dati (verificati da fieldHelp.test.ts)
+    version.ts   Versione, commit e data della build, note di rilascio (iniettati da vite.config.ts, ADR 0036)
     schema/      athlete_profile.schema.json (sorgente di verità, vedi modello-dati.md), types.generated.ts (generato, non modificare a mano)
     styles/      tokens.css (variabili di design), base.css (stili globali)
   public/
@@ -87,11 +88,11 @@ App.vue
   ├─ LoginView.vue              (form email+password, mostrato se non autenticato)
   └─ (autenticato)
      ├─ domain/AthleteSidebar.vue
-     │    ├─ "Nuovo atleta" + lista atleti (nome, discipline e ultimo TSB per atleta)
+     │    ├─ "Nuovo atleta" + lista atleti (nome con il numero di cose da fare, discipline e ultimo TSB)
      │    ├─ pallino di stato connessione (useConnectionStatus)
-     │    └─ footer compatto: IconButton "Impostazioni" + IconButton "Esci" (auth.signOut)
+     │    └─ footer compatto: IconButton "Impostazioni" + IconButton "Esci" (auth.signOut), "Versione X.Y.Z"
      ├─ <RouterView> (router.ts): una delle tre pagine seguenti
-     ├─ domain/AthleteEditor.vue  (/atleta/:id/:tab e /atleta/nuovo: header sticky con "Salva", viste Panoramica / Piano / Profilo)
+     ├─ domain/AthleteEditor.vue  (/atleta/:id/:tab e /atleta/nuovo: header sticky con "Salva", viste Panoramica / Piano / Profilo / Anomalie)
      │    ├─ Panoramica
      │    │    ├─ domain/LoadMetricsChart.vue   (grafico CTL/ATL/TSB, tooltip, legenda con valori attuali)
      │    │    ├─ questa settimana              (domain/WorkoutRow.vue in sola lettura, collegamento al Piano)
@@ -101,12 +102,13 @@ App.vue
      │    │    ├─ domain/WorkoutDrawer.vue      (pannello della seduta: dati, StepEditor, testo per Intervals.icu, cronologia)
      │    │    ├─ domain/RegenerateDialog.vue   (genera o ripianifica: parametri, proposta di Claude, anteprima delle differenze)
      │    │    └─ domain/SyncWeekDialog.vue     (Sincronizza settimana: anteprima, scelte, esito per riga)
-     │    └─ Profilo
-     │         ├─ ui/PasswordField.vue          (chiave Intervals.icu, mostra/nascondi)
-     │         ├─ domain/MetricLogList.vue      (rilevazioni delle soglie per corsa/bici/nuoto)
-     │         └─ identità, discipline, stato, obiettivi, vincoli, metodologia, note, esporta/elimina
-     ├─ domain/EmptyState.vue     (/: nessun atleta aperto, indica di sceglierne o crearne uno dall'elenco)
-     └─ domain/SettingsPanel.vue  (/impostazioni: Claude, prompt, tono e soglie del feedback, modelli di zone, orario)
+     │    ├─ Profilo: ui/PageSection.vue per ogni sezione, ui/SectionNav.vue (indice), ui/GuidePanel.vue (?guida=)
+     │    │    ├─ ui/PasswordField.vue          (chiave Intervals.icu, mostra/nascondi)
+     │    │    ├─ domain/MetricLogList.vue      (rilevazioni delle soglie per corsa/bici/nuoto)
+     │    │    └─ identità, discipline, stato, obiettivi, vincoli, metodologia, note, esporta/elimina
+     │    └─ Anomalie: domain/AnomaliesTab.vue  (elenco da useAthleteAnomalies)
+     ├─ domain/TodoPage.vue       (/: «Da fare» per tutti gli atleti, da stores/todo.ts e domain/todo.ts)
+     └─ domain/SettingsPanel.vue  (/impostazioni: Claude e generazione, feedback settimanale, Avanzate, Informazioni)
   ui/ConfirmDialog.vue + ui/ToastHost.vue  (montati una volta in App.vue, pilotati da composables condivisi)
 ```
 
@@ -120,12 +122,12 @@ Il drawer della sidebar su mobile (backdrop cliccabile, Esc, scroll-lock, gestio
 
 | Rotta | Pagina |
 |---|---|
-| `#/` | nessun atleta aperto |
+| `#/` | «Da fare» per tutti gli atleti |
 | `#/impostazioni` | Impostazioni |
 | `#/atleta/nuovo` | bozza di un nuovo atleta |
-| `#/atleta/:id/:tab` | scheda, con `tab` fra `panoramica`, `piano` e `profilo` |
+| `#/atleta/:id/:tab` | scheda, con `tab` fra `panoramica`, `piano`, `profilo` e `anomalie` |
 
-Il pannello della seduta e i dialoghi del piano sono parametri di query (`?seduta=<id>`, `?dialogo=genera|prosegui|ripianifica|sincronizza`, composable `useQueryLayer`): «indietro» li chiude e un ricaricamento li riapre.
+Il pannello della seduta, i dialoghi del piano e la guida sono parametri di query (`?seduta=<id>`, `?dialogo=genera|prosegui|ripianifica|sincronizza`, `?guida=<gruppo>`, composable `useQueryLayer`): «indietro» li chiude e un ricaricamento li riapre. Altri parametri portano a un punto della pagina: `?feedback=<id>` (una settimana del feedback), `?sezione=<id>` (una sezione del Profilo o delle Impostazioni), `?settimana=<data>` (la settimana del Piano).
 
 La guardia globale (`router.ts`) chiede «Salva e continua / Esci senza salvare / Resta» quando si lascia una scheda o le Impostazioni con modifiche non salvate; «Esci» fa la stessa domanda. La chiusura della pagina usa l'avviso del browser (`beforeunload` in `App.vue`). Il pannello della seduta e i dialoghi hanno guardie proprie: conferma per le modifiche della seduta, nessuna chiusura durante generazione, applicazione o sincronizzazione.
 

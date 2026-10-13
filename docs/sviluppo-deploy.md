@@ -31,28 +31,14 @@ Rigenera `app/src/schema/types.generated.ts` da `app/src/schema/athlete_profile.
 npm run test
 ```
 
-Esegue Vitest (`vitest run`) sui file `src/**/*.test.ts`. Stato attuale: **153 test** in 16 file:
+Esegue Vitest (`vitest run`) sui file `src/**/*.test.ts`: 209 test in 23 file al 13 ottobre 2026. Il dettaglio per file lo dà `npx vitest run --reporter=verbose`. Coprono:
+- domini puri delle sedute e del feedback, compresi i moduli condivisi con le Edge Function: calendario, struttura, conversione per Intervals.icu, zone e soglie, pipeline del feedback;
+- prompt della generazione e testi d'aiuto: cosa va a Claude, voci della guida ed etichette citate;
+- glossario degli stati, riepiloghi delle sezioni del Profilo, pagina «Da fare»;
+- contrasti dei token di colore nei due temi;
+- coerenza della versione fra `package.json`, `_shared/version.ts` e `CHANGELOG.md` (`version.test.ts`).
 
-| File | Test |
-|---|---|
-| `constants.test.ts` | 4 |
-| `composables/useConnectionStatus.test.ts` | 4 |
-| `composables/useDirtyState.test.ts` | 9 |
-| `styles/tokens.test.ts` | 4 (contrasti dei token di colore nei due temi: testo 4,5:1, bordo dei campi 3:1) |
-| `help/fieldHelp.test.ts` | 2 (aiuti contestuali: chiavi presenti nello schema, dati dichiarati inviati o non inviati a Claude come nel contesto del prompt) |
-| `domain/availability.test.ts` | 6 (calendario del periodo, riallineamento al giorno, vincoli di disponibilità e durata) |
-| `domain/feedback.test.ts` | 35 (feedback: periodo, fuso non valido, parametri, normalizzazione, abbinamento, metriche, tendenza, risposta dell'atleta, sedute svolte con esito e dati dell'attività, aggiornamento dell'RPE, validazione dell'output, anche a cavallo d'anno) |
-| `domain/feedbackPipeline.test.ts` | 17 (pipeline del feedback con porte finte: stati, fuso non valido, nuovi tentativi, idempotenza, sostituzione della valutazione anticipata, approvazione con o senza invio, consegna) |
-| `domain/planChecks.test.ts` | 3 (sedute a settimana, variazione di volume rispetto alla fase, struttura incompleta) |
-| `domain/planWeeks.test.ts` | 14 (settimane del piano, fasi del ciclo di carico, ancoraggio al piano attivo, data di prosecuzione, gare e tapering) |
-| `domain/regeneration.test.ts` | 7 (lettura della proposta, zone oltre il sistema dell'atleta, differenze e payload della rigenerazione) |
-| `domain/shared.test.ts` | 26 (moduli condivisi con le Edge Function: calendario, zone e struttura, conversione per Intervals.icu, classificazione della sincronizzazione) |
-| `services/claude.test.ts` | 3 (lettura del JSON nella risposta di Claude) |
-| `services/intervals.test.ts` | 3 (finestra di sincronizzazione del carico) |
-| `services/planPrompt.test.ts` | 11 (istruzioni fisse e preferenze del coach, messaggio, calendario, percentuali, dati esclusi dal contesto e identità ridotta, zone per disciplina, sedute recenti con RPE e valutazioni recenti, segnaposto nei dati, testo per l'invio manuale) |
-| `stores/auth.test.ts` | 5 |
-
-Questo conteggio descrive solo lo stato corrente; l'evoluzione nel tempo è nel [CHANGELOG.md](../CHANGELOG.md), non qui.
+Il conteggio descrive solo lo stato corrente; l'evoluzione nel tempo è nel [CHANGELOG.md](../CHANGELOG.md).
 
 ### Test end-to-end
 
@@ -69,25 +55,15 @@ Playwright (`playwright.config.ts`, cartella `app/e2e/`) avvia Vite sulla porta 
 
 Nessuna chiamata raggiunge Supabase, Claude o Intervals.icu. La data è fissata al 10 ottobre 2026 con `page.clock`.
 
-Diciannove flussi, ognuno su un progetto desktop e uno mobile (38 test):
-- modifica e approvazione di una seduta;
-- rigenerazione con anteprima delle differenze;
-- «Sincronizza settimana» con un errore parziale e il nuovo tentativo;
-- revisione e approvazione di un feedback settimanale;
-- navigazione e modifiche non salvate (`navigation.spec.ts`):
-  - conferma al cambio di atleta, con «Salva e continua», «Esci senza salvare» e «Resta»;
-  - ritorno dalle Impostazioni modificate;
-  - salvataggio fallito di una scheda nuova e di una esistente, poi riuscito;
-  - vista e seduta nell'URL dopo un ricaricamento, e «indietro» che chiude il pannello;
-  - errore di rete al salvataggio di una seduta, con il pannello che resta aperto;
-- coerenza fra interfaccia e comportamento (`coherence.spec.ts`):
-  - doppio clic su «Genera la proposta», con una sola generazione;
-  - schema di carico non riconosciuto, segnalato e corretto;
-  - generazione con modifiche non salvate, in entrambe le scelte;
-  - feedback per un atleta senza email;
-  - fuso orario non valido;
-  - valutazione in preparazione aggiornata senza ricaricare;
-  - sistema di zone dell'atleta nell'editor e nell'approvazione.
+Trentotto flussi, ognuno su un progetto desktop e uno mobile (76 test al 13 ottobre 2026), in sei file:
+- `plan.spec.ts`: modifica e approvazione di una seduta, rigenerazione con anteprima delle differenze, «Sincronizza settimana» con un errore parziale e il nuovo tentativo;
+- `feedback.spec.ts`: revisione e approvazione di un feedback settimanale;
+- `navigation.spec.ts`: modifiche non salvate al cambio di atleta e all'uscita dalle Impostazioni, salvataggi falliti, vista e seduta nell'URL, errore di rete al salvataggio di una seduta;
+- `coherence.spec.ts`: doppio clic su «Genera la proposta», schema di carico non riconosciuto, generazione con modifiche non salvate, email mancante con l'invio attivo, fuso non valido, valutazione in preparazione, sistema di zone nell'editor;
+- `zones.spec.ts`: zone e soglie diverse da Intervals.icu, modelli di zone in Impostazioni, sedute da verificare dalla tab Anomalie;
+- `ux.spec.ts`: audit UI/UX completo, cioè tab a 320 px, seduta aperta dalla Panoramica, stati delle righe e selettore dello storico, sezioni e guida, ripristini, pagina «Da fare», versione in Informazioni.
+
+`e2e/helpers.ts` ha `openSection`, che apre una sezione comprimibile se è chiusa.
 
 Gli esiti finiscono in `test-results/`, non tracciata.
 
@@ -95,7 +71,7 @@ Gli esiti finiscono in `test-results/`, non tracciata.
 
 Le funzioni in `supabase/functions/` si pubblicano sul progetto Supabase. Il CLI non è nel repository: si usa la dashboard oppure lo strumento di deploy del MCP Supabase. `intervals-sync` importa i moduli di `functions/_shared/workouts/` (zone comprese) e di `functions/_shared/feedback/` (abbinamento delle sedute svolte); `weekly-feedback` quelli di `functions/_shared/feedback/` e `functions/_shared/workouts/` (calendario e struttura) e il mittente email. Vanno pubblicati insieme alla funzione, con nomi relativi (`../_shared/...`). Il CLI Deno non è installato: i tipi delle funzioni si controllano con `tsc` usando un'interfaccia minima per `Deno`, e la logica vive nei moduli condivisi, testati con Vitest.
 
-L'ordine conta: prima le migrazioni (`supabase/migrations/`, in ordine numerico), poi le funzioni che leggono le nuove tabelle o colonne, infine l'app. `claude-proxy` e `weekly-feedback` importano anche `functions/_shared/claude/models.ts`.
+L'ordine conta: prima le migrazioni (`supabase/migrations/`, in ordine numerico), poi le funzioni che leggono le nuove tabelle o colonne, infine l'app. `claude-proxy` e `weekly-feedback` importano anche `functions/_shared/claude/models.ts`. Tutte e tre importano `functions/_shared/version.ts` e restituiscono la versione nell'intestazione `x-pcoach-version` (vedi [§ Rilascio](#rilascio-di-una-versione)).
 
 ## Build
 
@@ -107,14 +83,39 @@ Esegue `vue-tsc -b` (type-check, build incrementale) seguito da `vite build`. Un
 
 ## Pubblicazione su GitHub Pages
 
-Workflow `.github/workflows/deploy.yml`, innescato da push su `main` (o manualmente via `workflow_dispatch`):
+Workflow `.github/workflows/deploy.yml` ([decisioni/0036](decisioni/0036-versione-dell-app-e-rilasci.md)):
+- un push su `main` esegue test e build, **senza pubblicare**;
+- un tag `vX.Y.Z` pubblica quella versione; si può anche avviare a mano (`workflow_dispatch`) su un tag.
 
 Actions usate: `actions/checkout@v7`, `actions/setup-node@v7`, `actions/upload-pages-artifact@v5`, `actions/deploy-pages@v5` (tutte su runtime Node.js 24).
 
 1. Checkout, setup Node 22, `npm ci` (dentro `app/`, con cache su `package-lock.json`).
-2. `npm run test`: un test fallito blocca la pubblicazione.
-3. `npm run build`, con `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` presi dai **repository secrets** GitHub (non dal file `.env` locale).
-4. Upload di `app/dist` come artifact Pages, poi deploy.
+2. `npm run test`: un test fallito blocca la pubblicazione, compresa la coerenza della versione.
+3. Solo sui tag: il tag deve essere `v` + la versione di `app/package.json`.
+4. `npm run build`, con `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` presi dai **repository secrets** GitHub (non dal file `.env` locale).
+5. Solo sui tag: upload di `app/dist` come artifact Pages, deploy e controllo che `version.json` in linea sia la versione del tag.
+
+L'ambiente `github-pages` deve ammettere il deploy dai tag `v*` (Settings › Environments › github-pages › Deployment branches and tags).
+
+## Versione
+
+Una sola fonte: `app/package.json` › `version`. `vite.config.ts` la passa all'app (`__APP_VERSION__`) con:
+- il commit della build (`__APP_COMMIT__`: `GITHUB_SHA` in CI, `git rev-parse --short HEAD` in locale, con `-modificato` se ci sono modifiche non committate, `locale` senza git);
+- la data di build;
+- la sezione del CHANGELOG di quella versione.
+
+`src/version.ts` le espone all'interfaccia (barra laterale, Impostazioni › Informazioni). La build scrive `dist/version.json` (`{ version, commit, builtAt }`). `supabase/functions/_shared/version.ts` ripete la versione per le Edge Function, e un test verifica che coincida.
+
+## Rilascio di una versione
+
+| Momento | Cosa si fa | Versione |
+|---|---|---|
+| Sviluppo | Ogni commit con codice e documenti di stato; la voce va in `## [Unreleased]` del CHANGELOG, nella categoria giusta | invariata |
+| Preparazione (dopo la conferma del coach) | `Unreleased` diventa `## [X.Y.Z] — AAAA-MM-GG`; la versione si aggiorna in `app/package.json`, `package-lock.json` e `supabase/functions/_shared/version.ts`; si lascia `## [Unreleased]` vuoto in cima | incrementata, con SemVer come in [CHANGELOG.md](../CHANGELOG.md) |
+| Pubblicazione | Nell'ordine: migrazioni, Edge Function (con `_shared/version.ts`), merge su `main`, tag `vX.Y.Z` e push del tag | — |
+| Verifica | Il workflow controlla `version.json`; in Impostazioni › Informazioni la versione del server coincide con quella dell'app | — |
+
+La versione non si incrementa a ogni commit: solo alla preparazione di un rilascio.
 
 `vite.config.ts` imposta `base: '/PCoach/'`, necessario perché l'app è servita da un sotto-percorso (`https://<utente>.github.io/PCoach/`) e non dalla radice del dominio.
 

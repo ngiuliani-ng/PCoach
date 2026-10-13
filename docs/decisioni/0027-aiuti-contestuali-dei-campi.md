@@ -2,7 +2,7 @@
 
 **Quando leggerlo**: prima di aggiungere o cambiare il testo d'aiuto di un campo, o di cambiare quali dati della scheda vanno a Claude.
 
-**Stato**: attiva.
+**Stato**: superata da [0035](0035-pagina-da-fare-sezioni-e-guida.md) per la presentazione (aiuti nella guida di ogni gruppo, non sotto i campi); resta valida la fonte unica dei testi in `fieldHelp.ts` con i suoi test.
 
 ## Contesto
 

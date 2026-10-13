@@ -75,26 +75,49 @@ Regole per chi modifica il layout:
 
   In entrambi i casi è un `role="alertdialog"` modale: all'apertura il focus va sul pulsante di annullamento, Tab resta dentro il dialog, Esc annulla, alla chiusura il focus torna all'elemento che lo aveva aperto.
 - **PasswordField**: campo per segreti digitati dall'utente (chiave Intervals.icu, chiave Claude) con toggle mostra/nascondi (`Eye`/`EyeOff`, `aria-label` e `aria-pressed`, senza tooltip nativo), mai loggato né esposto in chiaro nel DOM a riposo. Riceve `input-id` e va etichettato con `<label :for>`, non avvolto in una `<label>`, perché il pulsante interno finirebbe nel nome accessibile del campo.
-- **FieldHelp** (`FieldHelp.vue`, testi in `help/fieldHelp.ts`, decisione in [decisioni/0027](decisioni/0027-aiuti-contestuali-dei-campi.md)): aiuto di un campo tecnico. Una riga sempre visibile in `helper-text` e, se c'è, «Come lo usa PCoach» in un `<details>`. Niente tooltip: l'essenziale si legge senza interazione, anche al tocco. Un nuovo aiuto si aggiunge a `fieldHelp.ts`, non scritto nel componente.
+- **PageSection** (`PageSection.vue`, stato in `useSections`, decisione in [decisioni/0035](decisioni/0035-pagina-da-fare-sezioni-e-guida.md)): sezione comprimibile di una pagina lunga (Profilo, Impostazioni).
+  - L'intestazione è un `<h3>` che contiene un pulsante (`aria-expanded`, `aria-controls`) con il caret, il titolo e, a sezione chiusa, una riga di riepilogo del contenuto in `--text-muted`, oppure in `--warning` se c'è qualcosa da sistemare.
+  - A destra, se la sezione ha una guida, l'`IconButton` Info («Guida: …»).
+  - Il contenuto resta nel DOM anche chiuso (`v-show`). Le sezioni aperte si ricordano per la sessione del browser; una sezione con un errore si apre da sola.
+- **SectionNav** (`SectionNav.vue`): indice delle sezioni a destra della colonna, sticky, solo da 1360px. Un clic apre la sezione e la porta in vista. Sotto quella larghezza l'indice sono le intestazioni chiuse.
+- **GuidePanel** (`GuidePanel.vue`, testi in `help/fieldHelp.ts`, gruppi in `help/guide.ts`): la guida di un gruppo di dati, aperta dall'icona Info.
+  - È un pannello a destra come quello della seduta, a tutto schermo su mobile, con una voce per campo: titolo, testo e approfondimento.
+  - Sta nell'URL (`?guida=`): «indietro» la chiude e le modifiche non salvate restano.
+  - Sotto i campi non c'è testo d'aiuto. Restano visibili:
+    - gli errori;
+    - il motivo di un campo disattivato;
+    - lo stato della chiave;
+    - il segnaposto «predefinito: N» dei campi che, vuoti, usano un valore predefinito.
+  - Le conseguenze che bloccano qualcosa compaiono come conferma prima dell'azione o come anomalia.
+  - Un nuovo testo si aggiunge a `fieldHelp.ts` e a una guida, non nel componente; le etichette citate fra «» devono esistere (test).
+- **InfoToggle** (`InfoToggle.vue`): dentro un pannello modale, dove una guida sarebbe un livello di troppo, un'icona Info (`aria-expanded`) apre il testo di un campo sotto la sua etichetta. Oggi solo «Target espressi in» nel pannello della seduta.
 - **IconButton**: bottone compatto solo icona con stato hover/focus accessibile (`aria-label` obbligatorio, nessun tooltip nativo via `title`), ospita icone Lucide tramite slot. Usato nel footer della sidebar ("Impostazioni", "Esci") e per rimuovere un'unità (disciplina, evento, rilevazione).
 
 ## Layout
 
 - **Desktop**: sidebar atleti a sinistra (260px, `flex-shrink: 0`, sticky), contenuto a destra (`.main`, `flex: 1`) in una colonna centrata di 680px massimi (`.form-wrap`). Lo scroll è quello della pagina: `.main` non ha `overflow`, così l'header sticky funziona.
-- **Sidebar**: "Nuovo atleta" in cima (pulsante tratteggiato in colore accento), poi gli atleti in ordine alfabetico. Ogni atleta è una riga resa come `<button>`: il nome, che va a capo invece di essere troncato, e sotto, su righe proprie, le discipline e l'ultimo TSB (così il TSB è sempre allineato a sinistra, qualunque sia la lunghezza del nome); la riga aperta ha sfondo `--surface-2` e un filetto d'accento a sinistra (`aria-current`). Il pulsante di eliminazione è un fratello del pulsante di selezione (mai annidato) e compare al passaggio del mouse o al focus; sui dispositivi senza hover è sempre visibile.
-- **Header di pagina** (`.page-header`): titolo e azioni principali ("Salva", "Salva impostazioni"; nella scheda, fuori dalla vista Profilo il pulsante compare solo con modifiche e dice "Salva il profilo") con lo stato "Modifiche non salvate"; i pulsanti di salvataggio sono attivi solo con modifiche. È sticky (`top: --titlebar-h`) in cima alla scheda atleta e alle impostazioni, così il salvataggio è sempre raggiungibile. Sotto l'header, la scheda atleta mostra una riga di riepilogo (discipline, prossimo evento, data di aggiornamento) e, se un'altra sessione ha salvato la scheda, un avviso con "Ricarica i dati più recenti".
+- **Sidebar**: "Nuovo atleta" in cima (pulsante tratteggiato in colore accento), poi gli atleti in ordine alfabetico. Ogni atleta è una riga resa come `<button>`:
+  - il nome, che va a capo invece di essere troncato, seguito dal numero di cose da fare in un tondo `--warning` (stesso stile del numero della tab Anomalie, `aria-label` «, N da fare»);
+  - sotto, su righe proprie, le discipline e l'ultimo TSB, così il TSB è sempre allineato a sinistra qualunque sia la lunghezza del nome.
+
+  La riga aperta ha sfondo `--surface-2` e un filetto d'accento a sinistra (`aria-current`). Nell'elenco non ci sono azioni: l'eliminazione è solo in Profilo › Gestione scheda. Nel piede, sotto lo stato della connessione, «Versione X.Y.Z» in `--fs-xs` e `--text-muted`, link a Impostazioni › Informazioni ([decisioni/0036](decisioni/0036-versione-dell-app-e-rilasci.md)).
+- **Header di pagina** (`.page-header`): titolo in `<h1>` e azioni principali ("Salva", "Salva impostazioni"; nella scheda, fuori dalla vista Profilo il pulsante compare solo con modifiche e dice "Salva il profilo") con lo stato "Modifiche non salvate"; i pulsanti di salvataggio sono attivi solo con modifiche. È sticky (`top: --titlebar-h`) in cima alla scheda atleta e alle impostazioni, così il salvataggio è sempre raggiungibile. Sotto l'header, la scheda atleta mostra una riga di riepilogo (discipline, prossimo evento, data di aggiornamento) e, se un'altra sessione ha salvato la scheda, un avviso con "Ricarica i dati più recenti".
 - **Scheda atleta: tre viste** a tab (`role="tablist"`, frecce sinistra/destra per cambiare):
-  - **Panoramica**: carico e forma, la settimana in corso in sola lettura con «Apri il piano», feedback settimanale (vedi [sotto](#feedback-settimanale));
+  - **Panoramica**: carico e forma, la settimana in corso in sola lettura (un clic su una seduta apre il suo pannello nel Piano) con «Apri il piano», feedback settimanale (vedi [sotto](#feedback-settimanale)). Se all'apertura della scheda c'è un feedback da approvare, il feedback è la prima sezione;
   - **Piano**: vedi [sotto](#tab-piano);
-  - **Profilo**: identità, Intervals.icu, discipline, soglie, stato di allenamento, obiettivi, vincoli, metodologia, note, esporta/elimina;
+  - **Profilo**: sezioni comprimibili (`PageSection`) per identità, Intervals.icu, discipline, soglie e zone, stato di allenamento, obiettivi, vincoli e disponibilità, metodologia, note, gestione scheda. Partono aperte Soglie e zone, Obiettivi e Vincoli; una bozza di nuovo atleta le apre tutte;
   - **Anomalie** (solo per una scheda salvata): vedi [sotto](#tab-anomalie). L'etichetta della tab porta il numero di anomalie in un tondo `--warning`.
 
   Si apre sulla Panoramica; una bozza di nuovo atleta si apre sul Profilo e il suo primo salvataggio non cambia vista.
 - **Richiamo delle anomalie**: solo il numero nel tondo `--warning` accanto all'etichetta «Anomalie» ([decisioni/0033](decisioni/0033-zone-e-soglie-bloccano-l-invio.md)). In cima alla scheda resta solo l'avviso «Questa scheda è stata modificata altrove».
-- **Sezioni** (`<section class="block">`, stile in `base.css`): piatte, separate da un filetto superiore in `--border`, titolo `h3`. Le **unità** (`.unit`) sono l'unico livello di card: sfondo `--surface`, bordo, `--radius-md`, intestazione `.unit-head` con titolo e `IconButton` di rimozione.
+- **Sezioni** (`<section class="block">`, stile in `base.css`): piatte, separate da un filetto superiore in `--border`, titolo `h3`. Nelle pagine lunghe sono `PageSection` comprimibili. Le **unità** (`.unit`) sono l'unico livello di card: sfondo `--surface`, bordo, `--radius-md`, intestazione `.unit-head` con titolo e `IconButton` di rimozione.
 - **Soglie**: una sola sezione con un selettore a segmenti (`.segmented`, `aria-pressed`) Corsa / Bici / Nuoto.
 - **Campi**: `<label class="field">` che avvolge `<span class="field-label">` e il controllo, così ogni etichetta è associata al suo campo senza `id`. Le righe di campi (`.field-row`) sono una griglia `auto-fit` con colonne da almeno 150px.
-- **Stato vuoto** (`EmptyState.vue`, nessun atleta aperto): titolo e una frase su cosa fare; prima del caricamento dell'elenco, «Caricamento…». Non ha pulsanti: non ripete i comandi della sidebar, che su mobile si apre con l'hamburger.
+- **Pagina iniziale «Da fare»** (`TodoPage.vue`, [decisioni/0035](decisioni/0035-pagina-da-fare-sezioni-e-guida.md)):
+  - una sezione per atleta, con il nome come link alla scheda, e un'unità con una riga per voce, come la tab Anomalie: icona (`CircleAlert` `--danger` per ciò che è fallito, `TriangleAlert` `--warning` per ciò che va sistemato, `Clock` `--text-muted` per ciò che aspetta un'approvazione), titolo, dettaglio e link al punto esatto;
+  - gli atleti senza nulla da fare non compaiono; senza voci, «Niente da fare» con una frase su cosa compare qui;
+  - in fondo, una riga ricorda che zone e soglie si controllano nella scheda;
+  - senza atleti: «Nessun atleta» e come crearne uno.
 
 ### Tab Piano
 
@@ -112,9 +135,11 @@ Una sola vista, un pannello e due dialoghi, al posto di schermate separate (moti
 
   «Approva» è un pulsante fratello, presente solo per le bozze valide. Le sedute annullate o sostituite hanno il nome barrato e in `--text-muted`.
 - **Badge di stato** (`WorkoutBadges`): icona e testo, mai solo colore; un badge per asse (approvazione, sincronizzazione, esecuzione). Il colore segnala solo ciò che richiede attenzione:
-  - `--warning` per «Da revisionare», «Da verificare» (struttura incompleta o vincolo di disponibilità non rispettato, con il motivo nel pannello), «Da aggiornare su Intervals.icu», «Da rimuovere da Intervals.icu»;
+  - `--warning` per «Bozza», «Da verificare» (struttura incompleta o vincolo di disponibilità non rispettato, con il motivo nel pannello), «Da aggiornare su Intervals.icu», «Da rimuovere da Intervals.icu»;
   - `--danger` per «Invio non riuscito»;
   - neutri gli stati a posto («Approvata», «Su Intervals.icu», «Svolta»), che non usano l'accento, riservato alla selezione e all'azione primaria.
+
+  Nella riga (`WorkoutBadges row`) mancano «Approvata», «Su Intervals.icu» e «Bloccata», che sono lo stato normale: restano nel pannello. I nomi vengono dal glossario `STATE_LABELS` (`domain/workoutState.ts`), con «Versione N» per il numero di revisione.
 - **Pannello della seduta** (`WorkoutDrawer`): modale a destra (600px, a tutta larghezza su mobile), con focus intrappolato, Esc e ritorno del focus (`useModalFocus`). Dall'alto:
   - nome modificabile nell'intestazione;
   - stati e numero di revisione;
@@ -128,18 +153,30 @@ Una sola vista, un pannello e due dialoghi, al posto di schermate separate (moti
   Il piede contiene «Elimina bozza» (solo bozze mai inviate) o «Annulla seduta», poi «Salva modifiche» e, per le bozze, «Salva e approva» / «Approva»; per le sedute già approvate «Da verificare», «Salva e segna verificata» / «Segna verificata». Chiudere con modifiche non salvate chiede conferma.
 - **Editor della struttura** (`StepEditor`): ogni step è un'unità con una striscia del colore della zona a sinistra e i campi tipo, durata, unità (min, s, km, m), zona, «fino a…», indicazione per l'atleta. Le zone proposte sono quelle del sistema dell'atleta per la disciplina; una zona già oltre resta visibile come «Z5, oltre le 3 zone», con il motivo sotto la struttura. Ha i comandi sposta su/giù e rimuovi, anche per gli step dentro una ripetuta. Le ripetute sono un riquadro con nome e numero di ripetizioni che contiene i propri step. L'errore di validazione compare sotto lo step, con il bordo `--danger` sul campo interessato.
 - **Dialoghi** di generazione («Genera il piano», «Prosegui il piano», «Ripianifica da una data») e «Sincronizza settimana». Nella generazione, «Genera la proposta» resta disattivato con «Preparo la richiesta…» fino alla chiamata a Claude; uno schema di carico non riconosciuto è segnalato nei parametri; nella proposta gli avvisi (sedute a settimana, variazione di volume, date riallineate o scartate) sono in un riquadro d'avviso con il conteggio. In generale: box centrato di 720px (a schermo intero sotto i 560px), con intestazione, corpo scorrevole e piede con le azioni a destra. Il pulsante di conferma dice cosa succede e quante sedute coinvolge («Applica la nuova programmazione», «Sincronizza 3 sedute, di cui 1 da rimuovere»). Le liste dentro i dialoghi (`.op-list`, `.keep-list`, differenze per giorno) sono unità con righe separate da filetti. Gli esiti per riga usano icona e testo: in corso in `--accent`, riuscita neutra, non riuscita in `--danger` con il motivo.
-- **Storico**: selettore del piano (attivo, chiusi con la data) e filtri a chip con conteggio: tutte, da revisionare, da verificare, approvate, su Intervals.icu, da aggiornare, errori, svolte, non registrate, in programma, annullate o sostituite. Le sedute sono raggruppate per settimana, dalla più recente.
+- **Storico**: due selettori affiancati, «Piano» (attivo, chiusi con la data) e «Sedute». «Sedute» ha i filtri con il conteggio, raggruppati per asse:
+  - tutte;
+  - da sistemare: bozze, da verificare, da aggiornare su Intervals.icu, invii non riusciti;
+  - approvazione e invio: approvate, su Intervals.icu;
+  - esecuzione: in programma, svolte, svolte in parte, non registrate;
+  - chiuse: annullate o sostituite.
+
+  Niente chip. Le sedute sono raggruppate per settimana, dalla più recente.
 
 ### Tab Anomalie
 
-`AnomaliesTab.vue`, elenco da `useAthleteAnomalies.ts`; decisione in [decisioni/0031](decisioni/0031-anomalie-dell-atleta-in-una-tab.md).
+`AnomaliesTab.vue`, elenco da `useAthleteAnomalies.ts`; decisione in [decisioni/0034](decisioni/0034-anomalie-in-un-elenco-ed-email-dell-atleta.md).
 
-- **Gruppi per ciò che fermano**, una sezione ciascuno, mostrata solo se ha anomalie:
-  - «Fermano il feedback e l'invio a Intervals.icu»: zone o soglie diverse da Intervals.icu, soglia mancante, chiave Intervals.icu non valida;
-  - «Fermano il feedback settimanale»: feedback non preparato o approvato ma non inviato (ultime 4 settimane);
-  - «Fermano l'invio a Intervals.icu»: sedute da verificare, invii non riusciti.
-  Sotto il titolo una riga dice la conseguenza.
-- **Ogni gruppo è un'unità** con una riga per anomalia, separata da filetti. Riga: icona (`TriangleAlert` in `--warning` per ciò che va sistemato, `CircleAlert` in `--danger` per ciò che è già fallito), titolo, dettaglio in `--text-muted`, azioni. Le azioni che scrivono (su Intervals.icu o nella scheda) sono pulsanti `secondary` con conferma; quelle che portano dove si sistema («Aggiungila nel Profilo», «Apri il feedback») sono link.
+- **Un solo elenco**, in un'unità con una riga per anomalia separata da filetti: prima ciò che è già fallito, poi ciò che va sistemato. Riga:
+  - icona: `CircleAlert` in `--danger` per ciò che è fallito, `TriangleAlert` in `--warning` per ciò che va sistemato;
+  - titolo;
+  - la riga «Ferma: …» in grassetto: feedback settimanale e invio a Intervals.icu, feedback settimanale, invio a Intervals.icu, email del feedback all'atleta;
+  - dettaglio in `--text-muted`;
+  - azioni. Quelle che scrivono (su Intervals.icu o nella scheda) sono pulsanti `secondary` con conferma; quelle che portano dove si sistema («Aggiungila nel Profilo», «Apri il feedback») sono link. «Apri il feedback» porta alla settimana indicata.
+- **Anomalie**:
+  - zone o soglie diverse da Intervals.icu, soglia mancante, chiave non valida;
+  - email mancante con l'invio email attivo;
+  - feedback non preparato o approvato ma non inviato (ultime 4 settimane);
+  - sedute da verificare, invii non riusciti.
 - **Sedute**: sedute da verificare e invii non riusciti sono una sola anomalia con l'elenco delle sedute (data e nome come link che apre il pannello, motivo sotto). Nel conteggio ogni seduta vale uno. Dal pannello «indietro» torna alle anomalie.
 - **Vuota**: «Nessuna anomalia» e una frase su cosa compare qui. Durante la lettura da Intervals.icu: «Controllo zone e soglie su Intervals.icu…».
 
@@ -155,7 +192,7 @@ Ogni componente interattivo gestisce esplicitamente: default, hover, focus (visi
 - Tutti i controlli interattivi sono elementi nativi (`button`, `input`, `select`) raggiungibili da tastiera; ordine di tabulazione naturale (nessun `tabindex` positivo; l'unico `tabindex="-1"` è sulle tab inattive, secondo il pattern ARIA delle tab).
 - Ogni campo ha un'etichetta associata (vedi [§ Layout](#layout)); i campi senza etichetta visibile (note libere, prompt, JSON del piano) hanno `aria-label`.
 - Icone e pulsanti solo-icona privi di testo visibile accompagnati da `aria-label` (nessun attributo `title`, per evitare tooltip nativi ridondanti).
-- Dialoghi (`ConfirmDialog`, drawer mobile, pannello della seduta, dialoghi di generazione e «Sincronizza settimana») intrappolano il focus e lo restituiscono all'elemento che li ha aperti alla chiusura; Esc chiude (tranne durante un'operazione in corso). Pannello della seduta e dialoghi del piano si chiudono anche con «indietro» del browser o del telefono (vedi [architettura.md](architettura.md#flussi-principali)). Gli esiti asincroni dei dialoghi sono in una regione `aria-live`.
+- Dialoghi (`ConfirmDialog`, drawer mobile, pannello della seduta, guida, dialoghi di generazione e «Sincronizza settimana») intrappolano il focus e lo restituiscono all'elemento che li ha aperti alla chiusura; Esc chiude (tranne durante un'operazione in corso). Pannello della seduta e dialoghi del piano si chiudono anche con «indietro» del browser o del telefono (vedi [architettura.md](architettura.md#flussi-principali)). Gli esiti asincroni dei dialoghi sono in una regione `aria-live`.
 - Il grafico del carico ha un `aria-label` con periodo e valori attuali; il tooltip è solo visivo (`aria-hidden`).
 - Animazioni continue e transizioni rispettano `prefers-reduced-motion`.
 
@@ -178,7 +215,7 @@ Ogni componente interattivo gestisce esplicitamente: default, hover, focus (visi
 - **ATL (fatica)**: linea sottile in `--chart-atl`, una tinta viola che non compare tra le zone.
 - **TSB (forma)**: banda tra lo zero e il valore in `--chart-tsb` (neutro trasparente); il segno si legge dalla posizione rispetto alla linea dello zero, più marcata delle altre linee di griglia.
 - **Allenamenti al giorno**: barre in `--chart-bar` in una striscia separata sotto il grafico, mai sovrapposte alle serie.
-- Asse y con etichette a passo "tondo" (1, 2, 5 × 10ⁿ); date di inizio e fine sotto la striscia; legenda con l'ultimo valore di CTL, ATL e TSB.
+- Asse y con etichette a passo "tondo" (1, 2, 5 × 10ⁿ); date di inizio e fine sotto la striscia; legenda con l'ultimo valore di CTL, ATL e TSB. Etichette e date sono HTML in `--fs-xs` posizionate sopra l'SVG, non testo SVG: non rimpiccioliscono con il grafico.
 - Crosshair e tooltip al passaggio del mouse o al tocco (eventi touch e mouse unificati). Senza dati, al posto del grafico compare uno stato vuoto fornito dal chiamante (slot `empty`), che indica come ottenere i dati.
 
 ## Regole mobile
@@ -190,34 +227,43 @@ Sotto i `720px` la sidebar atleti diventa un **drawer**: nascosta di default, ap
 L'hamburger è fisso in alto a sinistra e sta dentro la fascia dell'header di pagina sticky: su mobile l'header ha un rientro sinistro di 48px, così il titolo non viene mai coperto durante lo scroll.
 
 Altre compattazioni:
+- sotto `400px`: le tab si avvicinano (`--sp-3`), così quattro tab e il numero delle anomalie stanno in 320px;
 - sotto `720px`: titolo di pagina a `--fs-xl`; la disponibilità settimanale passa da quattro colonne a due (giorno e "Disponibile", poi durata e attività);
 - sotto `480px`: campi e checkbox su una colonna, pulsanti delle barre d'azione a tutta larghezza, l'etichetta "Modifiche non salvate" è nascosta (lo stato resta leggibile dal pulsante "Salva" attivo); nella barra del Piano «Prosegui il piano» e «Ripianifica da…» stanno affiancati e «Sincronizza settimana» occupa la riga sotto.
 
 **Dispositivi touch** (`@media (pointer: coarse)`, decisione in [decisioni/0026](decisioni/0026-touch-e-orientamento-pwa.md)):
 - i campi hanno il testo a 16px, perché sotto quella misura Safari su iOS ingrandisce la pagina al tocco;
-- pulsanti, campi, tab, chip, voci dell'elenco atleti, pulsanti-icona, caselle con etichetta e «Aggiungi…» sono alti almeno 44px;
+- pulsanti, campi, tab, voci dell'elenco atleti, pulsanti-icona, caselle con etichetta, «Aggiungi…» e «Versione X.Y.Z» sono alti almeno 44px;
 - i link nel testo restano in riga, con un'area di tocco più alta.
 
 ## Feedback settimanale
 
 Sezione della Panoramica (`WeeklyReviews.vue`):
-- **Testo d'aiuto** che spiega il flusso: ogni lunedì PCoach prepara il feedback e lo si rivede qui; parte solo all'approvazione.
-- **«Prepara il feedback»**, con un selettore delle ultime sei settimane (in corso compresa), per valutare una settimana a richiesta.
+- **Titolo con l'icona Info**: la guida spiega il flusso (ogni lunedì PCoach prepara il feedback, parte solo all'approvazione).
 - **Elenco delle settimane**, dalla più recente; ne mostra 4 e il resto con «Mostra tutti». Per ogni settimana:
-  - intervallo di date e badge di stato (`.w-badge`, testo e icona, mai solo colore): «Da rivedere» in avviso, «Approvato», «Inviato all'atleta», «In preparazione», «Nessuna seduta da valutare», «Non riuscito» o «Approvato, email non inviata» in errore;
+  - intervallo di date e badge di stato (`.w-badge`, testo e icona, mai solo colore): «Da approvare» in avviso, «Approvato», «Inviato all'atleta», «In preparazione», «Nessuna seduta da valutare», «Non riuscito» o «Approvato, email non inviata» in errore;
   - riga di conteggi senza punti mediani (sedute assegnate, svolte, senza attività registrata, non valutabili, extra, tasso di completamento solo se comunicabile);
   - «Sedute della settimana» (`<details>`): data, titolo ed esito di ogni seduta. Gli esiti che chiedono attenzione («Nessuna attività registrata», «Dato non disponibile», «Non attribuibile con certezza», «Al suo posto un'altra disciplina», «Molto più breve del previsto») sono in `--warning`;
   - limitazioni dei dati, in testo secondario;
   - «Per te:» con la sintesi di Claude per il coach.
-- **Bozza**: testo per l'atleta in un campo modificabile, «Approva e invia» e «Rigenera». Il pulsante dice solo «Approva», con una nota, se l'email è disattivata o se l'atleta non ha un indirizzo; in quel caso un invio non riuscito non propone «Riprova l'invio» ma di aggiungere l'indirizzo nel Profilo.
+- **Bozza**: testo per l'atleta in un campo modificabile, «Approva e invia» e «Rigenera». Il pulsante dice solo «Approva», con una nota, se l'email è disattivata o se l'atleta non ha un indirizzo. Senza indirizzo la nota è in `--danger`: approvando il feedback non arriva e resta fra le anomalie; aggiunto l'indirizzo, «Riprova l'invio».
 - **In preparazione**: la sezione si rilegge da sola ogni 30 secondi finché c'è una valutazione in preparazione, con «Aggiorna ora».
 - **Approvata**: il testo inviato, la data di invio oppure l'errore con «Riprova l'invio», e «Rigenera».
 - **Non riuscita**: il messaggio d'errore e «Riprova».
+- **In fondo**, «Prepara il feedback di un'altra settimana»: un selettore delle ultime sei settimane (in corso compresa) e «Prepara il feedback». Un link `?feedback=<id>` porta la settimana indicata in vista, aprendo «Mostra tutti» se serve.
 
-In Impostazioni:
-- **«Tono del feedback settimanale»**: il template modificabile;
-- **«Soglie del feedback»**: le soglie principali e, in un `<details>`, quelle sulla qualità dei dati, con validazione per campo e «Ripristina i valori predefiniti»;
-- **«Fuso orario»**: un elenco dei fusi riconosciuti dal browser; un valore salvato non valido compare segnalato e il salvataggio è bloccato finché non se ne sceglie uno.
+## Impostazioni
+
+`SettingsPanel.vue`, sezioni comprimibili con indice e guida ([decisioni/0035](decisioni/0035-pagina-da-fare-sezioni-e-guida.md)):
+- **Claude e generazione** (aperta): chiave e modello, preferenze per generare il piano con «Ripristina le preferenze predefinite».
+- **Feedback settimanale** (aperta): ora del lunedì, fuso orario (un elenco dei fusi riconosciuti dal browser; un valore salvato non valido compare segnalato e il salvataggio è bloccato), invio via email, tono del feedback.
+- **Avanzate**, un titolo `h2` in `--text-muted` con una riga sugli effetti, poi tre sezioni chiuse, il cui riepilogo dice «Valori predefiniti» o quanti valori sono personalizzati:
+  - «Classificazione delle sedute»: soglie principali e, sotto «Qualità dei dati», le altre, con validazione per campo;
+  - «Intensità per sistema di zone»: una tabella con una riga per sistema (3, 5, 7 zone) e le colonne «Bassa fino alla zona» e «Media fino alla zona»; ogni campo ha il nome dalla riga e dalla colonna;
+  - «Modelli di zone»: per misura e sistema, un preset o limiti propri, con la fonte del preset. Salvare modelli cambiati chiede conferma, perché cambiano la durata stimata delle sedute a distanza per tutti gli atleti.
+
+  Ogni sezione ha il suo «Ripristina…», che chiede conferma solo se ci sono valori personalizzati.
+- **Informazioni** (chiusa): versione, build e data, versione del server, «Copia per una segnalazione», novità della versione ([decisioni/0036](decisioni/0036-versione-dell-app-e-rilasci.md)).
 
 Nel Profilo, la sezione Metodologia ha lo schema di carico e scarico come due selettori («Settimane di carico» 1-8, «Settimane di scarico» 1-4; un valore salvato non riconosciuto è segnalato) e i tre campi della progressione del carico.
 
