@@ -26,7 +26,13 @@ const emit = defineEmits<{ (e: "close"): void }>();
 
 const isDraftOpen = computed(() => route.name === "new-athlete");
 const isHome = computed(() => route.name === "home");
+// Un solo contatore globale (scelta del coach): grigio se ci sono solo approvazioni, giallo se da
+// qualche parte c'e' anche una sola anomalia da sistemare.
 const todoTotal = computed(() => todo.list.reduce((n, a) => n + a.count, 0));
+const todoHasAnomaly = computed(() => todo.list.some((a) => a.items.some((i) => i.tone !== "info")));
+const todoLabel = computed(() =>
+  todoTotal.value ? `Da fare, ${todoTotal.value} in tutto, ${todoHasAnomaly.value ? "con anomalie da sistemare" : "solo da approvare"}` : "Da fare"
+);
 const openId = computed(() => (route.name === "athlete" ? String(route.params.id) : null));
 const draftName = computed(() => fullName(athletes.currentProfile?.identity) || "Bozza senza nome");
 const statusLabel = computed(() => CONNECTION_STATUS_LABELS[status.value]);
@@ -68,8 +74,8 @@ async function onSignOut() {
     <ul class="athlete-list">
       <!-- La pagina iniziale «Da fare» (D-01), con il totale di tutti gli atleti. -->
       <li class="athlete-item todo-item" :class="{ active: isHome }">
-        <button type="button" class="athlete-select" :aria-current="isHome ? 'page' : undefined" @click="go({ name: 'home' }, isHome)">
-          <ListTodo :size="16" aria-hidden="true" />Da fare<span v-if="todoTotal" class="todo-count" :aria-label="`, ${todoTotal} in tutto`">{{ todoTotal }}</span>
+        <button type="button" class="athlete-select" :aria-current="isHome ? 'page' : undefined" :aria-label="todoLabel" @click="go({ name: 'home' }, isHome)">
+          <ListTodo :size="16" aria-hidden="true" />Da fare<span v-if="todoTotal" class="todo-count" :class="{ attention: todoHasAnomaly }" aria-hidden="true">{{ todoTotal }}</span>
         </button>
       </li>
       <li class="athlete-item new-athlete-card" :class="{ active: isDraftOpen }">
@@ -101,7 +107,7 @@ async function onSignOut() {
           @click="go({ name: 'athlete', params: { id: a.id } }, openId === a.id)"
         >
           <span class="meta">
-            <span class="name">{{ a.name }}<span v-if="todo.countFor(a.id)" class="todo-count" :aria-label="`, ${todo.countFor(a.id)} da fare`">{{ todo.countFor(a.id) }}</span></span>
+            <span class="name">{{ a.name }}</span>
             <span class="sub">{{ a.disciplines || "Nessuna disciplina" }}</span>
             <span v-if="a.tsb" class="sub">TSB {{ a.tsb }}</span>
           </span>

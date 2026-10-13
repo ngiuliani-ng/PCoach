@@ -1,6 +1,6 @@
 // Dati della pagina «Da fare» per tutti gli atleti (D-01): sedute attive non svolte, invii non
 // riusciti e feedback delle ultime settimane. Si rilegge a ogni cambio di pagina, cosi' quello che il
-// coach sistema in una scheda sparisce dalla home e dal numero nella barra laterale.
+// coach sistema in una scheda sparisce dalla home e dal contatore nella barra laterale.
 import { defineStore } from "pinia";
 import { supabase } from "../services/supabase";
 import { addDaysISO, weekStartISO } from "@shared/workouts/calendar.ts";
@@ -30,10 +30,6 @@ export const useTodoStore = defineStore("todo", {
         today: todayISO()
       });
     },
-    countFor(): (id: string) => number {
-      const byId = new Map(this.list.map((a) => [a.id, a.count]));
-      return (id) => byId.get(id) ?? 0;
-    }
   },
   actions: {
     async refresh() {

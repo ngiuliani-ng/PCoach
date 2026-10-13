@@ -98,14 +98,12 @@ test("pagina «Da fare»: feedback e bozze di tutti gli atleti, con il numero in
   const athlete = page.locator(".todo-athlete", { has: page.getByRole("heading", { name: "Giulia Ferri" }) });
   await expect(athlete).toContainText("Feedback della settimana del 5 ott da approvare");
   await expect(athlete).toContainText("Una seduta in bozza da approvare");
+  // Un solo contatore globale, nessun numero accanto agli atleti; grigio: ci sono solo cose da approvare.
   const menu = page.getByRole("button", { name: "Apri la barra laterale" });
-  if (await menu.isVisible().catch(() => false)) {
-    await menu.click();
-    await expect(page.getByRole("button", { name: /Giulia Ferri, 2 da fare/ })).toBeVisible();
-    await page.keyboard.press("Escape");
-  } else {
-    await expect(page.getByRole("button", { name: /Giulia Ferri, 2 da fare/ })).toBeVisible();
-  }
+  if (await menu.isVisible().catch(() => false)) await menu.click();
+  await expect(page.getByRole("button", { name: /^Da fare, 2 in tutto, solo da approvare$/ })).toBeVisible();
+  await expect(page.locator(".athlete-list .name .todo-count")).toHaveCount(0);
+  if (await page.locator(".sidebar.open").count()) await page.keyboard.press("Escape");
   await athlete.getByRole("link", { name: "Apri il feedback" }).click();
   await expect(page).toHaveURL(/panoramica\?feedback=review-1/);
   // Con un feedback da approvare, il feedback viene prima del grafico del carico.
@@ -144,4 +142,17 @@ test("«Da fare» nella barra laterale riporta alla home; le sezioni del Profilo
   await expect(page.getByRole("heading", { name: "Da fare", level: 1 })).toBeVisible();
   await page.goto("./#/impostazioni");
   for (const state of await page.locator(".section-toggle").evaluateAll((els) => els.map((e) => e.getAttribute("aria-expanded")))) expect(state).toBe("false");
+});
+
+test("il contatore «Da fare» diventa giallo con almeno un'anomalia, in qualunque atleta", async ({ page }) => {
+  const state = createState();
+  (state.tables.workouts[0] as Record<string, unknown>).needs_review = "Durata oltre il massimo del giorno.";
+  await installMockBackend(page, state);
+  await page.goto("./");
+  const menu = page.getByRole("button", { name: "Apri la barra laterale" });
+  if (await menu.isVisible().catch(() => false)) await menu.click();
+  const counter = page.locator(".todo-item .todo-count");
+  await expect(counter).toHaveText("3");
+  await expect(counter).toHaveClass(/attention/);
+  await expect(page.getByRole("button", { name: /^Da fare, 3 in tutto, con anomalie da sistemare$/ })).toBeVisible();
 });

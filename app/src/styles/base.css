@@ -313,7 +313,7 @@ button:focus-visible, a:focus-visible {
 .anomaly-icon { margin-top: 3px; color: var(--warning); }
 .anomaly.err .anomaly-icon { color: var(--danger); }
 .anomaly.info .anomaly-icon { color: var(--text-muted); }
-/* Numero di cose da fare (sidebar): neutro, per non confonderlo con il numero giallo delle anomalie. */
+/* Contatore globale delle cose da fare (sidebar): grigio se ci sono solo approvazioni, giallo con almeno un'anomalia. */
 .todo-count {
   margin-left: var(--sp-2);
   padding: 0 6px;
@@ -326,6 +326,7 @@ button:focus-visible, a:focus-visible {
 }
 .todo-item .athlete-select { display: flex; align-items: center; justify-content: flex-start; gap: var(--sp-2); text-align: left; }
 .todo-item .todo-count { margin-left: auto; }
+.todo-count.attention { color: var(--warning); background: var(--warning-bg); border-color: transparent; }
 
 /* ---------- Pagina iniziale «Da fare» (D-01): un'unita' per atleta, come la tab Anomalie ---------- */
 .todo-page .page-header + section.block, .todo-page .page-header + .helper-text { border-top: none; }
