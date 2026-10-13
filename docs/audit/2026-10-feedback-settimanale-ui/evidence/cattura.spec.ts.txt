@@ -1,0 +1,139 @@
+// Cattura temporanea per la verifica UI/UX del feedback settimanale (non e' un test: si cancella dopo).
+import { test, type Page } from "@playwright/test";
+import { ATHLETE_ID, createState, installMockBackend } from "./mockBackend";
+
+const OUT = process.env.FB_OUT!;
+const TEXT = `Ciao Giulia,
+
+settimana solida: hai svolto tre delle quattro sedute previste e la corsa facile di martedì è stata proprio come doveva essere, con un ritmo controllato e una durata in linea col programma.
+
+L'uscita lunga in bici di venerdì invece non risulta: se l'hai fatta senza registrarla, scrivimelo; se è saltata, nessun problema, la recuperiamo nel fine settimana prossimo senza aumentare il carico.
+
+Per la prossima settimana tieni le sedute facili davvero facili e arriva fresca al lungo di domenica. Se senti le gambe pesanti, avvisami e alleggeriamo.
+
+A presto!`;
+
+function base(over: Record<string, unknown>) {
+  return {
+    athlete_id: ATHLETE_ID, revision: 1, skip_reason: null, model: "claude-sonnet-4-5", error: null, attempts: 0,
+    delivery_status: "not_requested", delivery_error: null, delivered_at: null, approved_at: null,
+    generated_at: "2026-10-12T06:06:00Z", created_at: "2026-10-12T06:05:00Z", output_text: TEXT,
+    output: { summary: "Tre sedute su quattro svolte; per l'uscita lunga non c'è un'attività registrata. Carico in linea, nessun segnale di fatica.", limitations: ["Mancano dati su RPE e benessere.", "Una seduta senza attività registrata: non si sa se è stata svolta."] },
+    input: {
+      limitations: ["Mancano dati su RPE e benessere."],
+      metrics: {
+        sessions: { assigned: 4, past: 4, pending: 0, completed: 3, partial: 0, moved: 0, substituted: 0, not_recorded: 1, data_unavailable: 0, ambiguous: 0, unknown: 0, extra: 1 },
+        completion_rate: { numerator: 3, denominator: 4, value: 0.75, reportable: true }
+      },
+      sessions: [
+        { workout_id: "x1", date: "2026-10-06", discipline: "running", title: "Corsa facile", outcome: "completed", planned_minutes: 45, done_minutes: 46 },
+        { workout_id: "x2", date: "2026-10-08", discipline: "running", title: "Ripetute 6×1000", outcome: "partial", planned_minutes: 60, done_minutes: 41 },
+        { workout_id: "x3", date: "2026-10-09", discipline: "cycling", title: "Uscita lunga", outcome: "not_recorded", planned_minutes: 120, done_minutes: null },
+        { workout_id: "x4", date: "2026-10-11", discipline: "running", title: "Lungo lento", outcome: "over", planned_minutes: 90, done_minutes: 104 }
+      ]
+    },
+    ...over
+  };
+}
+
+function richState(email: string) {
+  const state = createState();
+  (state.tables.athletes[0].data as { identity: { email: string } }).identity.email = email;
+  state.tables.app_settings[0].weekly_feedback_email_enabled = true;
+  state.tables.weekly_reviews = [
+    base({ id: "r-now", period_start: "2026-10-12", period_end: "2026-10-18", status: "pending", output: null, output_text: null, input: null }),
+    base({ id: "r-5ott-2", period_start: "2026-10-05", period_end: "2026-10-11", revision: 2, status: "draft" }),
+    base({ id: "r-5ott-1", period_start: "2026-10-05", period_end: "2026-10-11", revision: 1, status: "superseded", delivery_status: "sent", delivered_at: "2026-10-12T07:00:00Z" }),
+    base({ id: "r-28set", period_start: "2026-09-28", period_end: "2026-10-04", status: "approved", delivery_status: "failed", delivery_error: "Il provider ha rifiutato l'indirizzo (422).", approved_at: "2026-10-05T08:00:00Z" }),
+    base({ id: "r-21set", period_start: "2026-09-21", period_end: "2026-09-27", status: "approved", delivery_status: "sent", delivered_at: "2026-09-28T08:00:00Z", approved_at: "2026-09-28T08:00:00Z" }),
+    base({ id: "r-14set", period_start: "2026-09-14", period_end: "2026-09-20", status: "skipped", output: null, output_text: null, input: { limitations: [], metrics: { sessions: { assigned: 0, past: 0, pending: 0, completed: 0, partial: 0, moved: 0, substituted: 0, not_recorded: 0, data_unavailable: 0, ambiguous: 0, unknown: 0, extra: 0 }, completion_rate: { numerator: 0, denominator: 0, value: null, reportable: false } }, sessions: [] } }),
+    base({ id: "r-7set", period_start: "2026-09-07", period_end: "2026-09-13", status: "generation_failed", output: null, output_text: null, error: "Claude non ha risposto entro 120 s (timeout)." })
+  ];
+  return state;
+}
+
+async function shoot(page: Page, name: string) {
+  await page.locator("#sec-feedback").screenshot({ path: `${OUT}/${name}.png` });
+  const m = await page.evaluate(() => {
+    const s = document.getElementById("sec-feedback")!.getBoundingClientRect();
+    const draft = document.querySelector("#feedback-r-5ott-2 textarea")?.getBoundingClientRect();
+    return { sectionTop: Math.round(s.top + scrollY), sectionHeight: Math.round(s.height), screens: +(s.height / innerHeight).toFixed(1), textareaTop: draft ? Math.round(draft.top + scrollY) : null, vw: innerWidth };
+  });
+  console.log(name, JSON.stringify(m));
+}
+
+for (const w of [1440, 390]) {
+  test(`feedback ${w}`, async ({ page }, info) => {
+    test.skip(info.project.name !== "desktop");
+    await page.setViewportSize({ width: w, height: w === 1440 ? 900 : 844 });
+    await installMockBackend(page, richState("giulia.ferri@example.com"));
+    await page.goto(`./#/atleta/${ATHLETE_ID}/panoramica`);
+    await page.locator("#feedback-r-5ott-2").waitFor();
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: `${OUT}/panoramica-${w}.png`, fullPage: false });
+    await shoot(page, `feedback-${w}`);
+    await page.locator("#feedback-r-5ott-2 details summary").click();
+    await page.locator("#feedback-r-5ott-2").screenshot({ path: `${OUT}/bozza-sedute-${w}.png` });
+    await page.getByRole("button", { name: /Mostra tutti/ }).click();
+    await shoot(page, `feedback-tutti-${w}`);
+    await page.getByRole("button", { name: "Guida: Feedback settimanale" }).click();
+    await page.getByRole("dialog").screenshot({ path: `${OUT}/guida-${w}.png` });
+  });
+}
+
+test("senza email", async ({ page }, info) => {
+  test.skip(info.project.name !== "desktop");
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await installMockBackend(page, richState(""));
+  await page.goto(`./#/atleta/${ATHLETE_ID}/panoramica`);
+  await page.locator("#feedback-r-5ott-2").waitFor();
+  await page.locator("#feedback-r-5ott-2").screenshot({ path: `${OUT}/bozza-senza-email.png` });
+  await page.locator("#feedback-r-28set").screenshot({ path: `${OUT}/email-fallita-senza-email.png` });
+});
+
+test("impostazioni feedback", async ({ page }, info) => {
+  test.skip(info.project.name !== "desktop");
+  for (const w of [1440, 390]) {
+    await page.setViewportSize({ width: w, height: 900 });
+    await installMockBackend(page, richState("giulia.ferri@example.com"));
+    await page.goto("./#/impostazioni");
+    await page.locator(".section-toggle", { hasText: "Feedback settimanale" }).click();
+    await page.locator("#imp-feedback").screenshot({ path: `${OUT}/impostazioni-feedback-${w}.png` });
+    await page.goto("./#/");
+    await page.locator(".todo-athlete").first().waitFor();
+    await page.locator(".todo-page").screenshot({ path: `${OUT}/da-fare-${w}.png` });
+  }
+});
+
+test("interazioni", async ({ page }, info) => {
+  test.skip(info.project.name !== "desktop");
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const state = richState("giulia.ferri@example.com");
+  await installMockBackend(page, state);
+  // Il backend finto non gestisce «regenerate» e «create»: rispondo come il server reale.
+  await page.route("**/functions/v1/weekly-feedback", async (route) => {
+    const body = route.request().postDataJSON() as Record<string, unknown>;
+    if (body.action === "regenerate") return route.fulfill({ status: 409, contentType: "application/json", body: JSON.stringify({ error: "La valutazione è in elaborazione: riprova tra poco." }) });
+    if (body.action === "create") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ id: "r-28set", status: "approved" }) });
+    return route.fallback();
+  });
+  await page.goto(`./#/atleta/${ATHLETE_ID}/panoramica`);
+  const ta = page.locator("#feedback-r-5ott-2 textarea");
+  await ta.fill("Testo riscritto dal coach.");
+  await page.locator("#feedback-r-5ott-2").getByRole("button", { name: "Rigenera" }).click();
+  await page.waitForTimeout(800);
+  console.log("dopo Rigenera fallito, testo:", JSON.stringify((await ta.inputValue()).slice(0, 40)), "toast:", await page.locator(".toast").allTextContents());
+  await ta.fill("Testo riscritto dal coach, seconda volta.");
+  const menu = page.getByRole("button", { name: "Impostazioni" });
+  await menu.click();
+  await page.waitForTimeout(500);
+  console.log("uscita verso Impostazioni: dialogo?", await page.getByRole("alertdialog").count(), "url", page.url());
+  await page.goBack();
+  await page.locator("#feedback-r-5ott-2 textarea").waitFor();
+  console.log("ritorno, testo:", JSON.stringify((await page.locator("#feedback-r-5ott-2 textarea").inputValue()).slice(0, 40)));
+  await page.getByRole("button", { name: "Prepara il feedback" }).click();
+  await page.waitForTimeout(800);
+  console.log("Prepara su settimana gia' approvata, toast:", await page.locator(".toast").allTextContents());
+  const cb = page.locator("#feedback-r-5ott-2 .checkbox-line");
+  console.log("casella reinvio altezza:", (await cb.boundingBox())?.height);
+});
