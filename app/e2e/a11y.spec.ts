@@ -24,7 +24,7 @@ const SCREENS: Screen[] = [
   { name: "Impostazioni, tutto aperto", url: () => "./#/impostazioni", prep: openAllSections },
   { name: "Nuovo atleta", url: () => "./#/atleta/nuovo", prep: openAllSections },
   {
-    // Con i valori del carico: grafico, legenda e tabella dei valori giorno per giorno (aperta da openAllSections).
+    // Con i valori del carico: grafico e legenda.
     name: "Panoramica con feedback da approvare e carico", url: () => `${A}/panoramica`, prep: openAllSections,
     state: (s) => {
       (s.tables.athletes[0].data as { training_status: { load_metrics_log: unknown[] } }).training_status.load_metrics_log =
@@ -61,7 +61,7 @@ for (const scheme of ["light", "dark"] as const) {
         await expect(page.locator("h1").first()).toBeVisible();
         await page.waitForTimeout(400);
         if (screen.prep) { await screen.prep(page); await page.waitForTimeout(300); }
-        if (screen.name.includes("carico")) await expect(page.locator(".chart-values table")).toBeVisible();
+        if (screen.name.includes("carico")) await expect(page.locator(".load-chart")).toBeVisible();
         const results = await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();
         const found = results.violations.map((v) => ({
           rule: v.id, impact: v.impact, help: v.help,

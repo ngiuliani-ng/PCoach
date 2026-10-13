@@ -707,14 +707,6 @@ input[type="checkbox"] {
 .chart-legend .swatch-line { width: 14px; height: 3px; }
 .chart-legend .swatch-thin { height: 1.5px; }
 .chart-legend .swatch-bar { width: 3px; height: 10px; }
-/* Valori del grafico in tabella (D-04): chiusa all'arrivo, numeri allineati a destra, entra a 320 px. */
-.chart-values { margin: var(--sp-3) 0 0; font-size: var(--fs-sm); }
-.chart-values summary { cursor: pointer; color: var(--text-muted); }
-.chart-values table { width: 100%; border-collapse: collapse; margin-top: var(--sp-2); font-size: var(--fs-xs); }
-.chart-values th, .chart-values td { padding: var(--sp-1); border-top: 1px solid var(--border); text-align: right; font-weight: 400; }
-.chart-values thead th { color: var(--text-muted); vertical-align: bottom; border-top: none; }
-.chart-values th[scope="row"], .chart-values thead th:first-child { text-align: left; white-space: nowrap; }
-.chart-values td { color: var(--text); }
 
 /* ---------- Piano: settimana, righe delle sedute, stati (ADR 0017) ---------- */
 .plan-toolbar {

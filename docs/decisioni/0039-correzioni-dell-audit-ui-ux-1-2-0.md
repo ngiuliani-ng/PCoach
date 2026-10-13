@@ -25,7 +25,7 @@ L'[audit UI/UX della 1.2.0](../audit/2026-10-ux-ui-1-2-0/README.md) ha trovato 2
    - titolo del documento «Pagina – Atleta – PCoach».
 8. **Tema scuro dei controlli** (A-05): ogni blocco del tema dichiara `color-scheme`; il segnaposto usa `--text-muted`.
 9. **Controllo automatico di accessibilità** (D-03): axe-core negli e2e, regole WCAG A e AA, 14 schermate nei due temi, con un test di sensibilità. Blocca la suite, ma non è una prova di conformità: tastiera, focus, lettori di schermo e comprensibilità restano verifiche manuali o test dedicati.
-10. **Grafico del carico** (D-04, A-20): i valori giorno per giorno sono anche in una tabella espandibile sotto il grafico.
+10. **Grafico del carico** (A-20): nessuna tabella dei valori. La tabella espandibile decisa con D-04 è stata tolta prima del rilascio, su decisione del coach del 13 ottobre 2026; i valori dei singoli giorni restano nel tooltip, che si legge con il puntatore o al tocco.
 
 Scelte dell'assistente, da confermare:
 - l'esempio di titolo del documento «Piano – Giulia Ferri – PCoach»;
@@ -36,4 +36,4 @@ Scelte dell'assistente, da confermare:
 
 - Ogni correzione ha un e2e o un unitario che fallisce sul codice precedente; gli e2e si eseguono con un solo worker.
 - `@axe-core/playwright` è una dipendenza di sviluppo: un aggiornamento di axe può segnalare nuove violazioni senza che il codice cambi.
-- Restano aperti, perché non inclusi negli incrementi approvati: A-04 (stati nel nome della riga), A-09 (nomi dei dialoghi e `aside` con `role="dialog"`), A-16, A-17, A-21, A-25. A-23 e A-24 sono valutazioni evolutive (stato nel report).
+- Restano aperti, perché non inclusi negli incrementi approvati: A-04 (stati nel nome della riga), A-09 (nomi dei dialoghi e `aside` con `role="dialog"`), A-16, A-17, A-21, A-25. A-20 resta aperto per scelta del coach: niente tabella dei valori sotto il grafico. A-23 e A-24 sono valutazioni evolutive (stato nel report).
