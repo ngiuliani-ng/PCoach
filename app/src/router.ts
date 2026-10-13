@@ -4,7 +4,7 @@
 // Cronologia con hash: GitHub Pages non riscrive i percorsi, un ricaricamento su /PCoach/atleta/...
 // darebbe 404.
 import { createRouter, createWebHashHistory, type RouteLocationNormalized, type Router } from "vue-router";
-import EmptyState from "./components/domain/EmptyState.vue";
+import TodoPage from "./components/domain/TodoPage.vue";
 import AthleteEditor from "./components/domain/AthleteEditor.vue";
 import SettingsPanel from "./components/domain/SettingsPanel.vue";
 import { useAthletesStore } from "./stores/athletes";
@@ -20,7 +20,7 @@ export type AthleteTab = "panoramica" | "piano" | "profilo" | "anomalie";
 export const router = createRouter({
   history: createWebHashHistory(),
   routes: [
-    { path: "/", name: "home", component: EmptyState },
+    { path: "/", name: "home", component: TodoPage },
     { path: "/impostazioni", name: "settings", component: SettingsPanel },
     { path: "/atleta/nuovo", name: "new-athlete", component: AthleteEditor },
     { path: "/atleta/:id/:tab(panoramica|piano|profilo|anomalie)?", name: "athlete", component: AthleteEditor },

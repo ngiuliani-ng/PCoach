@@ -27,7 +27,7 @@ const entries = Object.entries(FIELD_HELP) as [string, FieldHelp][];
 
 describe("aiuti contestuali", () => {
   it("ogni chiave della scheda esiste nello schema", () => {
-    const missing = entries.map(([k]) => k).filter((k) => !k.startsWith("settings.") && !k.startsWith("workout.") && !schemaHas(k));
+    const missing = entries.map(([k]) => k).filter((k) => !k.startsWith("settings.") && !k.startsWith("workout.") && !k.startsWith("review.") && !schemaHas(k));
     expect(missing).toEqual([]);
   });
 

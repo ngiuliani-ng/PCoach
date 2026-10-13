@@ -63,7 +63,7 @@ export interface AnomalyNavigation {
   openThresholds: (discipline: ZoneDiscipline) => void;
   openIntervalsKey: () => void;
   openIdentity: () => void;
-  openFeedback: () => void;
+  openFeedback: (reviewId: string) => void;
   openWorkout: (id: string) => void;
 }
 
@@ -250,14 +250,14 @@ export function useAthleteAnomalies(nav: AnomalyNavigation) {
           key: `review-${r.id}`, group: "feedback", tone: "err",
           title: `Feedback della settimana ${week} non preparato`,
           detail: r.error || "Valutazione non riuscita.",
-          actions: [{ label: "Apri il feedback", kind: "go", run: nav.openFeedback }]
+          actions: [{ label: "Apri il feedback", kind: "go", run: () => nav.openFeedback(r.id) }]
         });
       } else if (r.status === "approved" && (r.delivery_status === "failed" || r.delivery_status === "skipped")) {
         out.push({
           key: `delivery-${r.id}`, group: "email", tone: "err",
           title: `Feedback della settimana ${week} approvato ma non inviato`,
           detail: r.delivery_error || "L'email all'atleta non è partita.",
-          actions: [{ label: "Apri il feedback", kind: "go", run: nav.openFeedback }]
+          actions: [{ label: "Apri il feedback", kind: "go", run: () => nav.openFeedback(r.id) }]
         });
       }
     }

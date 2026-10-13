@@ -7,6 +7,7 @@ import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAthletesStore } from "../../stores/athletes";
 import { useAuthStore } from "../../stores/auth";
+import { useTodoStore } from "../../stores/todo";
 import { CONNECTION_STATUS_LABELS, useConnectionStatus } from "../../composables/useConnectionStatus";
 import { disciplineLabel, fullName, formatSigned } from "../../constants";
 import { confirmLeaveProfile, confirmLeaveSettings } from "../../router";
@@ -15,6 +16,7 @@ import { Settings, LogOut, UserPlus } from "lucide-vue-next";
 
 const athletes = useAthletesStore();
 const auth = useAuthStore();
+const todo = useTodoStore();
 const route = useRoute();
 const router = useRouter();
 const { status } = useConnectionStatus();
@@ -90,7 +92,7 @@ async function onSignOut() {
           @click="go({ name: 'athlete', params: { id: a.id } }, openId === a.id)"
         >
           <span class="meta">
-            <span class="name">{{ a.name }}</span>
+            <span class="name">{{ a.name }}<span v-if="todo.countFor(a.id)" class="tab-count" :aria-label="`, ${todo.countFor(a.id)} da fare`">{{ todo.countFor(a.id) }}</span></span>
             <span class="sub">{{ a.disciplines || "Nessuna disciplina" }}</span>
             <span v-if="a.tsb" class="sub">TSB {{ a.tsb }}</span>
           </span>

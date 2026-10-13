@@ -49,6 +49,9 @@ export const GUIDES = {
   "profilo-note": { title: "Note libere", entries: [
     { label: "Note libere", help: "notes_free_text" }
   ] },
+  "panoramica-feedback": { title: "Feedback settimanale", entries: [
+    { label: "Come funziona", help: "review.flow" }
+  ] },
   "impostazioni-claude": { title: "Claude e generazione", entries: [
     { label: "Chiave e modello", help: "settings.claude_api_key" },
     { label: "Preferenze per generare il piano", help: "settings.plan_generation_prompt_template" }

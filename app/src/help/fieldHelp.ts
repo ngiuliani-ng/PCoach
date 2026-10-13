@@ -126,6 +126,10 @@ export const FIELD_HELP = {
     text: "Limiti delle zone in percentuale della soglia, per tutti gli atleti. Ogni valore è il limite superiore della zona; l'ultima zona non ha limite.",
     more: "PCoach li usa per stimare il passo di ogni zona, e quindi la durata degli step a distanza: totali delle sedute, durata massima del giorno (che segna le sedute «Da verificare»), abbinamento delle attività e feedback. Li scrive anche su Intervals.icu con «Porta Intervals.icu a N zone». I predefiniti sono i modelli più usati."
   },
+  "review.flow": {
+    text: "Ogni lunedì PCoach confronta la settimana appena finita con le sedute approvate e Claude scrive un feedback. Lo rivedi qui: parte verso l'atleta solo quando lo approvi.",
+    more: "Puoi modificare il testo prima di approvarlo, o chiedere a Claude di riscriverlo con «Rigenera». Per una settimana senza feedback, o per rivalutarla, usa «Prepara il feedback». Un feedback già inviato si può rigenerare: all'approvazione scegli se inviarlo di nuovo."
+  },
   "workout.primary_target": {
     text: "La misura con cui l'atleta vede le zone su Intervals.icu: potenza, frequenza cardiaca o passo.",
     more: "PCoach invia solo il numero di zona: i valori sono quelli dell'account Intervals.icu dell'atleta."

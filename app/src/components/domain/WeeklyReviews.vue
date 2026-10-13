@@ -2,7 +2,10 @@
 // Feedback settimanale dell'atleta (ADR 0019): per ogni settimana l'esito delle sedute calcolato
 // da PCoach, le limitazioni dei dati e il testo scritto da Claude, che il coach rivede e approva.
 // Solo l'approvazione invia l'email all'atleta (se attiva in Impostazioni).
-import { computed, onBeforeUnmount, reactive, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from "vue";
+import { useRoute } from "vue-router";
+import { useQueryLayer } from "../../composables/useQueryLayer";
+import IconButton from "../ui/IconButton.vue";
 import { useReviewsStore, type ReviewRecord } from "../../stores/reviews";
 import { useSettingsStore } from "../../stores/settings";
 import { useAthletesStore } from "../../stores/athletes";
@@ -11,13 +14,14 @@ import { confirmDialog } from "../../composables/useConfirmDialog";
 import { disciplineLabel, formatDate, todayISO } from "../../constants";
 import { addDaysISO, weekStartISO } from "@shared/workouts/calendar.ts";
 import type { SessionOutcome } from "@shared/feedback/types.ts";
-import { CircleCheck, CircleDashed, LoaderCircle, Mail, PencilLine, RefreshCw, TriangleAlert } from "lucide-vue-next";
+import { CircleCheck, CircleDashed, Info, LoaderCircle, Mail, PencilLine, RefreshCw, TriangleAlert } from "lucide-vue-next";
 
 const props = defineProps<{ athleteId: string | null }>();
 const reviews = useReviewsStore();
 const settings = useSettingsStore();
 
 watch(() => props.athleteId, (id) => void reviews.load(id), { immediate: true });
+
 
 // Valutazioni in preparazione sul server: si rileggono da sole ogni 30 secondi finche' ce n'e' una.
 const REFRESH_MS = 30_000;
@@ -32,6 +36,23 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer); });
 const VISIBLE = 4;
 const showAll = ref(false);
 const list = computed(() => (showAll.value ? reviews.current : reviews.current.slice(0, VISIBLE)));
+
+// Link a una settimana precisa (?feedback=ID, dalla pagina «Da fare» e dalle anomalie: audit UX-14).
+const route = useRoute();
+const guideLayer = useQueryLayer("guida");
+watch(
+  [() => route.query.feedback, () => reviews.current.length],
+  async ([id]) => {
+    if (typeof id !== "string" || !reviews.current.length) return;
+    const i = reviews.current.findIndex((r) => r.id === id);
+    if (i < 0) return;
+    if (i >= VISIBLE) showAll.value = true;
+    await nextTick();
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    document.getElementById(`feedback-${id}`)?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+  },
+  { immediate: true }
+);
 
 // Settimane valutabili: le ultime sei, compresa quella in corso.
 const weekOptions = computed(() => {
@@ -138,25 +159,14 @@ async function onRetry(r: ReviewRecord) {
 
 <template>
   <section class="block" id="sec-feedback">
-    <h3>Feedback settimanale</h3>
-    <p class="helper-text">
-      Ogni lunedì PCoach confronta la settimana appena finita con le sedute approvate e Claude scrive un feedback. Lo rivedi qui: parte verso l'atleta solo quando lo approvi.
-    </p>
-    <div class="review-create">
-      <label class="field">
-        <span class="field-label">Settimana</span>
-        <select v-model="chosenWeek">
-          <option v-for="w in weekOptions" :key="w" :value="w">{{ weekLabel(w) }}</option>
-        </select>
-      </label>
-      <button type="button" class="secondary" :disabled="reviews.busy !== null" @click="onCreate">
-        <LoaderCircle v-if="busy('new')" :size="16" class="spin" aria-hidden="true" />Prepara il feedback
-      </button>
+    <div class="section-head">
+      <h3 class="section-title">Feedback settimanale</h3>
+      <IconButton label="Guida: Feedback settimanale" @click="guideLayer.open('panoramica-feedback')"><Info :size="18" aria-hidden="true" /></IconButton>
     </div>
 
     <p v-if="!reviews.loading && !reviews.current.length" class="helper-text">Nessun feedback ancora per questo atleta.</p>
     <ul v-else class="feedback-list">
-      <li v-for="r in list" :key="r.id" class="feedback-item">
+      <li v-for="r in list" :id="`feedback-${r.id}`" :key="r.id" class="feedback-item">
         <p class="feedback-head">
           <time :datetime="r.period_start">{{ weekLabel(r.period_start) }}</time>
           <span class="w-badge" :class="statusBadge(r).tone">
@@ -241,5 +251,18 @@ async function onRetry(r: ReviewRecord) {
     <button v-if="reviews.current.length > VISIBLE" type="button" class="link-btn" @click="showAll = !showAll">
       {{ showAll ? "Mostra solo i più recenti" : `Mostra tutti (${reviews.current.length})` }}
     </button>
+    <!-- L'azione rara dopo quella frequente (audit UX-10): prima si approva, poi si prepara un'altra settimana. -->
+    <h4 class="subsection-title">Prepara il feedback di un'altra settimana</h4>
+    <div class="review-create">
+      <label class="field">
+        <span class="field-label">Settimana</span>
+        <select v-model="chosenWeek">
+          <option v-for="w in weekOptions" :key="w" :value="w">{{ weekLabel(w) }}</option>
+        </select>
+      </label>
+      <button type="button" class="secondary" :disabled="reviews.busy !== null" @click="onCreate">
+        <LoaderCircle v-if="busy('new')" :size="16" class="spin" aria-hidden="true" />Prepara il feedback
+      </button>
+    </div>
   </section>
 </template>

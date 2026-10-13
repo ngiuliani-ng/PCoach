@@ -5,6 +5,7 @@ import { useRoute } from "vue-router";
 import { useAthletesStore } from "./stores/athletes";
 import { useSettingsStore } from "./stores/settings";
 import { useAuthStore } from "./stores/auth";
+import { useTodoStore } from "./stores/todo";
 import { useMobileSidebar } from "./composables/useMobileSidebar";
 import AthleteSidebar from "./components/domain/AthleteSidebar.vue";
 import LoginView from "./components/domain/LoginView.vue";
@@ -15,6 +16,7 @@ import { Menu } from "lucide-vue-next";
 const athletes = useAthletesStore();
 const settings = useSettingsStore();
 const auth = useAuthStore();
+const todo = useTodoStore();
 const route = useRoute();
 const sidebarToggleEl = ref<HTMLElement | null>(null);
 const {
@@ -41,13 +43,18 @@ watch(
     if (ok) {
       athletes.init();
       settings.load();
+      void todo.refresh();
     }
   },
   { immediate: true }
 );
 
-// Su mobile ogni cambio di pagina chiude l'elenco degli atleti.
-watch(() => route.path, () => closeMobileSidebar());
+// Su mobile ogni cambio di pagina chiude l'elenco degli atleti. Il «Da fare» si rilegge: quello che il
+// coach ha sistemato sparisce dalla home e dal numero accanto all'atleta (D-01).
+watch(() => route.path, () => {
+  closeMobileSidebar();
+  if (auth.isAuthenticated) void todo.refresh();
+});
 </script>
 
 <template>

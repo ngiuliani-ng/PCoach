@@ -11,6 +11,7 @@ import { useRoute, useRouter } from "vue-router";
 import { useAthletesStore } from "../../stores/athletes";
 import { useWorkoutsStore } from "../../stores/workouts";
 import { useSettingsStore } from "../../stores/settings";
+import { useReviewsStore } from "../../stores/reviews";
 import {
   TRAINING_SPORT_OPTIONS, LEVEL_OPTIONS, VOLUME_UNITS,
   OBJECTIVE_OPTIONS, SHARED_OBJECTIVE_OPTIONS, EVENT_DISCIPLINE_OPTIONS, EVENT_PRIORITIES,
@@ -124,6 +125,15 @@ async function goToSection(sectionId: string) {
   tab.value = "profilo";
   await scrollToSection(sectionId, reveal, nextTick);
 }
+// Link a una sezione del Profilo (?sezione=…, dalla pagina «Da fare»): la apre e la porta in vista.
+watch(
+  [ready, () => route.query.sezione],
+  async ([ok, id]) => {
+    if (!ok || typeof id !== "string" || !PROFILE_SECTIONS.some((s) => s.id === id)) return;
+    await goToSection(id);
+  },
+  { immediate: true }
+);
 const guideLayer = useQueryLayer("guida");
 const guideKey = computed(() => (isGuideKey(guideLayer.value.value) ? guideLayer.value.value : null));
 const openGuide = (key: GuideKey) => guideLayer.open(key);
@@ -318,15 +328,21 @@ const anomalies = useAthleteAnomalies({
   },
   openIntervalsKey: () => void goToSection("sec-intervals"),
   openIdentity: () => void goToSection("sec-identita"),
-  openFeedback: async () => {
-    tab.value = "panoramica";
-    await nextTick();
-    document.getElementById("sec-feedback")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  },
+  openFeedback: (reviewId) => void router.push({ name: "athlete", params: { id: routeId.value, tab: "panoramica" }, query: { feedback: reviewId } }),
   // push e non replace: «indietro» chiude il pannello e torna alle anomalie.
   openWorkout: (id) => void router.push({ name: "athlete", params: { id: routeId.value, tab: "piano" }, query: { seduta: id } })
 });
 const anomalyCount = anomalies.count;
+const reviewsStore = useReviewsStore();
+// Si decide all'apertura della scheda: dopo l'approvazione il feedback resta dov'era, senza saltare in fondo.
+const feedbackFirst = ref(false);
+watch(
+  () => [reviewsStore.athleteId, reviewsStore.loading] as const,
+  ([id, loading]) => {
+    if (id === athletes.currentId && !loading) feedbackFirst.value = reviewsStore.current.some((r) => r.status === "draft");
+  },
+  { immediate: true }
+);
 </script>
 
 <template>
@@ -368,6 +384,8 @@ const anomalyCount = anomalies.count;
 
     <!-- ===================== Panoramica ===================== -->
     <div v-show="tab === 'panoramica'" id="panel-panoramica" role="tabpanel" aria-labelledby="tab-panoramica">
+      <!-- Con un feedback da approvare, il feedback e' la prima cosa della Panoramica (audit UX-10). -->
+      <WeeklyReviews v-if="athletes.currentId && feedbackFirst" :athlete-id="athletes.currentId" />
       <section class="block">
         <h3>Carico e forma</h3>
         <LoadMetricsChart :log="profile.training_status!.load_metrics_log as never">
@@ -397,7 +415,7 @@ const anomalyCount = anomalies.count;
         </template>
       </section>
 
-      <WeeklyReviews v-if="athletes.currentId" :athlete-id="athletes.currentId" />
+      <WeeklyReviews v-if="athletes.currentId && !feedbackFirst" :athlete-id="athletes.currentId" />
     </div>
 
     <!-- ===================== Piano ===================== -->

@@ -3,6 +3,7 @@
 // oppure storico filtrabile; da qui si aprono il pannello della seduta e i dialoghi
 // "Ripianifica" e "Sincronizza settimana".
 import { computed, ref } from "vue";
+import { useRoute } from "vue-router";
 import { addDaysISO, weekStartISO } from "@shared/workouts/calendar.ts";
 import { localSyncState } from "@shared/workouts/sync.ts";
 import { validateWorkout, workoutTotals } from "@shared/workouts/structure.ts";
@@ -28,7 +29,10 @@ const athletes = useAthletesStore();
 
 const today = todayISO();
 const mode = ref<"week" | "history">("week");
-const weekStart = ref(weekStartISO(today));
+// Settimana iniziale dal link (?settimana=AAAA-MM-GG, dalla pagina «Da fare»), altrimenti quella di oggi.
+const route = useRoute();
+const linkedWeek = typeof route.query.settimana === "string" && /^\d{4}-\d{2}-\d{2}$/.test(route.query.settimana) ? route.query.settimana : null;
+const weekStart = ref(weekStartISO(linkedWeek ?? today));
 // Pannello della seduta e dialoghi nell'URL (?seduta=…, ?dialogo=…): «indietro» li chiude.
 const workoutLayer = useQueryLayer("seduta");
 const dialogLayer = useQueryLayer("dialogo");

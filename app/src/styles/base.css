@@ -299,6 +299,17 @@ button:focus-visible, a:focus-visible {
 .anomaly:first-child { border-top: 0; }
 .anomaly-icon { margin-top: 3px; color: var(--warning); }
 .anomaly.err .anomaly-icon { color: var(--danger); }
+.anomaly.info .anomaly-icon { color: var(--text-muted); }
+
+/* ---------- Pagina iniziale «Da fare» (D-01): un'unita' per atleta, come la tab Anomalie ---------- */
+.todo-page .page-header + section.block, .todo-page .page-header + .helper-text { border-top: none; }
+section.block.todo-athlete h2 { margin: 0 0 var(--sp-3); font-size: var(--fs-lg); font-weight: 600; }
+.todo-athlete h2 a { color: inherit; text-decoration: none; }
+.todo-athlete h2 a:hover { text-decoration: underline; }
+.todo-athlete .anomaly-unit { margin-top: 0; }
+.todo-empty { display: flex; gap: var(--sp-3); align-items: flex-start; color: var(--text-muted); }
+.todo-empty h2 { margin: 0 0 var(--sp-1); font-size: var(--fs-lg); color: var(--text); }
+.todo-note { margin-top: var(--sp-4); }
 .anomaly-main { min-width: 0; }
 .anomaly-title { margin: 0; font-weight: 600; }
 .anomaly-stops { margin: 2px 0 0; font-size: var(--fs-sm); font-weight: 600; color: var(--text); }

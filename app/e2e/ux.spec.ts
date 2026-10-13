@@ -88,3 +88,29 @@ test("Impostazioni: le regole avanzate partono chiuse con il riepilogo; un ripri
   await page.getByRole("button", { name: "Ripristina le soglie predefinite" }).click();
   await expect(page.getByRole("alertdialog")).toHaveCount(0);
 });
+
+test("pagina «Da fare»: feedback e bozze di tutti gli atleti, con il numero in sidebar e i link al punto esatto (D-01, UX-10)", async ({ page }) => {
+  await installMockBackend(page, createState());
+  await page.goto("./");
+  await expect(page.getByRole("heading", { name: "Da fare", level: 1 })).toBeVisible();
+  const athlete = page.locator(".todo-athlete", { has: page.getByRole("heading", { name: "Giulia Ferri" }) });
+  await expect(athlete).toContainText("Feedback della settimana del 5 ott da approvare");
+  await expect(athlete).toContainText("Una seduta in bozza da approvare");
+  const menu = page.getByRole("button", { name: "Apri la barra laterale" });
+  if (await menu.isVisible().catch(() => false)) {
+    await menu.click();
+    await expect(page.getByRole("button", { name: /Giulia Ferri, 2 da fare/ })).toBeVisible();
+    await page.keyboard.press("Escape");
+  } else {
+    await expect(page.getByRole("button", { name: /Giulia Ferri, 2 da fare/ })).toBeVisible();
+  }
+  await athlete.getByRole("link", { name: "Apri il feedback" }).click();
+  await expect(page).toHaveURL(/panoramica\?feedback=review-1/);
+  // Con un feedback da approvare, il feedback viene prima del grafico del carico.
+  const headings = await page.locator("#panel-panoramica h3").allTextContents();
+  expect(headings[0]).toBe("Feedback settimanale");
+  await expect(page.getByLabel("Testo per l'atleta (modificabile)")).toBeInViewport();
+  await page.getByRole("button", { name: "Approva", exact: true }).click();
+  await page.goBack();
+  await expect(page.locator(".todo-athlete")).not.toContainText("Feedback della settimana del 5 ott da approvare");
+});
