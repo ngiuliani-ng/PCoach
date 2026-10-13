@@ -14,12 +14,15 @@ Lo schema è versionato in `supabase/migrations/`, da eseguire in ordine numeric
 - `0008`: colonne di tracciabilità di `plan_generations`, rifiuto delle proposte con data di partenza passata, funzione `claude_key_configured`;
 - `0009`: esito e dati dell'attività sulle sedute svolte (`workouts.completion_outcome`, `completion_ratio`, `activity_*`);
 - `0010`: job orario del feedback, con attesa della risposta fino a 150 s;
-- `0011`: colonna `app_settings.zone_models`.
+- `0011`: colonna `app_settings.zone_models`;
+- `0012`: colonna `workout_sync.synced_hash`;
+- `0013`: tabella `athlete_checks` e job `athlete-checks-30min` ([decisioni/0037](decisioni/0037-controllo-periodico-degli-atleti.md)).
 
 - **`athletes`**: `id` (text, chiave primaria: l'identificativo di 8 caratteri generato dall'app), `data` (jsonb, l'intero `AthleteTrainingProfile` — vedi [modello-dati.md](modello-dati.md)), `updated_at` (timestamptz, usato per il controllo di concorrenza ottimistico).
 - **`app_settings`**: riga singola (`id = 1`), contiene configurazione globale del coach: `claude_api_key` (scritta dall'app solo quando il coach ne inserisce una nuova, mai riletta: l'app sa solo se c'è, con `claude_key_configured()`), `claude_model` (uno dei modelli ammessi), preferenze del piano e tono del feedback (vuoti = predefiniti nel codice), `weekly_feedback_*` (timezone, giorno, ora, `email_enabled`), `feedback_params` (soglie dell'analisi del feedback, jsonb, con una coppia di soglie d'intensità per sistema di zone; i valori assenti prendono i predefiniti di `_shared/feedback/params.ts`, e le vecchie chiavi `low_zone_max`/`moderate_zone_max` valgono come quelle a 7 zone), `zone_models` (modelli di zone per allineare Intervals.icu a PCoach, jsonb; i valori assenti o non validi prendono i predefiniti di `_shared/workouts/zoneModels.ts`).
 - **`training_plans`, `plan_generations`, `workouts`, `workout_sync`, `workout_events`**: le sedute e ciò che le riguarda. Colonne, vincoli e stati in [modello-dati.md § Sedute e piani](modello-dati.md#sedute-e-piani).
 - **`weekly_reviews`**: le valutazioni settimanali. Colonne e stati in [modello-dati.md § Valutazioni settimanali](modello-dati.md#valutazioni-settimanali).
+- **`athlete_checks`**: l'ultimo controllo di ogni atleta su Intervals.icu. Colonne in [modello-dati.md § Controlli su Intervals.icu](modello-dati.md#controlli-su-intervalsicu).
 
 ## Funzioni SQL del feedback
 
@@ -71,7 +74,7 @@ Supabase Auth a singolo utente coach (vedi [sicurezza.md](sicurezza.md) per setu
 
 - `private.is_coach()`: funzione SQL `security definer` con `search_path` vuoto, che confronta `auth.uid()` con l'UUID letterale dell'utente coach (incollato in `0001` al posto del placeholder `INCOLLA-QUI-UUID-UTENTE-COACH`). Vive nello schema `private`, che non è esposto da PostgREST: non esiste un endpoint `/rest/v1/rpc/is_coach` e nessun client può chiamarla direttamente. `EXECUTE` è revocato a `public` e `anon` e concesso solo ad `authenticated` (con `USAGE` sullo schema `private`), perché le policy RLS sono valutate con i privilegi del chiamante. Motivazione in [decisioni/0012-is-coach-schema-privato.md](decisioni/0012-is-coach-schema-privato.md).
 - RLS abilitata su `athletes` e `app_settings`, con 4 policy ciascuna (select/insert/update/delete, tutte `to authenticated using/with check (private.is_coach())`).
-- RLS abilitata anche sulle tabelle delle sedute e su `weekly_reviews`. `training_plans`, `plan_generations`, `workouts`, `workout_sync` e `weekly_reviews` hanno una policy `for all` con `private.is_coach()`. `workout_events` ha solo select e insert: la cronologia non si modifica né si cancella, se non a cascata con la seduta. Nessuna policy per il ruolo `anon`: con RLS abilitata, Postgres nega di default ogni richiesta priva di policy applicabile.
+- RLS abilitata anche sulle tabelle delle sedute e su `weekly_reviews`. `training_plans`, `plan_generations`, `workouts`, `workout_sync`, `weekly_reviews` e `athlete_checks` hanno una policy `for all` con `private.is_coach()`. `workout_events` ha solo select e insert: la cronologia non si modifica né si cancella, se non a cascata con la seduta. Nessuna policy per il ruolo `anon`: con RLS abilitata, Postgres nega di default ogni richiesta priva di policy applicabile.
 - Il JWT del coach autenticato è allegato automaticamente dal client `supabase-js`: nessuna modifica è stata necessaria alle query esistenti per abilitare RLS (vedi [decisioni/0010-autenticazione-coach-rls-reale.md](decisioni/0010-autenticazione-coach-rls-reale.md)).
 
 ## Concorrenza ottimistica: `syncLoadMetrics`
@@ -156,6 +159,17 @@ Adattatore della pipeline in `supabase/functions/_shared/feedback/pipeline.ts`, 
 **Risposta all'invocazione schedulata**: `{ ranAt, planned, processed: [{ id, status }] }`.
 
 Configurazione di `pg_cron` e Vault in [decisioni/0008](decisioni/0008-feedback-automatico-schedulato.md). Il job `weekly-feedback-hourly` (`5 * * * *`) è definito in `migrations/0010_weekly_feedback_cron_timeout.sql`. `net.http_post` aspetta la risposta fino a 150 s (`timeout_milliseconds`), il limite di una Edge Function, così `net._http_response` registra l'esito reale anche il lunedì, quando la funzione lavora più a lungo. Le risposte restano in quella tabella per 6 ore (`pg_net.ttl`).
+
+## `athlete-checks` (Edge Function)
+
+Controllo periodico degli atleti ([decisioni/0037](decisioni/0037-controllo-periodico-degli-atleti.md)). Il job `athlete-checks-30min` (`20,50 * * * *`, `migrations/0013_athlete_checks.sql`) la chiama con un bearer che deve essere **esattamente** la service-role key, letta da Vault (`weekly_feedback_service_role_key`, la stessa del feedback). Nessun altro chiamante è ammesso.
+
+Per ogni atleta, uno alla volta:
+1. senza chiave Intervals.icu salva `key_status: none`;
+2. legge `/sport-settings` e salva in `athlete_checks` l'esito (`athleteCheck`, `_shared/workouts/athleteChecks.ts`): `invalid` su 401/403, `unreachable` se Intervals.icu non risponde, altrimenti `valid` con zone e soglie diverse (`alignmentProblems`);
+3. con una chiave valida legge wellness e attività (finestra `syncWindowStart`), unisce il log (`mergeLoadMetrics`, `_shared/workouts/loadMetrics.ts`) e, se qualcosa cambia, aggiorna `athletes.data` **senza cambiare `updated_at`**, con la condizione `updated_at = valore letto`: se il coach ha salvato nel frattempo, la scrittura si salta.
+
+Risponde con un riepilogo (atleti, controllati, chiavi non valide, non raggiungibili, carichi aggiornati o saltati), che resta in `net._http_response`. Un errore su un atleta non ferma gli altri. Anche `intervals-sync` (`zones_read`) salva lo stesso esito in `athlete_checks`, con RLS del coach, quando la scheda controlla zone e soglie.
 
 ## `EmailSender`
 

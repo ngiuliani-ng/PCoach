@@ -10,11 +10,11 @@ Due endpoint usati, entrambi su `https://intervals.icu/api/v1/athlete/0/...`:
 - `wellness?oldest=&newest=`: restituisce i dati giornalieri (`id` = data). Il carico usa CTL e ATL; il feedback anche HRV, frequenza a riposo e sonno.
 - `activities?oldest=&newest=`: restituisce le attività svolte. Il carico le usa per contare gli allenamenti al giorno (`workouts_count`), il feedback per l'abbinamento con le sedute.
 
-**Logica di merge** (`refreshFromIntervalsIcu` in `services/intervals.ts`): per ogni voce wellness con `ctl`/`atl` validi, se esiste già una voce nel log per quella data con `source: "manual"` viene **lasciata intatta** (non sovrascritta); altrimenti viene scritta/aggiornata con `source: "intervals_icu_sync"`, `tsb` ricalcolato (`round((ctl − atl) × 10) / 10`) e `workouts_count` dal conteggio attività dello stesso giorno.
+**Logica di merge** (`mergeLoadMetrics` in `_shared/workouts/loadMetrics.ts`, usata da `refreshFromIntervalsIcu` nell'app e dalla Edge Function `athlete-checks`): per ogni voce wellness con `ctl`/`atl` validi, se esiste già una voce nel log per quella data con `source: "manual"` viene **lasciata intatta** (non sovrascritta); altrimenti viene scritta/aggiornata con `source: "intervals_icu_sync"`, `tsb` ricalcolato (`round((ctl − atl) × 10) / 10`) e `workouts_count` dal conteggio attività dello stesso giorno.
 
 **Finestra di sincronizzazione**: gli ultimi 14 giorni fino a oggi (`RESYNC_DAYS`), oppure dal giorno dopo l'ultima voce se il log è più vecchio, oppure 30 giorni se è vuoto (`syncWindowStart`). Gli ultimi giorni si rileggono sempre perché un'attività caricata in ritardo cambia il carico dei giorni già salvati. Se nessuna voce cambia, la funzione restituisce `upToDate: true` e la scheda non viene riscritta.
 
-**Tre trigger di sincronizzazione del carico** (coordinati da `composables/useIntervalsSync.ts`: niente chiamate concorrenti sullo stesso atleta):
+**Sincronizzazione del carico**: ogni 30 minuti sul server, per tutti gli atleti con la chiave (`athlete-checks`, [decisioni/0037](decisioni/0037-controllo-periodico-degli-atleti.md)), senza cambiare `updated_at` della scheda. In più, tre trigger nell'app (coordinati da `composables/useIntervalsSync.ts`: niente chiamate concorrenti sullo stesso atleta):
 1. Apertura della scheda atleta: `watch` in `AthleteEditor.vue` (non lo store) — vedi [architettura.md](architettura.md).
 2. Inserimento o modifica della chiave Intervals.icu nel Profilo, dopo 1,5 s dall'ultima digitazione.
 3. Avvio di una generazione o rigenerazione delle sedute (`RegenerateDialog.vue`), così Claude riceve il carico aggiornato.
@@ -28,6 +28,8 @@ Errori gestiti esplicitamente: chiave non valida (401), altri errori HTTP, error
 **Limite noto**: nessun retry/backoff sui rate limit di Intervals.icu nelle letture del carico — vedi [limiti-roadmap.md](limiti-roadmap.md). La scrittura delle sedute invece li ha (sezione seguente).
 
 ## Intervals.icu: zone dell'atleta
+
+Chiave, zone e soglie si controllano anche ogni 30 minuti sul server (`athlete-checks`) e l'esito, salvato in `athlete_checks`, alimenta la pagina «Da fare» ([decisioni/0037](decisioni/0037-controllo-periodico-degli-atleti.md)). La lettura all'apertura della scheda (`zones_read`) aggiorna lo stesso esito.
 
 All'apertura della scheda `useAthleteAnomalies.ts` legge le zone dell'atleta su Intervals.icu (`intervals-sync`, azione `zones_read`, contratto in [backend.md](backend.md#intervals-sync-edge-function)) e le confronta con il profilo salvato (`zoneChecks` in `_shared/workouts/zoneModels.ts`). Decisioni in [decisioni/0029](decisioni/0029-zone-allineate-con-intervals.md).
 

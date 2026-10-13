@@ -22,7 +22,7 @@ Decisioni del coach del 13 ottobre 2026: D-01, D-02, D-03 e D-04, dettagliate ne
    - le sedute da verificare e gli invii non riusciti;
    - le bozze delle prossime due settimane.
    
-   Ogni voce porta al punto esatto (`?feedback=`, `?sezione=`, `?seduta=`, `?settimana=`). Nella barra laterale la voce «Da fare» (anche il marchio PCoach) riporta alla pagina. Ha l'unico contatore, globale: grigio se ci sono solo cose da approvare, giallo se c'è anche una sola anomalia da sistemare. Nessun numero accanto agli atleti, che confondeva (decisioni del coach). Zone e soglie diverse da Intervals.icu restano nella tab Anomalie: richiedono una lettura da Intervals.icu per atleta.
+   Ogni voce porta al punto esatto (`?feedback=`, `?sezione=`, `?seduta=`, `?settimana=`). Nella barra laterale la voce «Da fare» (anche il marchio PCoach) riporta alla pagina. Ha l'unico contatore, globale: grigio se ci sono solo cose da approvare, giallo se c'è anche una sola anomalia da sistemare. Nessun numero accanto agli atleti, che confondeva (decisioni del coach). Zone, soglie e chiave rispetto a Intervals.icu arrivano dal controllo periodico di [0037](0037-controllo-periodico-degli-atleti.md).
 2. **Sezioni comprimibili con riepilogo** (D-02). Ogni sezione di Profilo e Impostazioni ha un'intestazione che apre e chiude; chiusa, mostra una riga di riepilogo. Sugli schermi larghi c'è un indice a destra.
    - Arrivando sulla pagina, anche per una bozza e cambiando atleta, le sezioni sono **tutte chiuse** (decisione del coach); nessuna memoria fra una visita e l'altra.
    - Le Impostazioni hanno due gruppi d'uso comune (Claude e generazione, Feedback settimanale), poi «Avanzate» (classificazione, intensità, modelli di zone), poi Informazioni.

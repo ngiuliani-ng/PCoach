@@ -17,7 +17,7 @@ Procedura per aggiungere un campo: [architettura.md](architettura.md#come-aggiun
 - **`physiological_thresholds`**: soglie per sport. `zone_system` (corsa e bici: 3, 5 o 7 zone) è il sistema di zone dell'atleta: limita le zone delle sedute nella generazione, nei controlli della proposta e nell'editor, decide i domini d'intensità del feedback, e deve coincidere con quello impostato su Intervals.icu (la scheda lo verifica all'apertura, [integrazioni.md](integrazioni.md#intervalsicu-zone-dellatleta)); il nuoto usa sempre 7 zone (`zoneCountsOf`, `_shared/workouts/zones.ts`); `thresholds_log` è uno storico datato (ogni voce con `date`+`source`, vedi `loggedEntryMeta`) — il valore corrente è semplicemente la voce con la data più recente, non un campo separato da tenere sincronizzato.
 - **`training_status`**: fotografia dello stato di allenamento corrente.
   - `detraining_period`: `active` (booleano), più durata/causa/severità se true.
-  - `load_metrics_log`: storico datato di CTL/ATL/TSB (+ `workouts_count`), stesso pattern "ultima voce = valore attuale" di `thresholds_log`. Scritto sia da sincronizzazione Intervals.icu (`source: intervals_icu_sync`) che manualmente (`source: manual`).
+  - `load_metrics_log`: storico datato di CTL/ATL/TSB (+ `workouts_count`), stesso pattern "ultima voce = valore attuale" di `thresholds_log`. Scritto sia da sincronizzazione Intervals.icu (`source: intervals_icu_sync`: all'apertura della scheda e ogni 30 minuti dal server) che manualmente (`source: manual`). L'aggiornamento del server non cambia `updated_at` della scheda.
   - `lifestyle_factors` / `lifestyle_factors_note`: fattori di vita ricorrenti (turni variabili, viaggi frequenti, sonno disturbato, ecc.), non eventi isolati.
 - **`goals`**: `primary_objective`/`secondary_objective` (+ dettaglio libero se `altro`), `periodization_model` (derivato automaticamente da `primary_objective`, non scelto indipendentemente: `race_peak_taper` se `preparazione_gara`, altrimenti `continuous_improvement`), `target_events` (gare con priorità A/B/C; per ognuna `taper_weeks`, le settimane di tapering prima della settimana di gara, predefinite per priorità A 2, B 1, C 0, e `taper_volume_decrease_pct`, il calo del volume nel tapering, facoltativo).
 - **`constraints`**: `days_available` per giorno della settimana — `active`/`max_duration_minutes` sono il vincolo reale per la programmazione; `fixed_activity` è l'abitudine attuale (cosa l'atleta fa di solito quel giorno): Claude la usa come preferenza per disciplina e tipo di seduta, ma PCoach non la verifica. Più `sessions_per_week_target`.
@@ -103,6 +103,15 @@ Tabella `weekly_reviews` (migrazione `0007_weekly_reviews.sql`, motivazioni in [
 - `superseded`: sostituita da una revisione successiva.
 
 **Vincoli**: una revisione per numero (`athlete_id`, `period_start`, `kind`, `revision`) e una sola valutazione non sostituita per settimana. Cancellare l'atleta cancella le valutazioni; cancellare un piano lascia la valutazione con `plan_id` vuoto.
+
+## Controlli su Intervals.icu
+
+`athlete_checks` (migrazione `0013`, [decisioni/0037](decisioni/0037-controllo-periodico-degli-atleti.md)): una riga per atleta, cancellata con l'atleta.
+- `athlete_id` (chiave, riferimento ad `athletes`), `checked_at`;
+- `key_status`: `valid`, `invalid` (401/403), `none` (nessuna chiave), `unreachable` (Intervals.icu non risponde: nessuna anomalia);
+- `zone_problems`, `threshold_problems`: elenchi di testi, ad esempio «Corsa (passo): 5 zone in PCoach, 7 su Intervals.icu».
+
+La scrivono la Edge Function `athlete-checks` ogni 30 minuti e `intervals-sync` all'apertura della scheda; la leggono la pagina «Da fare» e il contatore della barra laterale.
 
 ## Note di modellazione
 

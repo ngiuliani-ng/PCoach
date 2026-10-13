@@ -40,7 +40,7 @@ Le zone delle sedute si riferiscono a quelle dell'account Intervals.icu dell'atl
 
 ## Rate limit Intervals.icu
 
-La lettura del carico (wellness e attività) non ha retry/backoff: l'errore compare come stato accanto alla chiave nel Profilo e la sincronizzazione si ripete alla prossima apertura della scheda. La scrittura delle sedute invece riprova da sola su 429 e 5xx (vedi [backend.md](backend.md#intervals-sync-edge-function)). Vedi [integrazioni.md](integrazioni.md) per i trigger di sincronizzazione.
+La lettura del carico (wellness e attività) non ha retry/backoff: l'errore compare come stato accanto alla chiave nel Profilo e la sincronizzazione si ripete alla prossima apertura della scheda o al giro successivo del server, entro 30 minuti. La scrittura delle sedute invece riprova da sola su 429 e 5xx (vedi [backend.md](backend.md#intervals-sync-edge-function)). Vedi [integrazioni.md](integrazioni.md) per i trigger di sincronizzazione.
 
 ## Rischio di sovrascrittura su blob `jsonb`
 
@@ -63,7 +63,7 @@ Il nuoto non ha un sistema di zone proprio nella scheda: le sue sedute e il suo 
 
 ## Pagina «Da fare»
 
-La pagina iniziale e il numero accanto agli atleti usano solo dati già nel database ([decisioni/0035](decisioni/0035-pagina-da-fare-sezioni-e-guida.md)). Zone o soglie diverse da Intervals.icu e una chiave non valida richiedono una lettura da Intervals.icu per atleta: compaiono nella tab Anomalie all'apertura della scheda, non nella pagina iniziale. Un controllo lato server pianificato permetterebbe di mostrarle anche lì.
+Chiave, zone e soglie rispetto a Intervals.icu arrivano dall'ultimo controllo, ogni 30 minuti o all'apertura della scheda ([decisioni/0037](decisioni/0037-controllo-periodico-degli-atleti.md)): una modifica fatta direttamente su Intervals.icu compare nella pagina iniziale entro mezz'ora. Se il coach salva una scheda aperta da prima di un giro, il carico torna a quello di poco prima fino al giro successivo.
 
 ## Versione del server
 

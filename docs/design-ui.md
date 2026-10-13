@@ -116,7 +116,7 @@ Regole per chi modifica il layout:
 - **Pagina iniziale «Da fare»** (`TodoPage.vue`, [decisioni/0035](decisioni/0035-pagina-da-fare-sezioni-e-guida.md)):
   - una sezione per atleta, con il nome come link alla scheda, e un'unità con una riga per voce, come la tab Anomalie: icona (`CircleAlert` `--danger` per ciò che è fallito, `TriangleAlert` `--warning` per ciò che va sistemato, `Clock` `--text-muted` per ciò che aspetta un'approvazione), titolo, dettaglio e link al punto esatto;
   - gli atleti senza nulla da fare non compaiono; senza voci, «Niente da fare» con una frase su cosa compare qui;
-  - in fondo, una riga dice cosa non vi compare (zone e soglie diverse da Intervals.icu, chiave non valida) e dove si vede (tab Anomalie della scheda);
+  - comprende chiave non valida, zone e soglie diverse da Intervals.icu dall'ultimo controllo ([decisioni/0037](decisioni/0037-controllo-periodico-degli-atleti.md)), con il link «Sistemale nelle Anomalie»; in fondo, una riga dice l'ora dell'ultimo controllo e che si ripete ogni 30 minuti;
   - senza atleti: «Nessun atleta» e come crearne uno.
 
 ### Tab Piano

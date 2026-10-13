@@ -252,8 +252,8 @@ Documenti: ADR [0034](../../decisioni/0034-anomalie-in-un-elenco-ed-email-dell-a
 
 **Verifiche eseguite** sull'ultimo commit:
 - `vue-tsc -b` senza errori, build di produzione riuscita, `version.json` generato;
-- 209 test unitari in 23 file;
-- 76 test end-to-end, desktop e mobile, sul backend finto.
+- 213 test unitari in 24 file;
+- 82 test end-to-end, desktop e mobile, sul backend finto; tipi delle quattro Edge Function controllati con `tsc` e una dichiarazione minima di Deno.
 
 **Misure prima e dopo**, con lo stesso script e gli stessi dati di prova (`evidence/runtime/misure.jsonl` e `evidence/dopo/misure.jsonl`):
 
@@ -273,11 +273,11 @@ Rispetto ai criteri del §8:
 - **Glossario** senza etichette duplicate: rispettato (test).
 - **Storico**: al massimo 2 righe di filtri, sostituiti da un selettore.
 
-**Risposte del coach sulle scelte dell'assistente** (13 ottobre): sezioni sempre tutte chiuse; confermate le bozze delle prossime due settimane, l'indice da 1360 px, la Panoramica che parte dal feedback, la data della 1.0.0 e la versione del server da `weekly-feedback`. Su sua richiesta: voce «Da fare» nella barra laterale per tornare alla home, nota della home riscritta (commit `72ba036`); poi un solo contatore globale su «Da fare», grigio con sole approvazioni e giallo con almeno un'anomalia, senza numeri accanto agli atleti.
+**Risposte del coach sulle scelte dell'assistente** (13 ottobre): sezioni sempre tutte chiuse; confermate le bozze delle prossime due settimane, l'indice da 1360 px, la Panoramica che parte dal feedback, la data della 1.0.0 e la versione del server da `weekly-feedback`. Su sua richiesta: voce «Da fare» nella barra laterale per tornare alla home, nota della home riscritta (commit `72ba036`); poi un solo contatore globale su «Da fare», grigio con sole approvazioni e giallo con almeno un'anomalia, senza numeri accanto agli atleti. Infine, su sua richiesta, il controllo automatico ogni 30 minuti di chiave, zone e soglie e l'aggiornamento del carico ([decisioni/0037](../../decisioni/0037-controllo-periodico-degli-atleti.md)): la pagina «Da fare» ora comprende anche le anomalie di Intervals.icu.
 
 **Non fatto o ancora aperto**:
 - **Pubblicazione**: serve la tua conferma. Nell'ordine:
-  1. ripubblicare le tre Edge Function per l'intestazione `x-pcoach-version` (nessuna migrazione);
+  1. pubblicare la nuova Edge Function `athlete-checks` e ripubblicare le altre tre (intestazione `x-pcoach-version`, `zones_read` che salva il controllo), poi applicare la migrazione `0013` (tabella `athlete_checks` e job ogni 30 minuti);
   2. unire il ramo su `main`;
   3. creare e inviare il tag `v1.0.0`.
   

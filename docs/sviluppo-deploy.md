@@ -31,10 +31,10 @@ Rigenera `app/src/schema/types.generated.ts` da `app/src/schema/athlete_profile.
 npm run test
 ```
 
-Esegue Vitest (`vitest run`) sui file `src/**/*.test.ts`: 209 test in 23 file al 13 ottobre 2026. Il dettaglio per file lo dà `npx vitest run --reporter=verbose`. Coprono:
+Esegue Vitest (`vitest run`) sui file `src/**/*.test.ts`: 213 test in 24 file al 13 ottobre 2026. Il dettaglio per file lo dà `npx vitest run --reporter=verbose`. Coprono:
 - domini puri delle sedute e del feedback, compresi i moduli condivisi con le Edge Function: calendario, struttura, conversione per Intervals.icu, zone e soglie, pipeline del feedback;
 - prompt della generazione e testi d'aiuto: cosa va a Claude, voci della guida ed etichette citate;
-- glossario degli stati, riepiloghi delle sezioni del Profilo, pagina «Da fare»;
+- glossario degli stati, riepiloghi delle sezioni del Profilo, pagina «Da fare», controllo periodico su Intervals.icu e unione del carico;
 - contrasti dei token di colore nei due temi;
 - coerenza della versione fra `package.json`, `_shared/version.ts` e `CHANGELOG.md` (`version.test.ts`).
 
@@ -55,13 +55,13 @@ Playwright (`playwright.config.ts`, cartella `app/e2e/`) avvia Vite sulla porta 
 
 Nessuna chiamata raggiunge Supabase, Claude o Intervals.icu. La data è fissata al 10 ottobre 2026 con `page.clock`.
 
-Trentotto flussi, ognuno su un progetto desktop e uno mobile (76 test al 13 ottobre 2026), in sei file:
+Quarantuno flussi, ognuno su un progetto desktop e uno mobile (82 test al 13 ottobre 2026), in sei file:
 - `plan.spec.ts`: modifica e approvazione di una seduta, rigenerazione con anteprima delle differenze, «Sincronizza settimana» con un errore parziale e il nuovo tentativo;
 - `feedback.spec.ts`: revisione e approvazione di un feedback settimanale;
 - `navigation.spec.ts`: modifiche non salvate al cambio di atleta e all'uscita dalle Impostazioni, salvataggi falliti, vista e seduta nell'URL, errore di rete al salvataggio di una seduta;
 - `coherence.spec.ts`: doppio clic su «Genera la proposta», schema di carico non riconosciuto, generazione con modifiche non salvate, email mancante con l'invio attivo, fuso non valido, valutazione in preparazione, sistema di zone nell'editor;
 - `zones.spec.ts`: zone e soglie diverse da Intervals.icu, modelli di zone in Impostazioni, sedute da verificare dalla tab Anomalie;
-- `ux.spec.ts`: audit UI/UX completo, cioè tab a 320 px, seduta aperta dalla Panoramica, stati delle righe e selettore dello storico, sezioni e guida, ripristini, pagina «Da fare», versione in Informazioni.
+- `ux.spec.ts`: audit UI/UX completo, cioè tab a 320 px, seduta aperta dalla Panoramica, stati delle righe e selettore dello storico, sezioni e guida, ripristini, pagina «Da fare» e contatore, controllo su Intervals.icu nella home, versione in Informazioni.
 
 `e2e/helpers.ts` ha `openSection`, che apre una sezione comprimibile se è chiusa.
 
@@ -71,7 +71,7 @@ Gli esiti finiscono in `test-results/`, non tracciata.
 
 Le funzioni in `supabase/functions/` si pubblicano sul progetto Supabase. Il CLI non è nel repository: si usa la dashboard oppure lo strumento di deploy del MCP Supabase. `intervals-sync` importa i moduli di `functions/_shared/workouts/` (zone comprese) e di `functions/_shared/feedback/` (abbinamento delle sedute svolte); `weekly-feedback` quelli di `functions/_shared/feedback/` e `functions/_shared/workouts/` (calendario e struttura) e il mittente email. Vanno pubblicati insieme alla funzione, con nomi relativi (`../_shared/...`). Il CLI Deno non è installato: i tipi delle funzioni si controllano con `tsc` usando un'interfaccia minima per `Deno`, e la logica vive nei moduli condivisi, testati con Vitest.
 
-L'ordine conta: prima le migrazioni (`supabase/migrations/`, in ordine numerico), poi le funzioni che leggono le nuove tabelle o colonne, infine l'app. `claude-proxy` e `weekly-feedback` importano anche `functions/_shared/claude/models.ts`. Tutte e tre importano `functions/_shared/version.ts` e restituiscono la versione nell'intestazione `x-pcoach-version` (vedi [§ Rilascio](#rilascio-di-una-versione)).
+L'ordine conta: prima le migrazioni (`supabase/migrations/`, in ordine numerico), poi le funzioni che leggono le nuove tabelle o colonne, infine l'app. `claude-proxy` e `weekly-feedback` importano anche `functions/_shared/claude/models.ts`. `athlete-checks` importa `functions/_shared/workouts/` (calendario, soglie, zone, `athleteChecks.ts`, `loadMetrics.ts`). Tutte e quattro importano `functions/_shared/version.ts` e restituiscono la versione nell'intestazione `x-pcoach-version` (vedi [§ Rilascio](#rilascio-di-una-versione)).
 
 ## Build
 

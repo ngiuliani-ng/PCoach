@@ -30,7 +30,7 @@ Setup in dashboard Supabase, da eseguire una sola volta:
 
 - `SUPABASE_SERVICE_ROLE_KEY` e `SUPABASE_URL`: iniettate automaticamente da Supabase in ogni Edge Function del progetto, mai impostate a mano, mai esposte al client.
 - `RESEND_API_KEY`/`RESEND_FROM_ADDRESS`: env della sola Edge Function `weekly-feedback`, mai in `app_settings` — vedi [decisioni/0002-email-feedback-via-resend.md](decisioni/0002-email-feedback-via-resend.md).
-- La service-role key del progetto è inoltre salvata in **Supabase Vault** per essere letta da `pg_cron` al momento di invocare `weekly-feedback` — vedi [backend.md](backend.md).
+- La service-role key del progetto è inoltre salvata in **Supabase Vault** per essere letta da `pg_cron` al momento di invocare `weekly-feedback` e `athlete-checks` — vedi [backend.md](backend.md).
 
 ## Verifica del chiamante nelle Edge Function
 
@@ -38,6 +38,7 @@ Tutte le Edge Function verificano l'identità del chiamante prima di eseguire un
 
 - `claude-proxy` richiede un JWT di sessione valido (verificato con `auth.getUser()`) e che il chiamante possa leggere `app_settings`, cioè sia il coach; la sola anon key pubblica non basta. Accetta solo i modelli ammessi e limita `max_tokens`.
 - `intervals-sync` richiede lo stesso JWT e legge e scrive il database con quel JWT, quindi vale la RLS. Usa la chiave Intervals.icu dell'atleta solo lato server per scrivere sul suo calendario. Non la scrive nei log e non la restituisce: i messaggi d'errore sono riformulati senza header né chiavi. Le scritture remote partono solo da un'operazione confermata dal coach, una seduta alla volta. Le rimozioni riguardano solo eventi creati da PCoach (memorizzati per id) e mai sedute svolte. Legge le impostazioni degli sport dell'atleta solo per confrontare le zone, e le modifica solo con «Porta Intervals.icu a N zone» confermato dal coach: uno sport alla volta, con i limiti mostrati nella conferma.
+- `athlete-checks` accetta solo `pg_cron`, con un bearer che deve essere **esattamente** la service-role key: legge le chiavi Intervals.icu degli atleti con la service-role key e scrive solo `athlete_checks` e il log del carico della scheda.
 - `weekly-feedback` accetta due chiamanti: `pg_cron`, con un bearer che deve essere **esattamente** la service-role key letta da Vault, e il coach, con il JWT di sessione. Per il coach il database è letto e scritto con RLS e le azioni partono solo se il chiamante può leggere `app_settings`. Nessuna email parte senza l'approvazione del coach. Dettagli in [backend.md](backend.md#weekly-feedback-edge-function).
 - **Testo non attendibile nel feedback**: nomi e descrizioni delle attività di Intervals.icu sono scritti dall'atleta o da app terze. Non entrano nelle istruzioni per Claude: vanno in un blocco separato, presentato come dato da non eseguire. L'output è vincolato a uno schema e validato sui dati del contratto, e passa dal coach prima dell'atleta.
 
