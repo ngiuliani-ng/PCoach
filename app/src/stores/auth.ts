@@ -37,7 +37,10 @@ export const useAuthStore = defineStore("auth", {
       this.error = null;
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error || !data.session) {
-        const message = "Credenziali non valide.";
+        // Rete assente o server irraggiungibile non sono credenziali sbagliate (audit A-15).
+        const message = error?.name === "AuthRetryableFetchError"
+          ? "Server di accesso non raggiungibile: controlla la connessione e riprova."
+          : "Credenziali non valide.";
         this.error = message;
         return { ok: false, message };
       }

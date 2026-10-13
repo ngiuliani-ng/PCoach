@@ -163,3 +163,20 @@ test("«Prepara il feedback» propone solo le settimane senza feedback (FB-03)",
   await expect(page.getByText("Le ultime sei settimane hanno già un feedback: per rifarne uno usa «Rigenera».")).toBeVisible();
   await expect(page.locator(".review-create select")).toHaveCount(0);
 });
+
+test("atleta senza email: la nota sta prima di «Approva» e porta al Profilo, sezione Identità (A-18)", async ({ page }) => {
+  const state = createState();
+  (state.tables.app_settings[0] as Record<string, unknown>).weekly_feedback_email_enabled = true;
+  await installMockBackend(page, state);
+  await page.goto(`./#/atleta/${ATHLETE_ID}/panoramica`);
+  const week = page.locator(".feedback-item").first();
+  const note = week.getByText("L'atleta non ha un indirizzo email");
+  await expect(note).toBeVisible();
+  const noteBox = await note.boundingBox();
+  const approveBox = await week.getByRole("button", { name: "Approva" }).boundingBox();
+  expect(noteBox!.y).toBeLessThan(approveBox!.y);
+
+  await week.getByRole("link", { name: "Aggiungi l'indirizzo nel Profilo" }).click();
+  await expect(page.getByRole("tab", { name: "Profilo" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#sec-identita .section-toggle")).toHaveAttribute("aria-expanded", "true");
+});

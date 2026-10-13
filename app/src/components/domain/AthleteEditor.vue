@@ -249,6 +249,13 @@ function onExport() {
   athletes.exportCurrent();
 }
 
+// Salvataggio rifiutato per il nome mancante, da qualunque pulsante: Identita' si apre e il focus va sul
+// campo, che porta l'errore (audit A-06).
+watch(() => athletes.nameRequiredAttempts, async (n) => {
+  if (!n) return;
+  await goToSection("sec-identita");
+  document.getElementById("athlete-nome")?.focus({ preventScroll: true });
+});
 // Una sezione con un errore da correggere si apre da sola (poi si puo' richiudere).
 watch(() => ready.value && loadPatternInvalid.value, (bad) => bad && reveal("sec-metodologia"), { immediate: true });
 watch(() => intervalsKeyStatus.value === "invalid", (bad) => bad && reveal("sec-intervals"), { immediate: true });

@@ -61,6 +61,7 @@ Ordinato per priorità. Il dettaglio di ogni voce è sotto la tabella.
 | ID | P | Dove | Categoria | Problema | Verifica |
 |---|---|---|---|---|---|
 | [A-01](#a-01) | P1 | `RegenerateDialog` | Funzionale | Dopo un ricaricamento con il dialogo aperto: «Prosegui» parte da domani e propone di sostituire le sedute; la seduta bloccata non è più mantenuta | E (F23, F24) |
+| [A-28](#a-28) | P1 | `router.ts` (bozza di nuovo atleta) | Funzionale, dati non salvati | Uscita annullata («Resta», o «Salva e continua» rifiutato): la bozza si chiude, quanto scritto è perso e la scheda resta su «Caricamento…». Trovato durante le correzioni | E (F25) |
 | [A-02](#a-02) | P2 | Sidebar < 720 px | Accessibilità, responsive | Sidebar chiusa raggiungibile con il Tab ed esposta ai lettori di schermo | E (F01) |
 | [A-03](#a-03) | P2 | Profilo, Impostazioni | Accessibilità | Il focus finisce sotto l'intestazione sticky (WCAG 2.4.11) | E (F19) |
 | [A-04](#a-04) | P2 | `WorkoutRow` | Accessibilità | Il nome della riga nasconde stati e durata ai lettori di schermo | E (F03) |
@@ -104,6 +105,26 @@ Ordinato per priorità. Il dettaglio di ogni voce è sotto la tabella.
 - **Soluzione**: finché `workouts` non è caricato per l'atleta, il dialogo mostra «Carico le sedute…»; i valori iniziali si calcolano una volta, a caricamento finito. Stessa attesa per la ripresa di una proposta in sospeso (`pendingGeneration`), che usa lo stesso elenco (**I**: non provato, stesso codice).
 - **Impatto**: solo `RegenerateDialog`. `SyncWeekDialog` attende già l'anteprima e ricarica; `WorkoutDrawer` compare solo quando la seduta esiste.
 - **Test**: e2e che apre `?dialogo=prosegui` con un ricaricamento e verifica partenza e nessuna seduta coinvolta; lo stesso per «Ripianifica» con una seduta bloccata spuntata.
+
+<a id="a-28"></a>
+#### A-28 — Una navigazione annullata chiude la bozza del nuovo atleta · P1
+
+Trovato il 13 ottobre durante la correzione di A-06, quindi non è nel registro originale dell'audit.
+
+- **Dove**: `router.ts`, `installNavigationGuards` (`afterEach`).
+- **Categoria**: funzionale; perdita di dati non ancora salvati.
+- **Gravità**: P1. Il coach sceglie «Resta» proprio per non perdere la bozza: invece la perde, e la pagina resta bloccata. Non tocca dati già salvati.
+- **Evidenza**: F25 sul codice di `d9c4996` (`evidence/F25-bozza-resta.png`):
+  1. bozza di nuovo atleta, cognome «Rossi»;
+  2. «Da fare» → «Resta»;
+  3. l'URL resta `#/atleta/nuovo`, il contenuto è «Caricamento…» e il campo non esiste più.
+
+  Lo stesso succede con «Salva e continua» quando il salvataggio non riesce (nome mancante). Per questo il test e2e di quel percorso (A-06) è segnato `fixme`.
+- **Causa**: vue-router chiama `afterEach` anche per le navigazioni annullate dalla guardia; la regola «uscendo dalla bozza si chiude» guarda solo la destinazione `to` e chiude la bozza anche se la navigazione non è avvenuta. Dopo `closeEditor()` l'editor non trova più una scheda e nessuna delle sue dipendenze cambia, quindi resta su «Caricamento…».
+- **Desiderato**: con «Resta» o con un salvataggio rifiutato la bozza resta com'era.
+- **Soluzione proposta**: in `afterEach` ignorare le navigazioni fallite (terzo argomento `failure`). Una riga, senza altri effetti: le uscite confermate continuano a chiudere la bozza.
+- **Test**: e2e «Resta» su una bozza modificata (il campo conserva il valore) e attivazione del test `fixme` di A-06.
+- **Stato**: **non corretto, in attesa del coach**: è un rischio sui dati emerso fuori dal perimetro approvato.
 
 <a id="a-02"></a>
 #### A-02 — Sidebar chiusa raggiungibile da tastiera e lettore di schermo · P2
@@ -506,3 +527,7 @@ Decisioni del coach (13 ottobre 2026): D-01 **A**, D-02 durata adattiva con paus
 | A-07 | **risolto** | `RegenerateDialog.vue`: «Modifica i parametri» con una proposta, e «Indietro» con una risposta incollata, chiedono conferma («Scarta la proposta e modifica i parametri» / «Tieni la proposta»); la risposta incollata si svuota solo dopo la conferma. Estensione a «Indietro» del passo manuale confermata dal coach; senza nulla da perdere, nessuna conferma | 2 e2e `plan.spec.ts` (proposta; risposta incollata e «Indietro» senza testo), il primo fallisce su `d9c4996`; script F08: conferma mostrata, generazione ancora `proposed` |
 | A-14 | **risolto** | `stores/settings.ts` (`validationError`), `useSettingsSave.ts` (validazione prima della conferma), `SettingsPanel.vue` (riepilogo «Un limite non è valido» in avviso, sezione aperta su errore e dopo un salvataggio rifiutato), `ZoneModelsEditor.vue` (apre la misura con l'errore, senza richiuderla) | e2e `zones.spec.ts` (fallisce su `d9c4996`); script F10: nessuna conferma prima del rifiuto, riepilogo in avviso, sezione riaperta |
 | A-27 | **risolto** | `RegenerateDialog.vue`: errore «Scegli da 1 a 4 settimane.» sul campo (`aria-invalid`, `aria-describedby`), «Genera la proposta» disattivato; niente più riduzione silenziosa | e2e `plan.spec.ts` (fallisce su `d9c4996`) |
+| A-06 | **parzialmente risolto** | `stores/athletes.ts` (`nameRequiredAttempts`, messaggio «…: scrivilo in Identità.»), `AthleteEditor.vue` (apre Identità e porta il focus su «Nome» a ogni salvataggio rifiutato), `ProfileIdentity.vue` (errore sotto il campo, `aria-invalid`, `aria-describedby`; etichetta con `for`, così l'errore non entra nel nome del campo). Il percorso «Salva e continua» all'uscita resta bloccato da A-28 | e2e `navigation.spec.ts` per «Salva» (fallisce su `d9c4996`, passa); quello per «Salva e continua» è `fixme` fino ad A-28. Script F07: Identità aperta, `aria-invalid="true"` |
+| A-15 | **risolto** | `stores/auth.ts`: `AuthRetryableFetchError` → «Server di accesso non raggiungibile: controlla la connessione e riprova.»; `LoginView.vue`: focus e selezione sulla password dopo un errore, `aria-describedby` verso il messaggio | e2e `navigation.spec.ts` (fallisce su `d9c4996`); script F12: i due messaggi distinti, focus sul campo |
+| A-18 | **risolto** | `FeedbackWeek.vue`: nota «senza email» o «email disattivata» prima dei pulsanti; «Aggiungi l'indirizzo nel Profilo» è un link a `profilo?sezione=sec-identita`, anche nella riga «Email non inviata» | e2e `feedback-ui.spec.ts` (fallisce su `d9c4996`) |
+| A-28 | **aperto** | nuovo, vedi [A-28](#a-28) | F25 riproduce il difetto |

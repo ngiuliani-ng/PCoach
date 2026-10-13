@@ -1,18 +1,25 @@
 <script setup lang="ts">
 // Gate di accesso minimale (Fase 9): un solo utente coach, nessuna sign-up qui.
-import { ref } from "vue";
+import { nextTick, ref } from "vue";
 import { useAuthStore } from "../../stores/auth";
 
 const auth = useAuthStore();
 const email = ref("");
 const password = ref("");
 const submitting = ref(false);
+const passwordEl = ref<HTMLInputElement | null>(null);
 
 async function onSubmit() {
   if (submitting.value) return;
   submitting.value = true;
-  await auth.signIn(email.value.trim(), password.value);
+  const result = await auth.signIn(email.value.trim(), password.value);
   submitting.value = false;
+  // Il pulsante era disattivato durante l'invio e il focus si e' perso: torna sulla password (audit A-15).
+  if (!result.ok) {
+    await nextTick();
+    passwordEl.value?.focus();
+    passwordEl.value?.select();
+  }
 }
 </script>
 
@@ -27,9 +34,9 @@ async function onSubmit() {
       </label>
       <label class="field">
         <span class="field-label">Password</span>
-        <input type="password" v-model="password" autocomplete="current-password" required />
+        <input ref="passwordEl" type="password" v-model="password" autocomplete="current-password" required :aria-describedby="auth.error ? 'login-error' : undefined" />
       </label>
-      <p v-if="auth.error" class="login-error" role="alert">{{ auth.error }}</p>
+      <p v-if="auth.error" id="login-error" class="login-error" role="alert">{{ auth.error }}</p>
       <button type="submit" class="primary" :disabled="submitting">{{ submitting ? "Accesso in corso…" : "Accedi" }}</button>
     </form>
   </div>

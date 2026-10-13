@@ -39,6 +39,8 @@ const badge = computed((): { text: string; tone: Tone; icon: unknown } => {
   return { text: "Non riuscito", tone: "err", icon: TriangleAlert };
 });
 
+// Dove si aggiunge l'email dell'atleta: Profilo, sezione Identita' aperta (come «Aggiungila nel Profilo» nelle anomalie).
+const identityLink = computed(() => ({ name: "athlete", params: { id: r.value.athlete_id, tab: "profilo" }, query: { sezione: "sec-identita" } }));
 const weekLabel = (start: string) => `${formatDate(start, false)} – ${formatDate(addDaysISO(start, 6))}`;
 const isDraft = computed(() => r.value.status === "draft");
 const isPreparing = computed(() => r.value.status === "pending" || r.value.status === "analyzed");
@@ -150,7 +152,7 @@ async function onRetry() {
     <p v-if="emailFailed" class="error-text feedback-alert">
       Email non inviata. {{ review.delivery_error || "Motivo sconosciuto." }}
       <button v-if="hasEmail" type="button" class="link-btn" :disabled="reviews.busy !== null" @click="onRetry">Riprova l'invio</button>
-      <template v-else> Aggiungi l'indirizzo nel Profilo, sezione Identità, poi riprova.</template>
+      <template v-else> <RouterLink :to="identityLink">Aggiungi l'indirizzo nel Profilo</RouterLink>, poi riprova.</template>
     </p>
     <div v-if="isFailed" class="feedback-alert">
       <p class="error-text">{{ review.error || "Valutazione non riuscita." }}</p>
@@ -197,6 +199,9 @@ async function onRetry() {
           <input type="checkbox" v-model="resend[review.id]" />
           Invia anche questa versione: l'atleta ha già ricevuto la versione {{ sentBefore.revision }}{{ sentBefore.delivered_at ? ` il ${formatDate(sentBefore.delivered_at.slice(0, 10))}` : "" }}
         </label>
+        <!-- Cosa succede approvando: prima dei pulsanti, come la casella del reinvio (audit A-18). -->
+        <p v-if="!emailOn" class="helper-text">L'invio via email è disattivato in Impostazioni: approvando, il feedback resta solo qui.</p>
+        <p v-else-if="!hasEmail" class="helper-text error-text">L'atleta non ha un indirizzo email: approvando, il feedback non gli arriva e resta fra le anomalie. <RouterLink :to="identityLink">Aggiungi l'indirizzo nel Profilo</RouterLink>, poi «Riprova l'invio».</p>
         <div class="review-actions">
           <button type="button" class="primary" :disabled="reviews.busy !== null || !text.trim()" @click="onApprove">
             <LoaderCircle v-if="busy" :size="16" class="spin" aria-hidden="true" />{{ willSend ? "Approva e invia" : "Approva" }}
@@ -205,8 +210,6 @@ async function onRetry() {
             <RefreshCw :size="16" aria-hidden="true" />Rigenera
           </button>
         </div>
-        <p v-if="!emailOn" class="helper-text">L'invio via email è disattivato in Impostazioni: approvando, il feedback resta solo qui.</p>
-        <p v-else-if="!hasEmail" class="helper-text error-text">L'atleta non ha un indirizzo email: approvando, il feedback non gli arriva e resta fra le anomalie. Aggiungi l'indirizzo nel Profilo, sezione Identità, poi «Riprova l'invio».</p>
       </template>
 
       <template v-else-if="review.status === 'approved'">

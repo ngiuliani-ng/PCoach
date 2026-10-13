@@ -34,6 +34,11 @@ export const useAthletesStore = defineStore("athletes", {
     dbAvailable: false,
     /** Elenco letto almeno una volta (o Supabase non configurato): serve a distinguere "scheda inesistente" da "non ancora caricata". */
     loaded: false,
+    /**
+     * Salvataggi rifiutati per il nome mancante sulla scheda aperta (audit A-06): l'editor apre Identita' e
+     * porta il focus sul campo a ogni nuovo tentativo; torna a 0 aprendo un'altra scheda.
+     */
+    nameRequiredAttempts: 0,
     pollHandle: null as ReturnType<typeof setInterval> | null
   }),
   getters: {
@@ -104,6 +109,7 @@ export const useAthletesStore = defineStore("athletes", {
       this.currentProfile = JSON.parse(JSON.stringify(profile));
       this.baselineSnapshot = snapshotForCompare(this.currentProfile!);
       this.currentBaseVersion = this.rowVersions[id] ?? null;
+      this.nameRequiredAttempts = 0;
     },
     // Ricarica la scheda aperta con i dati più recenti già noti al polling della lista
     // (nessuna richiesta aggiuntiva: this.athletes è già allineato al DB ad ogni poll).
@@ -122,6 +128,7 @@ export const useAthletesStore = defineStore("athletes", {
       this.currentProfile = blankProfile();
       this.baselineSnapshot = snapshotForCompare(this.currentProfile);
       this.currentBaseVersion = null;
+      this.nameRequiredAttempts = 0;
     },
     closeEditor() {
       this.currentId = null;
@@ -149,7 +156,8 @@ export const useAthletesStore = defineStore("athletes", {
       const profile = this.currentProfile;
       if (!profile) return { ok: false, message: "Nessuna scheda aperta." };
       if (!profile.identity?.nome?.trim()) {
-        return { ok: false, message: "Il nome dell'atleta è obbligatorio." };
+        this.nameRequiredAttempts++;
+        return { ok: false, message: "Il nome dell'atleta è obbligatorio: scrivilo in Identità." };
       }
       // I metadati non contano come modifica (useDirtyState): aggiornarli prima dell'esito non
       // cambia lo stato "Modifiche non salvate" se il salvataggio fallisce.

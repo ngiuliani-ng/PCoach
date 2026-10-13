@@ -178,3 +178,62 @@ test("un errore di rete al salvataggio della seduta lascia il pannello aperto co
   await drawer.getByRole("button", { name: "Salva modifiche" }).click();
   await expect(page.getByText("Modifiche salvate.")).toBeVisible();
 });
+
+// ---------- Audit A-06 e A-15: errori che portano al campo ----------
+
+test("nuovo atleta senza nome: «Salva» apre Identità, porta al campo e lo segna (A-06)", async ({ page }) => {
+  await installMockBackend(page, createState());
+  await page.goto("./#/atleta/nuovo");
+  await openSection(page, "Note libere");
+  await page.locator("textarea[aria-label='Note libere']").fill("prima nota");
+  await page.getByRole("button", { name: "Salva", exact: true }).click();
+
+  const nome = page.getByLabel("Nome", { exact: true });
+  await expect(page.locator("#sec-identita .section-toggle")).toHaveAttribute("aria-expanded", "true");
+  await expect(nome).toBeFocused();
+  await expect(nome).toHaveAttribute("aria-invalid", "true");
+  await expect(page.getByText("Il nome è obbligatorio per salvare la scheda.")).toBeVisible();
+
+  await nome.fill("Anna");
+  await expect(page.getByText("Il nome è obbligatorio per salvare la scheda.")).toHaveCount(0);
+  await page.getByRole("button", { name: "Salva", exact: true }).click();
+  await expect(page).toHaveURL(/#\/atleta\/[A-Z0-9]+\/profilo/);
+});
+
+// In attesa della correzione di A-28 (audit 2026-10-ux-ui-1-2-0): una navigazione annullata dalla guardia
+// chiude la bozza in router.afterEach, e la scheda resta su «Caricamento…».
+test.fixme("nuovo atleta senza nome: «Salva e continua» resta sulla scheda e porta al campo (A-06)", async ({ page }) => {
+  await installMockBackend(page, createState());
+  await page.goto("./#/atleta/nuovo");
+  await openSection(page, "Note libere");
+  await page.locator("textarea[aria-label='Note libere']").fill("prima nota");
+  const menu = page.getByRole("button", { name: "Apri la barra laterale" });
+  if (await menu.isVisible().catch(() => false)) await menu.click();
+  await page.getByRole("button", { name: /^Da fare/ }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Salva e continua" }).click();
+
+  await expect(page).toHaveURL(/#\/atleta\/nuovo/);
+  await expect(page.getByLabel("Nome", { exact: true })).toBeFocused();
+  await expect(page.getByText("Il nome è obbligatorio per salvare la scheda.")).toBeVisible();
+});
+
+test("login: rete assente e credenziali sbagliate hanno messaggi diversi, il focus torna sulla password (A-15)", async ({ page }) => {
+  await installMockBackend(page, createState());
+  await page.addInitScript(() => localStorage.clear());
+  await page.goto("./");
+  await page.route("**/auth/v1/token**", (r) => r.abort("internetdisconnected"));
+  await page.getByLabel("Email").fill("coach@example.com");
+  await page.getByLabel("Password").fill("x");
+  await page.getByRole("button", { name: "Accedi" }).click();
+  await expect(page.getByRole("alert")).toHaveText("Server di accesso non raggiungibile: controlla la connessione e riprova.");
+  await expect(page.getByLabel("Password")).toBeFocused();
+
+  await page.unroute("**/auth/v1/token**");
+  await page.route("**/auth/v1/token**", (r) => r.fulfill({
+    status: 400, contentType: "application/json", headers: { "access-control-allow-origin": "*" },
+    body: JSON.stringify({ error: "invalid_grant", error_description: "Invalid login credentials" })
+  }));
+  await page.getByRole("button", { name: "Accedi" }).click();
+  await expect(page.getByRole("alert")).toHaveText("Credenziali non valide.");
+  await expect(page.getByLabel("Password")).toBeFocused();
+});

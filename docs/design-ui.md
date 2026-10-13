@@ -78,7 +78,7 @@ Regole per chi modifica il layout:
 - **PageSection** (`PageSection.vue`, stato in `useSections`, decisione in [decisioni/0035](decisioni/0035-pagina-da-fare-sezioni-e-guida.md)): sezione comprimibile di una pagina lunga (Profilo, Impostazioni).
   - L'intestazione è un `<h3>` che contiene un pulsante (`aria-expanded`, `aria-controls`) con il caret, il titolo e, a sezione chiusa, una riga di riepilogo del contenuto in `--text-muted`, oppure in `--warning` se c'è qualcosa da sistemare.
   - A destra, se la sezione ha una guida, l'`IconButton` Info («Guida: …»).
-  - Il contenuto resta nel DOM anche chiuso (`v-show`). Arrivando sulla pagina, o cambiando atleta, le sezioni sono tutte chiuse (scelta del coach); si aprono a mano, da un link che porta a una sezione (`?sezione=`, indice, anomalie) o da sole quando contengono un errore.
+  - Il contenuto resta nel DOM anche chiuso (`v-show`). Arrivando sulla pagina, o cambiando atleta, le sezioni sono tutte chiuse (scelta del coach); si aprono a mano, da un link che porta a una sezione (`?sezione=`, indice, anomalie) o da sole quando contengono un errore. Un salvataggio rifiutato per il nome mancante, da qualunque pulsante, apre Identità e porta il focus su «Nome», che mostra l'errore sotto il campo (`aria-invalid`, `aria-describedby`) finché il nome manca.
 - **SectionNav** (`SectionNav.vue`): indice delle sezioni a destra della colonna, sticky, solo da 1360px. Un clic apre la sezione e la porta in vista. Sotto quella larghezza l'indice sono le intestazioni chiuse.
 - **GuidePanel** (`GuidePanel.vue`, testi in `help/fieldHelp.ts`, gruppi in `help/guide.ts`): la guida di un gruppo di dati, aperta dall'icona Info.
   - È un pannello a destra come quello della seduta, a tutto schermo su mobile, con una voce per campo: titolo, testo e approfondimento.
@@ -251,7 +251,7 @@ Sezione della Panoramica (`WeeklyReviews.vue`, una settimana per `FeedbackWeek.v
   - «versione N» per una revisione;
   - per una settimana approvata, «inviato il …» o «approvato il …».
 - **Settimane chiuse** (approvate, non riuscite): l'intestazione è un pulsante con la freccia (`.feedback-toggle`, `aria-expanded`, alto 44px al tocco) che apre il contenuto. Restano visibili anche da chiuse:
-  - «Email non inviata.» con il motivo e «Riprova l'invio» (oppure come aggiungere l'indirizzo);
+  - «Email non inviata.» con il motivo e «Riprova l'invio» (oppure il link «Aggiungi l'indirizzo nel Profilo», che apre Identità);
   - l'errore di una valutazione non riuscita, con «Riprova».
 
   Una settimana senza sedute ha solo l'intestazione. Un link `?feedback=<id>` apre la settimana indicata e la porta in vista, aprendo «Mostra tutti» se serve.
@@ -264,8 +264,8 @@ Sezione della Panoramica (`WeeklyReviews.vue`, una settimana per `FeedbackWeek.v
 - **Bozza**:
   - il testo per l'atleta in un campo che cresce con il contenuto, senza scorrimento interno;
   - il testo corretto si salva da solo un secondo dopo l'ultima battuta e all'uscita dal campo, senza scritte: lo stato è la nuvola dell'intestazione, rossa finché non è salvato. Un salvataggio non riuscito mostra un messaggio d'errore una volta;
-  - sopra i pulsanti, se una versione precedente è già stata inviata, la casella «Invia anche questa versione»;
-  - poi «Approva e invia» (o «Approva», con una nota, se l'email è disattivata o l'atleta non ha un indirizzo; senza indirizzo la nota è in `--danger`) e «Rigenera». Con il testo corretto, «Rigenera» chiede conferma («perdi le tue correzioni»); se non riesce, le correzioni restano.
+  - sopra i pulsanti, se una versione precedente è già stata inviata, la casella «Invia anche questa versione», e la nota su cosa succede approvando se l'email è disattivata o l'atleta non ha un indirizzo (in `--danger`, con il link «Aggiungi l'indirizzo nel Profilo»);
+  - poi «Approva e invia» (o «Approva» nei due casi della nota) e «Rigenera». Con il testo corretto, «Rigenera» chiede conferma («perdi le tue correzioni»); se non riesce, le correzioni restano.
 - **In preparazione**: la sezione si rilegge da sola ogni 30 secondi finché c'è una valutazione in preparazione, con «Aggiorna ora».
 - **In fondo**, «Prepara il feedback di un'altra settimana»: un selettore con le sole settimane senza feedback fra le ultime sei (in corso compresa) e «Prepara il feedback», che compare a feedback caricati («Caricamento…» prima). Se le hanno tutte, al posto del selettore: «Le ultime sei settimane hanno già un feedback: per rifarne uno usa «Rigenera».»
 
