@@ -99,7 +99,7 @@ App.vue
      │    │    └─ domain/WeeklyReviews.vue   (feedback settimanale: esiti, limitazioni, testo da approvare)
      │    ├─ Piano: domain/PlanTab.vue          (settimana o storico filtrabile)
      │    │    ├─ domain/WorkoutRow.vue         (riga di una seduta: StructureBar mini + WorkoutBadges)
-     │    │    ├─ domain/WorkoutDrawer.vue      (pannello della seduta: dati, StepEditor, testo per Intervals.icu, cronologia)
+     │    │    ├─ domain/WorkoutDrawer.vue      (pannello della seduta: dati, StepEditor con StepFields per ogni step, testo per Intervals.icu, cronologia)
      │    │    ├─ domain/RegenerateDialog.vue   (genera o ripianifica: parametri, proposta di Claude, anteprima delle differenze)
      │    │    └─ domain/SyncWeekDialog.vue     (Sincronizza settimana: anteprima, scelte, esito per riga)
      │    ├─ Profilo: ui/PageSection.vue per ogni sezione, ui/SectionNav.vue (indice), ui/GuidePanel.vue (?guida=);

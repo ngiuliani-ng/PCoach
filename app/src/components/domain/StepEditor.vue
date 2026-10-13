@@ -1,78 +1,14 @@
 <script setup lang="ts">
 // Editor della struttura di una seduta: elenco di step e ripetute con campi validati, al posto
 // della sintassi testuale di Intervals.icu (che resta visibile come anteprima nel pannello).
-// Modifica in place la struttura ricevuta, che appartiene alla bozza del pannello.
+// Modifica in place la struttura ricevuta, che appartiene alla bozza del pannello. I campi di ogni
+// step sono in StepFields.vue.
 import type { StepRole, WorkoutBlock, WorkoutStep, WorkoutStructure } from "@shared/workouts/structure.ts";
 import { STEP_ROLES, peakZone } from "@shared/workouts/structure.ts";
-import { ROLE_LABELS } from "../../domain/workoutState";
+import StepFields from "./StepFields.vue";
 import { ArrowDown, ArrowUp, Plus, Repeat, Trash2 } from "lucide-vue-next";
 
 const props = defineProps<{ structure: WorkoutStructure; errors: Record<string, string>; readonly?: boolean; maxZone?: number }>();
-
-type Unit = "min" | "s" | "km" | "m";
-// Solo le zone del sistema dell'atleta per la disciplina (D-UX-3); una zona gia' oltre resta visibile.
-const zoneMax = () => props.maxZone ?? 7;
-function zoneChoices(current: number | null | undefined): number[] {
-  const list = Array.from({ length: zoneMax() }, (_, i) => i + 1);
-  return current && current > zoneMax() ? [...list, current] : list;
-}
-const zoneText = (z: number) => (z > zoneMax() ? `Z${z}, oltre le ${zoneMax()} zone` : `Z${z}`);
-
-function unitOf(step: WorkoutStep): Unit {
-  if (step.duration.type === "time") return step.duration.seconds % 60 === 0 ? "min" : "s";
-  return step.duration.meters >= 1000 && step.duration.meters % 100 === 0 ? "km" : "m";
-}
-function setValue(step: WorkoutStep, raw: string, unit: Unit) {
-  const v = Math.max(0, Number(raw.replace(",", ".")) || 0);
-  step.duration = unit === "min" ? { type: "time", seconds: Math.round(v * 60) }
-    : unit === "s" ? { type: "time", seconds: Math.round(v) }
-    : unit === "km" ? { type: "distance", meters: Math.round(v * 1000) }
-    : { type: "distance", meters: Math.round(v) };
-}
-function setUnit(step: WorkoutStep, unit: Unit) {
-  const wasTime = step.duration.type === "time";
-  const isTime = unit === "min" || unit === "s";
-  if (wasTime === isTime) return; // stessa grandezza: la durata resta, cambia solo come si legge
-  step.duration = isTime ? { type: "time", seconds: 600 } : { type: "distance", meters: 1000 };
-}
-// Un cambio d'unita' tra minuti e secondi (o km e metri) non cambia la durata: per farlo
-// vedere, il valore mostrato viene riconvertito con l'unita' scelta.
-function onUnitChange(step: WorkoutStep, unit: Unit, input: HTMLInputElement | null) {
-  setUnit(step, unit);
-  const display = unit === "min" && step.duration.type === "time" ? step.duration.seconds / 60
-    : unit === "s" && step.duration.type === "time" ? step.duration.seconds
-    : unit === "km" && step.duration.type === "distance" ? step.duration.meters / 1000
-    : step.duration.type === "distance" ? step.duration.meters : 0;
-  if (input) input.value = String(+display.toFixed(2));
-  unitOverrides.set(step, unit);
-}
-const unitOverrides = new WeakMap<WorkoutStep, Unit>();
-function currentUnit(step: WorkoutStep): Unit {
-  const o = unitOverrides.get(step);
-  if (o && (o === "min" || o === "s") === (step.duration.type === "time")) return o;
-  return unitOf(step);
-}
-function displayValue(step: WorkoutStep): number {
-  const u = currentUnit(step);
-  if (step.duration.type === "time") return +(u === "min" ? step.duration.seconds / 60 : step.duration.seconds).toFixed(2);
-  return +(u === "km" ? step.duration.meters / 1000 : step.duration.meters).toFixed(2);
-}
-
-function setZone(step: WorkoutStep, raw: string) {
-  const z = Number(raw);
-  if (!z) { step.target = null; return; }
-  const to = step.target?.zone_to;
-  step.target = to && to > z ? { zone: z, zone_to: to } : { zone: z };
-}
-function setZoneTo(step: WorkoutStep, raw: string) {
-  if (!step.target) return;
-  const z = Number(raw);
-  step.target = z && z > step.target.zone ? { zone: step.target.zone, zone_to: z } : { zone: step.target.zone };
-}
-function setCue(step: WorkoutStep, value: string) {
-  if (value.trim()) step.cue = value;
-  else delete step.cue;
-}
 
 function newStep(role: StepRole, zone: number, minutes: number): WorkoutStep {
   return { kind: "step", role, duration: { type: "time", seconds: minutes * 60 }, target: { zone } };
@@ -93,6 +29,9 @@ function swatch(step: WorkoutStep) {
   const z = peakZone(step.target);
   return z ? `var(--zone-${z})` : "var(--zone-unknown)";
 }
+// Primo step di un gruppo (in cima, o dopo una ripetuta): porta le etichette dei campi su desktop.
+const startsGroup = (i: number) => i === 0 || props.structure.steps[i - 1].kind === "repeat";
+const REPEAT_ROLES: StepRole[] = ["work", "recovery", "steady"];
 function isRepeat(b: WorkoutBlock): b is Extract<WorkoutBlock, { kind: "repeat" }> {
   return b.kind === "repeat";
 }
@@ -117,30 +56,9 @@ function isRepeat(b: WorkoutBlock): b is Extract<WorkoutBlock, { kind: "repeat" 
         <p v-if="errors[`step:${i}`]" class="helper-text error-text">{{ errors[`step:${i}`] }}</p>
         <div v-for="(step, j) in block.steps" :key="j" class="step-row">
           <span class="step-swatch" :style="{ background: swatch(step) }" aria-hidden="true"></span>
-          <div class="step-fields">
-            <select :value="step.role" :disabled="readonly" aria-label="Tipo di step" @change="step.role = ($event.target as HTMLSelectElement).value as StepRole">
-              <option v-for="r in ['work', 'recovery', 'steady']" :key="r" :value="r">{{ ROLE_LABELS[r] }}</option>
-            </select>
-            <input class="step-num" type="number" min="0" step="any" :value="displayValue(step)" :disabled="readonly" aria-label="Durata"
-              :class="{ invalid: errors[`step:${i}.${j}`] && !(step.duration.type === 'time' ? step.duration.seconds : step.duration.meters) }"
-              @input="setValue(step, ($event.target as HTMLInputElement).value, currentUnit(step))" />
-            <select :value="currentUnit(step)" :disabled="readonly" aria-label="Unità"
-              @change="onUnitChange(step, ($event.target as HTMLSelectElement).value as Unit, ($event.target as HTMLElement).previousElementSibling as HTMLInputElement)">
-              <option value="min">min</option><option value="s">s</option><option value="km">km</option><option value="m">m</option>
-            </select>
-            <select :value="step.target?.zone ?? ''" :disabled="readonly" aria-label="Zona" :class="{ invalid: errors[`step:${i}.${j}`] && !step.target }"
-              @change="setZone(step, ($event.target as HTMLSelectElement).value)">
-              <option value="">Zona…</option>
-              <option v-for="z in zoneChoices(step.target?.zone)" :key="z" :value="z">{{ zoneText(z) }}</option>
-            </select>
-            <select :value="step.target?.zone_to ?? ''" :disabled="readonly || !step.target" aria-label="Fino alla zona"
-              @change="setZoneTo(step, ($event.target as HTMLSelectElement).value)">
-              <option value="">fino a…</option>
-              <option v-for="z in zoneChoices(step.target?.zone_to).filter((x) => x > (step.target?.zone ?? 7))" :key="z" :value="z">{{ zoneText(z) }}</option>
-            </select>
-            <input class="step-cue" :value="step.cue ?? ''" :disabled="readonly" placeholder="Indicazione per l'atleta" aria-label="Indicazione per l'atleta"
-              @input="setCue(step, ($event.target as HTMLInputElement).value)" />
-          </div>
+          <StepFields :step="step" :roles="REPEAT_ROLES" :readonly="readonly" :max-zone="maxZone" :first="j === 0"
+            :duration-invalid="!!errors[`step:${i}.${j}`] && !(step.duration.type === 'time' ? step.duration.seconds : step.duration.meters)"
+            :zone-invalid="!!errors[`step:${i}.${j}`] && !step.target" />
           <span class="step-tools" v-if="!readonly">
             <button type="button" class="icon-btn" aria-label="Sposta su" @click="move(block.steps, j, -1)"><ArrowUp :size="16" aria-hidden="true" /></button>
             <button type="button" class="icon-btn" aria-label="Sposta giù" @click="move(block.steps, j, 1)"><ArrowDown :size="16" aria-hidden="true" /></button>
@@ -153,30 +71,9 @@ function isRepeat(b: WorkoutBlock): b is Extract<WorkoutBlock, { kind: "repeat" 
 
       <div v-else class="step-row">
         <span class="step-swatch" :style="{ background: swatch(block) }" aria-hidden="true"></span>
-        <div class="step-fields">
-          <select :value="block.role" :disabled="readonly" aria-label="Tipo di step" @change="block.role = ($event.target as HTMLSelectElement).value as StepRole">
-            <option v-for="r in STEP_ROLES" :key="r" :value="r">{{ ROLE_LABELS[r] }}</option>
-          </select>
-          <input class="step-num" type="number" min="0" step="any" :value="displayValue(block)" :disabled="readonly" aria-label="Durata"
-            :class="{ invalid: errors[`step:${i}`] && !(block.duration.type === 'time' ? block.duration.seconds : block.duration.meters) }"
-            @input="setValue(block, ($event.target as HTMLInputElement).value, currentUnit(block))" />
-          <select :value="currentUnit(block)" :disabled="readonly" aria-label="Unità"
-            @change="onUnitChange(block, ($event.target as HTMLSelectElement).value as Unit, ($event.target as HTMLElement).previousElementSibling as HTMLInputElement)">
-            <option value="min">min</option><option value="s">s</option><option value="km">km</option><option value="m">m</option>
-          </select>
-          <select :value="block.target?.zone ?? ''" :disabled="readonly" aria-label="Zona" :class="{ invalid: errors[`step:${i}`] && !block.target }"
-            @change="setZone(block, ($event.target as HTMLSelectElement).value)">
-            <option value="">Zona…</option>
-            <option v-for="z in zoneChoices(block.target?.zone)" :key="z" :value="z">{{ zoneText(z) }}</option>
-          </select>
-          <select :value="block.target?.zone_to ?? ''" :disabled="readonly || !block.target" aria-label="Fino alla zona"
-            @change="setZoneTo(block, ($event.target as HTMLSelectElement).value)">
-            <option value="">fino a…</option>
-            <option v-for="z in zoneChoices(block.target?.zone_to).filter((x) => x > (block.target?.zone ?? 7))" :key="z" :value="z">{{ zoneText(z) }}</option>
-          </select>
-          <input class="step-cue" :value="block.cue ?? ''" :disabled="readonly" placeholder="Indicazione per l'atleta" aria-label="Indicazione per l'atleta"
-            @input="setCue(block, ($event.target as HTMLInputElement).value)" />
-        </div>
+        <StepFields :step="block" :roles="STEP_ROLES" :readonly="readonly" :max-zone="maxZone" :first="startsGroup(i)"
+          :duration-invalid="!!errors[`step:${i}`] && !(block.duration.type === 'time' ? block.duration.seconds : block.duration.meters)"
+          :zone-invalid="!!errors[`step:${i}`] && !block.target" />
         <span class="step-tools" v-if="!readonly">
           <button type="button" class="icon-btn" aria-label="Sposta su" @click="move(structure.steps, i, -1)"><ArrowUp :size="16" aria-hidden="true" /></button>
           <button type="button" class="icon-btn" aria-label="Sposta giù" @click="move(structure.steps, i, 1)"><ArrowDown :size="16" aria-hidden="true" /></button>
@@ -206,13 +103,9 @@ function isRepeat(b: WorkoutBlock): b is Extract<WorkoutBlock, { kind: "repeat" 
   border-radius: var(--radius-md);
 }
 .step-swatch { align-self: stretch; border-radius: 3px; }
-.step-fields { display: flex; flex-wrap: wrap; gap: var(--sp-2); min-width: 0; }
-.step-fields select, .step-fields input { width: auto; min-height: 32px; padding: var(--sp-1) var(--sp-2); font-size: var(--fs-sm); }
 .step-num { width: 76px !important; }
-.step-cue { flex: 1 1 160px; }
 .step-tools { display: flex; }
 .step-error { grid-column: 2 / -1; margin: 0; }
-.invalid { border-color: var(--danger) !important; }
 .step-repeat {
   display: flex;
   flex-direction: column;
@@ -230,6 +123,6 @@ function isRepeat(b: WorkoutBlock): b is Extract<WorkoutBlock, { kind: "repeat" 
 .step-add { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-4); }
 /* Touch: stesso testo da 16px e altezza da 44px degli altri campi (base.css). */
 @media (pointer: coarse) {
-  .step-fields select, .step-fields input, .step-repeat-head input { min-height: 44px; font-size: var(--fs-lg); }
+  .step-repeat-head input { min-height: 44px; font-size: var(--fs-lg); }
 }
 </style>

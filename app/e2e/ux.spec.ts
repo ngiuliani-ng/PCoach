@@ -250,3 +250,32 @@ test("intestazione della scheda: su telefono solo il prossimo evento e le tab in
     await expect(page.locator(".page-header")).toContainText("Scheda salvata il 1 set 2026");
   }
 });
+
+test("editor della struttura: etichette visibili dei campi e intervallo di zone solo su richiesta (UX-25)", async ({ page }, info) => {
+  const state = createState();
+  const run = state.tables.workouts.find((w) => w.title === "Corsa rigenerativa") as Record<string, unknown>;
+  run.structure = { version: 2, steps: [
+    { kind: "step", role: "warmup", duration: { type: "time", seconds: 600 }, target: { zone: 1 } },
+    { kind: "step", role: "steady", duration: { type: "time", seconds: 1200 }, target: { zone: 2, zone_to: 3 } }
+  ] };
+  await installMockBackend(page, state);
+  await page.goto(`./#/atleta/${ATHLETE_ID}/piano?seduta=${run.id}`);
+  const drawer = page.getByRole("dialog");
+  const rows = drawer.locator(".step-row");
+  await expect(rows).toHaveCount(2);
+  // Etichette sul primo step; sugli altri solo su telefono.
+  for (const label of ["Tipo", "Durata", "Zona", "Indicazione"]) await expect(rows.nth(0).locator(".step-label", { hasText: label })).toBeVisible();
+  if (info.project.name === "mobile") await expect(rows.nth(1).locator(".step-label", { hasText: "Tipo" })).toBeVisible();
+  else await expect(rows.nth(1).locator(".step-label", { hasText: "Tipo" })).toBeHidden();
+  // L'intervallo si vede solo dove c'e': «Z2 fino a Z3».
+  await expect(rows.nth(0).getByRole("combobox", { name: "Fino alla zona" })).toHaveCount(0);
+  await expect(rows.nth(1).getByRole("combobox", { name: "Fino alla zona" })).toHaveValue("3");
+  await expect(rows.nth(1)).toContainText("fino a");
+  // «Intervallo» aggiunge il limite superiore alla zona successiva; «nessun intervallo» lo toglie.
+  await rows.nth(0).getByRole("button", { name: /^Intervallo di zone/ }).click();
+  const to = rows.nth(0).getByRole("combobox", { name: "Fino alla zona" });
+  await expect(to).toHaveValue("2");
+  await to.selectOption({ label: "nessun intervallo" });
+  await expect(rows.nth(0).getByRole("combobox", { name: "Fino alla zona" })).toHaveCount(0);
+  await expect(rows.nth(0).getByRole("button", { name: /^Intervallo di zone/ })).toBeVisible();
+});

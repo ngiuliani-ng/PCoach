@@ -15,6 +15,8 @@ Ordine: più recente in cima. Versioni con [Semantic Versioning](https://semver.
 ### Modificato
 - Il contatore «Da fare» nella barra laterale è sempre un quadrato della stessa misura, grigio o giallo: il giallo prendeva lo stile del riquadro d'avviso del Piano e cambiava forma — richiesta del coach — docs: design-ui.
 - La pagina «Da fare» non dice più a che ora sono state controllate chiave, zone e soglie — richiesta del coach — docs: design-ui, decisioni/0037.
+- Editor della struttura: etichette visibili sopra i campi (sul primo step di ogni gruppo, su ogni step da telefono) e zona singola, con «+ Intervallo» per un intervallo di zone — «fino a…» non si capiva (audit UX-25) — docs: design-ui, architettura.
+- Il numero sulla tab «Anomalie» ha la stessa forma quadrata del contatore «Da fare» — un solo aspetto per i numeri d'anomalia — docs: design-ui.
 - Sotto il nome dell'atleta, su telefono, solo il prossimo evento; «Aggiornata il» diventa «Scheda salvata il» e sta accanto a «Salva» nel Profilo — su telefono la riga occupava tre righe sopra le tab e la data si leggeva come aggiornamento del carico (audit UX-05) — docs: design-ui.
 
 ### Rimosso
