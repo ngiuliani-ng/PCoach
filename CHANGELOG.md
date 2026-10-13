@@ -12,6 +12,10 @@ Ordine: più recente in cima. Versioni con [Semantic Versioning](https://semver.
 
 ## [Unreleased]
 
+## [1.1.0] — 2026-10-13
+
+Rifiniture dopo la 1.0.0: richieste del coach e i quattro punti P3 dell'audit UI/UX completo (UX-05, UX-25, UX-35, UX-55).
+
 ### Modificato
 - Il contatore «Da fare» nella barra laterale è sempre un quadrato della stessa misura, grigio o giallo: il giallo prendeva lo stile del riquadro d'avviso del Piano e cambiava forma — richiesta del coach — docs: design-ui.
 - La pagina «Da fare» non dice più a che ora sono state controllate chiave, zone e soglie — richiesta del coach — docs: design-ui, decisioni/0037.
