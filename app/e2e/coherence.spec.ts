@@ -128,7 +128,7 @@ test("una valutazione in preparazione si aggiorna senza ricaricare la pagina", a
   await expect(page.getByText("In preparazione")).toBeVisible();
   Object.assign(state.tables.weekly_reviews[0], { status: "draft", output_text: "Testo pronto.", output: { summary: "Pronto.", limitations: [] } });
   await page.getByRole("button", { name: "Aggiorna ora" }).click();
-  await expect(page.getByText("Da rivedere")).toBeVisible();
+  await expect(page.getByText("Da approvare", { exact: true })).toBeVisible();
 });
 
 test("il sistema di zone dell'atleta limita l'editor e chiede conferma per approvare una seduta oltre", async ({ page }) => {

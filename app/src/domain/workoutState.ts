@@ -31,12 +31,24 @@ export function activitySummary(
   return parts.join(", ");
 }
 
-export const STATUS_LABELS: Record<string, string> = {
-  draft: "Da revisionare",
+/**
+ * Glossario degli stati (audit UI/UX di ottobre 2026, D-03): un nome per concetto, senza parole con la
+ * stessa radice su assi diversi. Badge, filtri, anomalie e feedback usano queste etichette.
+ */
+export const STATE_LABELS = {
+  /** Seduta proposta e non ancora approvata. */
+  draft: "Bozza",
   approved: "Approvata",
   cancelled: "Annullata",
-  superseded: "Sostituita"
-};
+  superseded: "Sostituita",
+  /** Seduta che viola un vincolo o va ricontrollata (needs_review): non si invia. */
+  needsReview: "Da verificare",
+  /** Feedback settimanale pronto, in attesa dell'approvazione del coach. */
+  reviewDraft: "Da approvare"
+} as const;
+
+/** Numero progressivo delle modifiche di una seduta o di un feedback. */
+export const versionLabel = (n: number) => `Versione ${n}`;
 
 export const ROLE_LABELS: Record<string, string> = {
   warmup: "Riscaldamento",

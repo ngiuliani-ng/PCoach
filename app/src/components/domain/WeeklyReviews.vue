@@ -49,7 +49,7 @@ watch(() => reviews.reviews, (rows) => {
 
 type Tone = "warn" | "err" | "neutral" | "plain";
 function statusBadge(r: ReviewRecord): { text: string; tone: Tone; icon: unknown } {
-  if (r.status === "draft") return { text: "Da rivedere", tone: "warn", icon: PencilLine };
+  if (r.status === "draft") return { text: "Da approvare", tone: "warn", icon: PencilLine };
   if (r.status === "approved") {
     if (r.delivery_status === "sent") return { text: "Inviato all'atleta", tone: "neutral", icon: Mail };
     if (r.delivery_status === "failed" || r.delivery_status === "skipped") return { text: "Approvato, email non inviata", tone: "err", icon: TriangleAlert };
@@ -123,7 +123,7 @@ async function onApprove(r: ReviewRecord) {
 async function onRegenerate(r: ReviewRecord) {
   if (r.delivery_status === "sent") {
     const ok = await confirmDialog(
-      `L'atleta ha già ricevuto questo feedback${r.delivered_at ? ` il ${formatDate(r.delivered_at.slice(0, 10))}` : ""}. Rigenerandolo prepari una nuova versione da rivedere: all'approvazione sceglierai se inviarla.`,
+      `L'atleta ha già ricevuto questo feedback${r.delivered_at ? ` il ${formatDate(r.delivered_at.slice(0, 10))}` : ""}. Rigenerandolo prepari una nuova versione da approvare: all'approvazione sceglierai se inviarla.`,
       { confirmLabel: "Rigenera", cancelLabel: "Annulla", tone: "primary" }
     );
     if (!ok) return;
@@ -162,7 +162,7 @@ async function onRetry(r: ReviewRecord) {
           <span class="w-badge" :class="statusBadge(r).tone">
             <component :is="statusBadge(r).icon" :size="14" aria-hidden="true" />{{ statusBadge(r).text }}
           </span>
-          <span v-if="r.revision > 1">revisione {{ r.revision }}</span>
+          <span v-if="r.revision > 1">versione {{ r.revision }}</span>
         </p>
 
         <p v-if="countsText(r).length" class="review-counts">
@@ -203,7 +203,7 @@ async function onRetry(r: ReviewRecord) {
           </div>
           <label v-if="emailOn && hasEmail && sentBefore(r)" class="checkbox-line">
             <input type="checkbox" v-model="resend[r.id]" />
-            Invia anche questa versione: l'atleta ha già ricevuto la revisione {{ sentBefore(r)!.revision }}{{ sentBefore(r)!.delivered_at ? ` il ${formatDate(sentBefore(r)!.delivered_at!.slice(0, 10))}` : "" }}
+            Invia anche questa versione: l'atleta ha già ricevuto la versione {{ sentBefore(r)!.revision }}{{ sentBefore(r)!.delivered_at ? ` il ${formatDate(sentBefore(r)!.delivered_at!.slice(0, 10))}` : "" }}
           </label>
           <p v-if="!emailOn" class="helper-text">L'invio via email è disattivato in Impostazioni: approvando, il feedback resta solo qui.</p>
           <p v-else-if="!hasEmail" class="helper-text error-text">L'atleta non ha un indirizzo email: approvando, il feedback non gli arriva e resta fra le anomalie. Aggiungi l'indirizzo nel Profilo, sezione Identità, poi «Riprova l'invio».</p>

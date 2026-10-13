@@ -11,7 +11,7 @@ test("rivede una bozza di feedback, modifica il testo e la approva", async ({ pa
   if (await menu.isVisible().catch(() => false)) await menu.click();
   await page.getByRole("button", { name: /Giulia Ferri/ }).first().click();
 
-  await expect(page.getByText("Da rivedere")).toBeVisible();
+  await expect(page.getByText("Da approvare", { exact: true })).toBeVisible();
   await expect(page.getByText("completamento 75%")).toBeVisible();
   await expect(page.getByText("1 senza attività registrata")).toBeVisible();
   await page.getByText("Sedute della settimana").click();

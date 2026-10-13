@@ -109,7 +109,7 @@ export const useReviewsStore = defineStore("reviews", {
 });
 
 function statusMessage(status: string): string {
-  if (status === "draft") return "Feedback pronto da rivedere.";
+  if (status === "draft") return "Feedback pronto da approvare.";
   if (status === "skipped") return "Nessuna seduta approvata in quella settimana: niente da valutare.";
   if (status === "analysis_failed" || status === "generation_failed") return "Valutazione non riuscita: vedi il dettaglio.";
   return "Valutazione in corso: riprova tra poco per vedere il risultato.";

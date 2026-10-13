@@ -665,20 +665,9 @@ input[type="checkbox"] {
 .w-badge.warn { color: var(--warning); background: var(--warning-bg); border-color: color-mix(in srgb, var(--warning) 40%, transparent); }
 .w-badge.err { color: var(--danger); background: var(--danger-bg); border-color: color-mix(in srgb, var(--danger) 40%, transparent); }
 
-.history-tools { display: flex; flex-wrap: wrap; gap: var(--sp-3); }
+.history-tools { display: flex; flex-wrap: wrap; gap: var(--sp-3); margin-bottom: var(--sp-3); }
+.history-tools .history-plan { flex: 1 1 200px; }
 .history-plan { max-width: 360px; }
-.filters { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin: var(--sp-3) 0; }
-.chip {
-  padding: 2px var(--sp-3);
-  font-size: var(--fs-sm);
-  color: var(--text);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  cursor: pointer;
-}
-.chip[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
-.chip-count { margin-left: var(--sp-1); color: var(--text-muted); }
 .history-week { margin-top: var(--sp-4); }
 .history-week h4 { margin: 0 0 var(--sp-2); font-size: var(--fs-sm); font-weight: 600; color: var(--text-muted); }
 
@@ -1141,7 +1130,7 @@ body:has(.drawer-foot) .toast, body:has(.dialog-foot) .toast { bottom: calc(var(
 @media (pointer: coarse) {
   input:not([type="checkbox"]):not([type="radio"]), select, textarea, .mono-input { font-size: var(--fs-lg); }
   input:not([type="checkbox"]):not([type="radio"]), select { min-height: 44px; }
-  button.primary, button.secondary, button.ghost, button.danger, .segmented button, .chip { min-height: 44px; }
+  button.primary, button.secondary, button.ghost, button.danger, .segmented button { min-height: 44px; }
   .icon-btn { min-width: 44px; min-height: 44px; }
   .tab, .athlete-select, .new-athlete-card .athlete-select, button.add-row { min-height: 44px; }
   summary { padding-block: var(--sp-2); }

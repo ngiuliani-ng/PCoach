@@ -89,13 +89,13 @@ function detail(op: SyncOp): string {
       if (op.detail === "retry") return "Il tentativo precedente non è riuscito.";
       if (op.detail === "format") return "PCoach la converte in modo diverso da quando è stata inviata: va inviata di nuovo.";
       const [from, to] = op.detail.split(":");
-      return `Modificata dopo l'invio (revisione ${from} → ${to}).`;
+      return `Modificata dopo l'invio (versione ${from} → ${to}).`;
     }
     case "conflict": return "Su Intervals.icu è stata cambiata dopo l'ultimo invio.";
     case "remote_missing": return "Su Intervals.icu non esiste più: forse l'ha rimossa l'atleta.";
     case "delete": return w.status === "superseded" ? "Sostituita da una rigenerazione." : "Annullata in PCoach.";
     case "blocked": return op.detail;
-    case "skip_draft": return w.needs_review || "Da revisionare: approvala per inviarla.";
+    case "skip_draft": return w.needs_review || "Bozza: approvala per inviarla.";
     default:
       return op.detail === "completed" ? "Svolta: non si modifica su Intervals.icu." : op.detail === "unlinked" ? "Scollegata da Intervals.icu." : "Nessuna differenza dall'ultimo invio.";
   }

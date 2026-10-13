@@ -21,7 +21,7 @@ test("modifica una bozza e la approva: la revisione sale e lo stato cambia", asy
 
   await page.getByRole("button", { name: /Apri VO2max/ }).click();
   const drawer = page.getByRole("dialog");
-  await expect(drawer.getByText("Da revisionare")).toBeVisible();
+  await expect(drawer.getByText("Bozza", { exact: true })).toBeVisible();
   await expect(drawer.getByText("Serie principale 5x")).toBeAttached();
 
   await drawer.getByLabel("Ripetizioni").fill("6");

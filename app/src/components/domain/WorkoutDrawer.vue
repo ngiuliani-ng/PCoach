@@ -14,7 +14,7 @@ import { useModalFocus } from "../../composables/useModalFocus";
 import { confirmDialog } from "../../composables/useConfirmDialog";
 import { showToast } from "../../composables/useToast";
 import { disciplineIcon, disciplineLabel, formatDate, todayISO } from "../../constants";
-import { TARGET_LABELS, activitySummary, formatMinutes, formatMeters, execState, isPartlyDone } from "../../domain/workoutState";
+import { TARGET_LABELS, activitySummary, formatMinutes, formatMeters, execState, isPartlyDone, versionLabel } from "../../domain/workoutState";
 import { hasFtp, zoneIssue, zoneLimits, type ZoneDiscipline } from "../../domain/athlete";
 import { availabilityIssues } from "../../domain/availability";
 import StepEditor from "./StepEditor.vue";
@@ -202,7 +202,7 @@ const exec = computed(() => execState(original.value, todayISO()));
     <div class="drawer-body">
       <p class="drawer-status">
         <WorkoutBadges :workout="original" :sync="syncRow" />
-        <span class="w-badge plain">Revisione {{ original.revision }}</span>
+        <span class="w-badge plain">{{ versionLabel(original.revision) }}</span>
       </p>
       <p v-if="errors.title" class="helper-text error-text">{{ errors.title }}</p>
 

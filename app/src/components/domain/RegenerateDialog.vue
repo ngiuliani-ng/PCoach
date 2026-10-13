@@ -138,7 +138,7 @@ function candidateReason(w: (typeof candidates.value)[number]): string {
   if (w.locked) return "Bloccata dal coach";
   const s = store.syncRows[w.id];
   if (s?.remote_event_id != null) return "Su Intervals.icu: se la sostituisci, la rimozione ti verrà proposta in «Sincronizza settimana»";
-  return w.status === "draft" ? "Da revisionare" : "Approvata";
+  return w.status === "draft" ? "Bozza" : "Approvata";
 }
 
 async function generate() {
@@ -240,7 +240,7 @@ async function apply() {
     return;
   }
   const added = payload.insert.length;
-  showToast(`Nuova programmazione applicata: ${added} ${added === 1 ? "seduta" : "sedute"} da revisionare.`);
+  showToast(`Nuova programmazione applicata: ${added} ${added === 1 ? "seduta" : "sedute"} in bozza.`);
   emit("applied", fromDate.value);
 }
 
@@ -340,7 +340,7 @@ function dayLabel(date: string) {
             </div>
           </div>
           <p class="helper-text">
-            Le sedute nuove arrivano come bozze da revisionare. Quelle sostituite restano nello storico<template v-if="oldPlan">, nel piano «{{ oldPlan.name }}», che verrà chiuso al {{ formatDate(addDaysISO(fromDate, -1), false) }}</template>.
+            Le sedute nuove arrivano come bozze da approvare. Quelle sostituite restano nello storico<template v-if="oldPlan">, nel piano «{{ oldPlan.name }}», che verrà chiuso al {{ formatDate(addDaysISO(fromDate, -1), false) }}</template>.
           </p>
         </template>
       </div>

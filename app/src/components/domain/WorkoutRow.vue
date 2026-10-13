@@ -49,7 +49,7 @@ const dayText = computed(() => {
           <span v-if="workout.objective">{{ workout.objective }}</span>
         </span>
         <StructureBar v-if="workout.structure" :discipline="workout.discipline" :structure="workout.structure" :pace="pace" variant="mini" />
-        <WorkoutBadges :workout="workout" :sync="sync" />
+        <WorkoutBadges :workout="workout" :sync="sync" row />
       </span>
     </button>
     <button v-if="canApprove" type="button" class="secondary w-row-approve" @click="emit('approve', workout.id)">

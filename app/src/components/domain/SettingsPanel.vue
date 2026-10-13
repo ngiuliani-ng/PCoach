@@ -165,7 +165,7 @@ async function onSave() {
         <input type="checkbox" v-model="settings.settings.weekly_feedback_email_enabled" />
         Invia via email all'atleta il feedback che approvi
       </label>
-      <p class="helper-text">Ogni lunedì, dall'ora indicata, il server prepara il feedback della settimana appena conclusa (da lunedì a domenica). Lo trovi da rivedere nella Panoramica di ogni atleta: niente parte senza la tua approvazione.</p>
+      <p class="helper-text">Ogni lunedì, dall'ora indicata, il server prepara il feedback della settimana appena conclusa (da lunedì a domenica). Lo trovi da approvare nella Panoramica di ogni atleta: niente parte senza la tua approvazione.</p>
     </section>
   </div>
 </template>

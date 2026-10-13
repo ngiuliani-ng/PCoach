@@ -13,7 +13,7 @@ import { choiceDialog } from "../../composables/useConfirmDialog";
 import { DAY_LABELS, formatDate, todayISO } from "../../constants";
 import { useQueryLayer } from "../../composables/useQueryLayer";
 import { useZoneChange } from "../../composables/useZoneChange";
-import { execState, formatMinutes, isPartlyDone } from "../../domain/workoutState";
+import { execState, formatMinutes, isPartlyDone, STATE_LABELS } from "../../domain/workoutState";
 import { isActiveStatus } from "../../domain/regeneration";
 import WorkoutRow from "./WorkoutRow.vue";
 import WorkoutDrawer from "./WorkoutDrawer.vue";
@@ -110,21 +110,31 @@ function onApplied(fromDate: string) {
 }
 
 // ---------- Storico ----------
+// Un solo selettore al posto dei filtri a chip (D-03: pochi controlli nello storico), con i filtri
+// raggruppati per asse e il conteggio di ognuno.
 type Filter = { key: string; label: string; test: (w: WorkoutRecord) => boolean };
-const FILTERS: Filter[] = [
-  { key: "all", label: "Tutte", test: () => true },
-  { key: "review", label: "Da revisionare", test: (w) => w.status === "draft" },
-  { key: "needs_review", label: "Da verificare", test: (w) => !!w.needs_review && isActiveStatus(w.status) },
-  { key: "approved", label: "Approvate", test: (w) => w.status === "approved" },
-  { key: "synced", label: "Su Intervals.icu", test: (w) => localSyncState(w, store.syncRows[w.id]) === "synced" },
-  { key: "outdated", label: "Da aggiornare", test: (w) => localSyncState(w, store.syncRows[w.id]) === "outdated" },
-  { key: "error", label: "Errori di sincronizzazione", test: (w) => localSyncState(w, store.syncRows[w.id]) === "error" },
-  { key: "done", label: "Svolte", test: (w) => execState(w, today) === "done" },
-  { key: "partial", label: "Svolte in parte", test: (w) => isPartlyDone(w) },
-  { key: "unrecorded", label: "Non registrate", test: (w) => execState(w, today) === "unrecorded" },
-  { key: "planned", label: "In programma", test: (w) => execState(w, today) === "planned" || execState(w, today) === "today" },
-  { key: "closed", label: "Annullate o sostituite", test: (w) => !isActiveStatus(w.status) }
+const ALL: Filter = { key: "all", label: "Tutte", test: () => true };
+const FILTER_GROUPS: { label: string; filters: Filter[] }[] = [
+  { label: "Da sistemare", filters: [
+    { key: "review", label: "Bozze", test: (w) => w.status === "draft" },
+    { key: "needs_review", label: STATE_LABELS.needsReview, test: (w) => !!w.needs_review && isActiveStatus(w.status) },
+    { key: "outdated", label: "Da aggiornare su Intervals.icu", test: (w) => localSyncState(w, store.syncRows[w.id]) === "outdated" },
+    { key: "error", label: "Invii non riusciti", test: (w) => localSyncState(w, store.syncRows[w.id]) === "error" }
+  ] },
+  { label: "Approvazione e invio", filters: [
+    { key: "approved", label: "Approvate", test: (w) => w.status === "approved" },
+    { key: "synced", label: "Su Intervals.icu", test: (w) => localSyncState(w, store.syncRows[w.id]) === "synced" }
+  ] },
+  { label: "Esecuzione", filters: [
+    { key: "planned", label: "In programma", test: (w) => execState(w, today) === "planned" || execState(w, today) === "today" },
+    { key: "done", label: "Svolte", test: (w) => execState(w, today) === "done" },
+    { key: "partial", label: "Svolte in parte", test: (w) => isPartlyDone(w) },
+    { key: "unrecorded", label: "Non registrate", test: (w) => execState(w, today) === "unrecorded" }
+  ] },
+  { label: "Chiuse", filters: [{ key: "closed", label: "Annullate o sostituite", test: (w) => !isActiveStatus(w.status) }] }
 ];
+const FILTERS: Filter[] = [ALL, ...FILTER_GROUPS.flatMap((g) => g.filters)];
+const countOf = (f: Filter) => historyBase.value.filter(f.test).length;
 const filter = ref("all");
 const planFilter = ref("all");
 const historyBase = computed(() => store.workouts.filter((w) => planFilter.value === "all" || w.plan_id === planFilter.value));
@@ -191,7 +201,7 @@ function rangeText(ws: string) {
         <button type="button" class="link-btn" @click="emit('go-profile', 'sec-intervals')">aggiungila nel Profilo</button>.
       </p>
       <div v-if="approvableDrafts.length" class="attention" role="note">
-        <span>{{ approvableDrafts.length === 1 ? "Una seduta è da revisionare" : `${approvableDrafts.length} sedute sono da revisionare` }}: non verranno inviate a Intervals.icu finché non le approvi.</span>
+        <span>{{ approvableDrafts.length === 1 ? "Una seduta è in bozza" : `${approvableDrafts.length} sedute sono in bozza` }}: non verranno inviate a Intervals.icu finché non le approvi.</span>
         <button type="button" class="secondary" @click="approveWeek"><CheckCheck :size="16" aria-hidden="true" />Approva {{ approvableDrafts.length === 1 ? "la seduta" : `le ${approvableDrafts.length}` }}</button>
       </div>
 
@@ -223,11 +233,15 @@ function rangeText(ws: string) {
             <option v-for="p in store.plans" :key="p.id" :value="p.id">{{ planLabel(p) }}</option>
           </select>
         </label>
-      </div>
-      <div class="filters" role="group" aria-label="Filtra le sedute">
-        <button v-for="f in FILTERS" :key="f.key" type="button" class="chip" :aria-pressed="filter === f.key" @click="filter = f.key">
-          {{ f.label }}<span class="chip-count">{{ historyBase.filter(f.test).length }}</span>
-        </button>
+        <label class="field history-plan">
+          <span class="field-label">Sedute</span>
+          <select v-model="filter">
+            <option :value="ALL.key">{{ ALL.label }} ({{ countOf(ALL) }})</option>
+            <optgroup v-for="g in FILTER_GROUPS" :key="g.label" :label="g.label">
+              <option v-for="f in g.filters" :key="f.key" :value="f.key">{{ f.label }} ({{ countOf(f) }})</option>
+            </optgroup>
+          </select>
+        </label>
       </div>
       <div v-if="!historyGroups.length" class="unit plan-empty"><p>Nessuna seduta corrisponde al filtro.</p></div>
       <div v-for="[ws, items] in historyGroups" :key="ws" class="history-week">
