@@ -22,9 +22,9 @@ Decisioni del coach del 13 ottobre 2026: D-01, D-02, D-03 e D-04, dettagliate ne
    - le sedute da verificare e gli invii non riusciti;
    - le bozze delle prossime due settimane.
    
-   Ogni voce porta al punto esatto (`?feedback=`, `?sezione=`, `?seduta=`, `?settimana=`). Accanto a ogni atleta, nella barra laterale, il numero di cose da fare. Zone e soglie diverse da Intervals.icu restano nella tab Anomalie: richiedono una lettura da Intervals.icu per atleta.
-2. **Sezioni comprimibili con riepilogo** (D-02). Ogni sezione di Profilo e Impostazioni ha un'intestazione che apre e chiude; chiusa, mostra una riga di riepilogo. Sugli schermi larghi c'è un indice a destra. Le sezioni aperte si ricordano per la sessione del browser.
-   - Nel Profilo partono aperte Soglie e zone, Obiettivi, Vincoli e disponibilità; una bozza si apre tutta.
+   Ogni voce porta al punto esatto (`?feedback=`, `?sezione=`, `?seduta=`, `?settimana=`). Nella barra laterale la voce «Da fare» (anche il marchio PCoach) riporta alla pagina, con il totale; accanto a ogni atleta il suo numero. I numeri sono neutri, non gialli: il giallo resta per le anomalie (richiesta del coach, che li confondeva). Zone e soglie diverse da Intervals.icu restano nella tab Anomalie: richiedono una lettura da Intervals.icu per atleta.
+2. **Sezioni comprimibili con riepilogo** (D-02). Ogni sezione di Profilo e Impostazioni ha un'intestazione che apre e chiude; chiusa, mostra una riga di riepilogo. Sugli schermi larghi c'è un indice a destra.
+   - Arrivando sulla pagina, anche per una bozza e cambiando atleta, le sezioni sono **tutte chiuse** (decisione del coach); nessuna memoria fra una visita e l'altra.
    - Le Impostazioni hanno due gruppi d'uso comune (Claude e generazione, Feedback settimanale), poi «Avanzate» (classificazione, intensità, modelli di zone), poi Informazioni.
    - Una sezione con un errore si apre da sola.
 3. **Guida per gruppo** (D-04, sul modello di Garmin Connect). Sotto i campi non c'è testo d'aiuto: l'icona Info della sezione apre un pannello con una voce per campo. Il pannello sta nell'URL (`?guida=`) e «indietro» lo chiude senza perdere le modifiche. Nel pannello della seduta, dove un secondo livello sarebbe di troppo, un'icona Info apre il testo sotto il campo.
@@ -32,16 +32,15 @@ Decisioni del coach del 13 ottobre 2026: D-01, D-02, D-03 e D-04, dettagliate ne
    - **Le conseguenze che bloccano qualcosa** compaiono quando servono: come conferma prima dell'azione (cambio del sistema di zone con un piano in corso, salvataggio dei modelli di zone) o come anomalia finché il problema esiste.
 4. **Glossario degli stati** (D-03), in `domain/workoutState.ts`: «Bozza», «Da verificare», «Da approvare» (feedback), «Versione N». Nelle righe delle sedute restano solo gli stati da sistemare e quello d'esecuzione. Lo storico filtra con un selettore raggruppato per asse al posto dei chip, come richiesto dal coach («non troppi chip»).
 
+Confermate dal coach: le due settimane delle bozze, l'indice solo da 1360 px, la Panoramica che parte dal feedback quando ce n'è uno da approvare.
+
 Scelte dell'assistente, da confermare:
-- le sezioni aperte di default;
-- le due settimane delle bozze;
-- l'indice solo da 1360 px;
 - il numero in sidebar che conta una per una le sedute raggruppate, come la tab Anomalie;
-- la Panoramica che parte dal feedback quando ce n'è uno da approvare, deciso all'apertura della scheda.
+- l'apertura automatica di una sezione con un errore, anche con le sezioni sempre chiuse.
 
 ## Conseguenze
 
 - Componenti nuovi in `components/ui/`: `PageSection`, `SectionNav`, `GuidePanel`, `InfoToggle`. `FieldHelp.vue` è rimosso. Le guide sono in `help/guide.ts`.
 - `fieldHelp.test.ts` verifica che ogni testo sia in una guida e che le etichette citate fra «» esistano nell'interfaccia.
-- `useSections` usa `sessionStorage` solo come comodità: senza, valgono le sezioni predefinite.
+- `useSections` non ricorda nulla: lo stato delle sezioni vive finché si resta sulla pagina.
 - `stores/todo.ts` legge sedute, invii e feedback di tutti gli atleti a ogni cambio di pagina: tre query leggere, adatte al numero di atleti attuale.

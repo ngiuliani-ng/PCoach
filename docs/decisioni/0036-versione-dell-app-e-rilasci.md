@@ -35,11 +35,7 @@ Analisi nel [report 07 dell'audit](../audit/2026-10-ux-ui-completo/07-versioname
    - un test verifica che esistano `Unreleased` e la sezione datata della versione corrente.
 6. **Rilascio**: il workflow esegue i test a ogni push su `main` e pubblica solo dai tag `v*`. Prima controlla che il tag corrisponda a `package.json`; dopo il deploy verifica che `version.json` in linea sia la versione del tag. Procedura in [sviluppo-deploy.md § Rilascio](../sviluppo-deploy.md#rilascio-di-una-versione).
 
-Scelte dell'assistente, da confermare:
-- data della 1.0.0 al 13 ottobre 2026, da aggiornare se il rilascio avviene un altro giorno;
-- versione del server letta da `weekly-feedback`;
-- `-modificato` come suffisso;
-- la sezione Informazioni chiusa di default.
+Confermate dal coach: data della 1.0.0 al 13 ottobre 2026, versione del server letta da `weekly-feedback`. Scelta dell'assistente, da confermare: `-modificato` come suffisso.
 
 ## Conseguenze
 

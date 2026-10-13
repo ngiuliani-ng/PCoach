@@ -78,7 +78,7 @@ Regole per chi modifica il layout:
 - **PageSection** (`PageSection.vue`, stato in `useSections`, decisione in [decisioni/0035](decisioni/0035-pagina-da-fare-sezioni-e-guida.md)): sezione comprimibile di una pagina lunga (Profilo, Impostazioni).
   - L'intestazione è un `<h3>` che contiene un pulsante (`aria-expanded`, `aria-controls`) con il caret, il titolo e, a sezione chiusa, una riga di riepilogo del contenuto in `--text-muted`, oppure in `--warning` se c'è qualcosa da sistemare.
   - A destra, se la sezione ha una guida, l'`IconButton` Info («Guida: …»).
-  - Il contenuto resta nel DOM anche chiuso (`v-show`). Le sezioni aperte si ricordano per la sessione del browser; una sezione con un errore si apre da sola.
+  - Il contenuto resta nel DOM anche chiuso (`v-show`). Arrivando sulla pagina, o cambiando atleta, le sezioni sono tutte chiuse (scelta del coach); si aprono a mano, da un link che porta a una sezione (`?sezione=`, indice, anomalie) o da sole quando contengono un errore.
 - **SectionNav** (`SectionNav.vue`): indice delle sezioni a destra della colonna, sticky, solo da 1360px. Un clic apre la sezione e la porta in vista. Sotto quella larghezza l'indice sono le intestazioni chiuse.
 - **GuidePanel** (`GuidePanel.vue`, testi in `help/fieldHelp.ts`, gruppi in `help/guide.ts`): la guida di un gruppo di dati, aperta dall'icona Info.
   - È un pannello a destra come quello della seduta, a tutto schermo su mobile, con una voce per campo: titolo, testo e approfondimento.
@@ -96,8 +96,8 @@ Regole per chi modifica il layout:
 ## Layout
 
 - **Desktop**: sidebar atleti a sinistra (260px, `flex-shrink: 0`, sticky), contenuto a destra (`.main`, `flex: 1`) in una colonna centrata di 680px massimi (`.form-wrap`). Lo scroll è quello della pagina: `.main` non ha `overflow`, così l'header sticky funziona.
-- **Sidebar**: "Nuovo atleta" in cima (pulsante tratteggiato in colore accento), poi gli atleti in ordine alfabetico. Ogni atleta è una riga resa come `<button>`:
-  - il nome, che va a capo invece di essere troncato, seguito dal numero di cose da fare in un tondo `--warning` (stesso stile del numero della tab Anomalie, `aria-label` «, N da fare»);
+- **Sidebar**: il marchio «PCoach» porta alla pagina iniziale; poi «Da fare» (la pagina iniziale, con il totale nello stesso tondo neutro), "Nuovo atleta" (pulsante tratteggiato in colore accento) e gli atleti in ordine alfabetico. Ogni atleta è una riga resa come `<button>`:
+  - il nome, che va a capo invece di essere troncato, seguito dal numero di cose da fare in un tondo neutro (`--surface-2`, bordo `--border-control`, `aria-label` «, N da fare»): il giallo resta solo per il numero delle anomalie;
   - sotto, su righe proprie, le discipline e l'ultimo TSB, così il TSB è sempre allineato a sinistra qualunque sia la lunghezza del nome.
 
   La riga aperta ha sfondo `--surface-2` e un filetto d'accento a sinistra (`aria-current`). Nell'elenco non ci sono azioni: l'eliminazione è solo in Profilo › Gestione scheda. Nel piede, sotto lo stato della connessione, «Versione X.Y.Z» in `--fs-xs` e `--text-muted`, link a Impostazioni › Informazioni ([decisioni/0036](decisioni/0036-versione-dell-app-e-rilasci.md)).
@@ -105,7 +105,7 @@ Regole per chi modifica il layout:
 - **Scheda atleta: tre viste** a tab (`role="tablist"`, frecce sinistra/destra per cambiare):
   - **Panoramica**: carico e forma, la settimana in corso in sola lettura (un clic su una seduta apre il suo pannello nel Piano) con «Apri il piano», feedback settimanale (vedi [sotto](#feedback-settimanale)). Se all'apertura della scheda c'è un feedback da approvare, il feedback è la prima sezione;
   - **Piano**: vedi [sotto](#tab-piano);
-  - **Profilo**: sezioni comprimibili (`PageSection`) per identità, Intervals.icu, discipline, soglie e zone, stato di allenamento, obiettivi, vincoli e disponibilità, metodologia, note, gestione scheda. Partono aperte Soglie e zone, Obiettivi e Vincoli; una bozza di nuovo atleta le apre tutte;
+  - **Profilo**: sezioni comprimibili (`PageSection`) per identità, Intervals.icu, discipline, soglie e zone, stato di allenamento, obiettivi, vincoli e disponibilità, metodologia, note, gestione scheda, tutte chiuse all'arrivo;
   - **Anomalie** (solo per una scheda salvata): vedi [sotto](#tab-anomalie). L'etichetta della tab porta il numero di anomalie in un tondo `--warning`.
 
   Si apre sulla Panoramica; una bozza di nuovo atleta si apre sul Profilo e il suo primo salvataggio non cambia vista.
@@ -116,7 +116,7 @@ Regole per chi modifica il layout:
 - **Pagina iniziale «Da fare»** (`TodoPage.vue`, [decisioni/0035](decisioni/0035-pagina-da-fare-sezioni-e-guida.md)):
   - una sezione per atleta, con il nome come link alla scheda, e un'unità con una riga per voce, come la tab Anomalie: icona (`CircleAlert` `--danger` per ciò che è fallito, `TriangleAlert` `--warning` per ciò che va sistemato, `Clock` `--text-muted` per ciò che aspetta un'approvazione), titolo, dettaglio e link al punto esatto;
   - gli atleti senza nulla da fare non compaiono; senza voci, «Niente da fare» con una frase su cosa compare qui;
-  - in fondo, una riga ricorda che zone e soglie si controllano nella scheda;
+  - in fondo, una riga dice cosa non vi compare (zone e soglie diverse da Intervals.icu, chiave non valida) e dove si vede (tab Anomalie della scheda);
   - senza atleti: «Nessun atleta» e come crearne uno.
 
 ### Tab Piano
@@ -254,16 +254,16 @@ Sezione della Panoramica (`WeeklyReviews.vue`):
 
 ## Impostazioni
 
-`SettingsPanel.vue`, sezioni comprimibili con indice e guida ([decisioni/0035](decisioni/0035-pagina-da-fare-sezioni-e-guida.md)):
-- **Claude e generazione** (aperta): chiave e modello, preferenze per generare il piano con «Ripristina le preferenze predefinite».
-- **Feedback settimanale** (aperta): ora del lunedì, fuso orario (un elenco dei fusi riconosciuti dal browser; un valore salvato non valido compare segnalato e il salvataggio è bloccato), invio via email, tono del feedback.
+`SettingsPanel.vue`, sezioni comprimibili con indice e guida, tutte chiuse all'arrivo ([decisioni/0035](decisioni/0035-pagina-da-fare-sezioni-e-guida.md)):
+- **Claude e generazione**: chiave e modello, preferenze per generare il piano con «Ripristina le preferenze predefinite».
+- **Feedback settimanale**: ora del lunedì, fuso orario (un elenco dei fusi riconosciuti dal browser; un valore salvato non valido compare segnalato e il salvataggio è bloccato), invio via email, tono del feedback.
 - **Avanzate**, un titolo `h2` in `--text-muted` con una riga sugli effetti, poi tre sezioni chiuse, il cui riepilogo dice «Valori predefiniti» o quanti valori sono personalizzati:
   - «Classificazione delle sedute»: soglie principali e, sotto «Qualità dei dati», le altre, con validazione per campo;
   - «Intensità per sistema di zone»: una tabella con una riga per sistema (3, 5, 7 zone) e le colonne «Bassa fino alla zona» e «Media fino alla zona»; ogni campo ha il nome dalla riga e dalla colonna;
   - «Modelli di zone»: per misura e sistema, un preset o limiti propri, con la fonte del preset. Salvare modelli cambiati chiede conferma, perché cambiano la durata stimata delle sedute a distanza per tutti gli atleti.
 
   Ogni sezione ha il suo «Ripristina…», che chiede conferma solo se ci sono valori personalizzati.
-- **Informazioni** (chiusa): versione, build e data, versione del server, «Copia per una segnalazione», novità della versione ([decisioni/0036](decisioni/0036-versione-dell-app-e-rilasci.md)).
+- **Informazioni**: versione, build e data, versione del server, «Copia per una segnalazione», novità della versione ([decisioni/0036](decisioni/0036-versione-dell-app-e-rilasci.md)).
 
 Nel Profilo, la sezione Metodologia ha lo schema di carico e scarico come due selettori («Settimane di carico» 1-8, «Settimane di scarico» 1-4; un valore salvato non riconosciuto è segnalato) e i tre campi della progressione del carico.
 

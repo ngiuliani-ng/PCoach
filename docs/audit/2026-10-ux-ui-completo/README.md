@@ -259,28 +259,21 @@ Documenti: ADR [0034](../../decisioni/0034-anomalie-in-un-elenco-ed-email-dell-a
 
 | Pagina | Prima | Dopo |
 |---|---|---|
-| Impostazioni a 1440 px | 2,2 schermi, 4,6 con le sezioni aperte; 74 campi visibili; ≈4.000 caratteri d'aiuto | 1,4 schermi; 7 campi visibili; ≈150 caratteri |
-| Impostazioni a 390 px | 2,8 / 6,8 schermi | 1,7 schermi |
-| Profilo a 1440 px | 6,7 schermi; 91 campi; ≈7.500 caratteri d'aiuto | 3,7 schermi con le tre sezioni aperte di default; 55 campi visibili; nessun testo d'aiuto sotto i campi |
-| Profilo a 390 / 320 px | 10,6 / 14,1 schermi | 5,9 / 7,8 schermi |
+| Impostazioni a 1440 / 390 px | 2,2 / 2,8 schermi, 4,6 / 6,8 con le sezioni aperte; 74 campi visibili; ≈4.000 caratteri d'aiuto | 1 schermo con le sezioni chiuse |
+| Profilo a 1440 px | 6,7 schermi; 91 campi; ≈7.500 caratteri d'aiuto | 1,2 schermi con le sezioni chiuse; nessun testo d'aiuto sotto i campi |
+| Profilo a 390 px | 10,6 schermi | 1,3 schermi |
 | Schede a 320 px | scorrimento orizzontale | nessuno |
 | Testi sotto i 12 px | 7 (grafico) | 0 |
 
 Rispetto ai criteri del §8:
 - **Impostazioni** ≤ 1,5 schermi: rispettato.
 - **Testo d'aiuto visibile** ridotto di almeno la metà: rispettato.
-- **Profilo** ≤ 2,5 schermi: non rispettato con le tre sezioni aperte di default (3,7). Si rispetterebbe chiudendone una o tutte, ma le sezioni aperte di default sono una scelta da confermare.
+- **Profilo** ≤ 2,5 schermi: rispettato (1,2), con le sezioni tutte chiuse come deciso dal coach.
 - **Feedback da approvare** a un clic dalla home e primo contenuto della Panoramica: rispettato (e2e).
 - **Glossario** senza etichette duplicate: rispettato (test).
 - **Storico**: al massimo 2 righe di filtri, sostituiti da un selettore.
 
-**Scelte mie, da confermare** (sono elencate anche nelle ADR 0034-0036):
-- sezioni aperte di default nel Profilo (Soglie e zone, Obiettivi, Vincoli) e nelle Impostazioni (Claude, Feedback);
-- bozze delle prossime due settimane nella home;
-- indice delle sezioni solo da 1360 px;
-- Panoramica che parte dal feedback, deciso all'apertura della scheda;
-- versione del server letta da `weekly-feedback`;
-- data della 1.0.0 al 13 ottobre.
+**Risposte del coach sulle scelte dell'assistente** (13 ottobre): sezioni sempre tutte chiuse; confermate le bozze delle prossime due settimane, l'indice da 1360 px, la Panoramica che parte dal feedback, la data della 1.0.0 e la versione del server da `weekly-feedback`. Su sua richiesta: voce «Da fare» nella barra laterale per tornare alla home, numeri in un tondo neutro per non confonderli con il giallo delle anomalie, nota della home riscritta (commit `72ba036`).
 
 **Non fatto o ancora aperto**:
 - **Pubblicazione**: serve la tua conferma. Nell'ordine:
