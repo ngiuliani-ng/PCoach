@@ -12,6 +12,10 @@ Ordine: più recente in cima. Versioni con [Semantic Versioning](https://semver.
 
 ## [Unreleased]
 
+## [1.3.0] — 2026-10-13
+
+Correzioni dell'audit UI/UX della 1.2.0 ([docs/audit/2026-10-ux-ui-1-2-0](docs/audit/2026-10-ux-ui-1-2-0/README.md), [decisioni/0039](docs/decisioni/0039-correzioni-dell-audit-ui-ux-1-2-0.md)): dialoghi di generazione affidabili dopo un ricaricamento, bozze che non si perdono con «Resta», errori che portano al campo, messaggi che restano il tempo di leggerli, tastiera e lettori di schermo su telefono e desktop, tema scuro leggibile. Tolto «Copia per una segnalazione».
+
 ### Modificato
 - «Modifica i parametri» dopo una proposta di Claude, e «Indietro» con una risposta incollata, chiedono conferma («Scarta la proposta e modifica i parametri» / «Tieni la proposta») — la proposta si perdeva con un clic — decisione del coach D-01 ([audit A-07](docs/audit/2026-10-ux-ui-1-2-0/README.md#a-07)) — docs: design-ui, sviluppo-deploy.
 - I messaggi informativi restano a schermo in base alla lunghezza del testo (da 4 a 10 secondi), si fermano con il puntatore o il focus sopra e hanno il pulsante di chiusura — sparivano dopo 2,6 secondi anche se lunghi — decisione del coach D-02 ([audit A-08](docs/audit/2026-10-ux-ui-1-2-0/README.md#a-08)) — docs: design-ui, sviluppo-deploy.
