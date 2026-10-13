@@ -13,7 +13,7 @@ Ordine: più recente in cima. Versioni con [Semantic Versioning](https://semver.
 ## [Unreleased]
 
 ### Modificato
-- Anche le Impostazioni hanno la nuvola dello stato di salvataggio («Impostazioni salvate» o «Modifiche non salvate»), come la scheda atleta; su telefono «Salva impostazioni» e «Salva il profilo» diventano «Salva», così il titolo non si taglia — richiesta del coach — docs: design-ui, architettura.
+- Lo stato del salvataggio è solo una nuvola colorata, senza testo né data: verde se salvato, rossa con modifiche, grigia e barrata per una bozza mai salvata; c'è anche nelle Impostazioni; su telefono «Salva impostazioni» e «Salva il profilo» diventano «Salva», così il titolo non si taglia — richiesta del coach — docs: design-ui, architettura.
 
 ## [1.1.0] — 2026-10-13
 

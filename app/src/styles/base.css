@@ -267,12 +267,11 @@ button:focus-visible, a:focus-visible {
   color: var(--text-muted);
   font-size: var(--fs-sm);
 }
-/* Stato del salvataggio (ui/SaveStatus.vue: scheda atleta e Impostazioni), sempre con la nuvola:
-   salvato, modifiche non salvate, bozza. */
-.save-status { display: inline-flex; align-items: center; gap: var(--sp-1); color: var(--text-muted); font-size: var(--fs-sm); white-space: nowrap; }
-.save-status.unsaved { color: var(--danger); font-weight: 500; }
+/* Stato del salvataggio (ui/SaveStatus.vue: scheda atleta e Impostazioni): solo la nuvola colorata. */
+.save-status { display: inline-flex; align-items: center; color: var(--text-muted); }
+.save-status.saved { color: var(--accent); }
+.save-status.unsaved { color: var(--danger); }
 .save-icon { flex-shrink: 0; }
-.save-short { display: none; }
 /* Pulsante con un'etichetta corta per il telefono («Salva impostazioni» → «Salva»). */
 .label-short { display: none; }
 .update-banner {
@@ -1261,11 +1260,8 @@ body:has(.drawer-foot) .toast, body:has(.dialog-foot) .toast { bottom: calc(var(
   .backdrop-fade-enter-active, .backdrop-fade-leave-active { transition: none; }
 }
 @media (max-width: 480px) {
-  /* Su telefono la nuvola resta, con la data corta («1 set») se la scheda e' salvata. */
-  .save-short { display: inline; }
   .label-short { display: inline; }
   .label-long { display: none; }
-  .save-long { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
   .field-row { grid-template-columns: 1fr; }
   .checkbox-grid { grid-template-columns: 1fr; }
   .action-bar { flex-direction: column; }

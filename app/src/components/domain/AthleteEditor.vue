@@ -132,17 +132,11 @@ const openGuide = (key: GuideKey) => guideLayer.open(key);
 const disciplinesText = computed(() =>
   profile.value.disciplines.map((d) => disciplineLabel(d.sport)).filter(Boolean).join(", ")
 );
-// Stato del salvataggio accanto a «Salva» (audit UX-05, richiesta del coach: la nuvola sempre). Il testo
-// corto e' per il telefono: la data senza l'anno, se e' quello in corso; nessun testo per le modifiche,
-// che «Salva» attivo gia' segnala.
+// Stato del salvataggio accanto a «Salva»: solo la nuvola, senza data (decisioni del coach).
 const saveStatus = computed(() => {
-  if (athletes.isDirty) return { state: "unsaved" as const, text: "Modifiche non salvate", short: "" };
-  if (!athletes.currentId) return { state: "draft" as const, text: "Bozza non ancora salvata", short: "" };
-  const date = profile.value.meta.updated_at ?? "";
-  return {
-    state: "saved" as const, text: `Scheda salvata il ${formatDate(date)}`,
-    short: formatDate(date, date.slice(0, 4) !== todayISO().slice(0, 4))
-  };
+  if (athletes.isDirty) return { state: "unsaved" as const, text: "Modifiche non salvate" };
+  if (!athletes.currentId) return { state: "draft" as const, text: "Bozza non ancora salvata" };
+  return { state: "saved" as const, text: "Scheda salvata" };
 });
 const nextEvent = computed(() => {
   const today = todayISO();
@@ -291,7 +285,7 @@ watch(
         <!-- Stato del salvataggio, sempre visibile con la nuvola (richiesta del coach): salvata con la data,
              modifiche non salvate, bozza mai salvata. Su telefono icona e testo corto; il testo intero resta
              per i lettori di schermo. -->
-        <SaveStatus :state="saveStatus.state" :text="saveStatus.text" :short="saveStatus.short" />
+        <SaveStatus :state="saveStatus.state" :text="saveStatus.text" />
         <!-- Salva i dati del Profilo: fuori da quella vista compare solo se ci sono modifiche da salvare. -->
         <!-- Su telefono il pulsante dice solo «Salva»: il nome resta intero per i lettori di schermo. -->
         <button v-if="tab === 'profilo'" type="button" class="primary" :disabled="!athletes.isDirty" @click="onSave">Salva</button>

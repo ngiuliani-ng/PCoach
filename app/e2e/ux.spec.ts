@@ -167,9 +167,11 @@ test("il contatore «Da fare» è un quadrato della stessa misura, grigio o gial
     if (await menu.isVisible().catch(() => false)) await menu.click();
     const counter = page.locator(".todo-item .todo-count");
     await expect(counter).toHaveClass(withAnomaly ? /has-anomaly/ : /^todo-count$/);
-    const box = (await counter.boundingBox())!;
-    const radius = await counter.evaluate((el) => getComputedStyle(el).borderTopLeftRadius);
-    return { width: box.width, height: box.height, radius };
+    // Misura del layout, non del riquadro a schermo: su telefono la barra laterale entra con una
+    // transizione e durante lo scorrimento la larghezza a schermo ha decimali.
+    return counter.evaluate((el) => ({
+      width: (el as HTMLElement).offsetWidth, height: (el as HTMLElement).offsetHeight, radius: getComputedStyle(el).borderTopLeftRadius
+    }));
   }
   const grey = await counterBox(false);
   const yellow = await counterBox(true);
@@ -240,12 +242,12 @@ test("intestazione della scheda: su telefono solo il prossimo evento e le tab in
   await expect(sub).toContainText("Prossimo evento: Mezza di Bergamo, 15 nov 2026");
   await expect(page.getByText(/^Aggiornata il/)).toHaveCount(0);
   const status = page.locator(".page-header .save-status");
-  // Salvata: nuvola con la spunta in ogni tab, testo intero (su telefono «1 set», il resto per i lettori di schermo).
+  // Salvata: nuvola con la spunta in ogni tab, senza testo visibile (la frase e' per i lettori di schermo).
   for (const tab of ["Panoramica", "Piano", "Profilo", "Anomalie"]) {
     await page.getByRole("tab", { name: new RegExp(`^${tab}`) }).click();
     await expect(status.locator(".save-icon")).toBeVisible();
     await expect(status).toHaveClass(/saved/);
-    await expect(status).toContainText("Scheda salvata il 1 set 2026");
+    await expect(status).toContainText("Scheda salvata");
   }
   // Modifiche non salvate: la nuvola resta, con l'avviso.
   await page.getByRole("tab", { name: "Profilo" }).click();
@@ -255,9 +257,8 @@ test("intestazione della scheda: su telefono solo il prossimo evento e le tab in
   await expect(status.locator(".save-icon")).toBeVisible();
   await expect(status).toContainText("Modifiche non salvate");
   if (info.project.name === "mobile") {
-    await expect(status.locator(".save-long")).not.toBeInViewport();
     await page.getByRole("button", { name: "Salva", exact: true }).click();
-    await expect(status.locator(".save-short")).toBeVisible();
+    await expect(status).toHaveClass(/saved/);
     await expect(sub.getByText("Corsa, Bici")).toBeHidden();
     const tabs = (await page.getByRole("tablist", { name: "Sezioni della scheda" }).boundingBox())!;
     expect(tabs.y).toBeLessThanOrEqual(200);
@@ -310,7 +311,7 @@ test("editor della struttura: etichette visibili dei campi e intervallo di zone 
   await expect(rows.nth(0).getByRole("button", { name: /^Intervallo di zone/ })).toBeVisible();
 });
 
-test("Impostazioni: la nuvola del salvataggio sempre, salvata o con modifiche", async ({ page }, info) => {
+test("Impostazioni: solo la nuvola del salvataggio, colorata per stato, salvata o con modifiche", async ({ page }, info) => {
   await installMockBackend(page, createState());
   if (info.project.name === "mobile") await page.setViewportSize({ width: 320, height: 700 });
   await page.goto("./#/impostazioni");
@@ -318,10 +319,15 @@ test("Impostazioni: la nuvola del salvataggio sempre, salvata o con modifiche", 
   await expect(status.locator(".save-icon")).toBeVisible();
   await expect(status).toHaveClass(/saved/);
   await expect(status).toContainText("Impostazioni salvate");
+  // Solo la nuvola: nessun testo visibile, il colore cambia con lo stato.
+  expect((await status.boundingBox())!.width).toBeLessThanOrEqual(24);
+  const colour = () => status.evaluate((el) => getComputedStyle(el).color);
+  const savedColour = await colour();
   await openSection(page, "Feedback settimanale");
   await page.getByLabel("Tono del feedback").fill("Tono asciutto.");
   await expect(status).toHaveClass(/unsaved/);
   await expect(status.locator(".save-icon")).toBeVisible();
+  expect(await colour()).not.toBe(savedColour);
   await expect(status).toContainText("Modifiche non salvate");
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(0);
