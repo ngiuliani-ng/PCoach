@@ -115,12 +115,14 @@ test("pagina «Da fare»: feedback e bozze di tutti gli atleti, con il numero in
   await expect(page.locator(".todo-athlete")).not.toContainText("Feedback della settimana del 5 ott da approvare");
 });
 
-test("la versione in fondo alla barra laterale porta a Informazioni, con build e server, senza novità (D-08)", async ({ page }) => {
+test("la versione non è nella barra laterale: sta in Impostazioni › Informazioni, con build e server, senza novità", async ({ page }) => {
   await installMockBackend(page, createState());
   await page.goto("./");
   const menu = page.getByRole("button", { name: "Apri la barra laterale" });
   if (await menu.isVisible().catch(() => false)) await menu.click();
-  await page.getByRole("link", { name: /^Versione \d+\.\d+\.\d+, informazioni sull'app$/ }).click();
+  await expect(page.locator(".sidebar")).not.toContainText("Versione");
+  await page.getByRole("button", { name: "Impostazioni" }).click();
+  await openSection(page, "Informazioni");
   const info = page.locator("#imp-info");
   await expect(info.getByRole("button", { name: /^Informazioni/ })).toHaveAttribute("aria-expanded", "true");
   await expect(info).toContainText("Versione");

@@ -100,7 +100,7 @@ Regole per chi modifica il layout:
   - il nome, che va a capo invece di essere troncato, senza contatori;
   - sotto, su righe proprie, le discipline e l'ultimo TSB, così il TSB è sempre allineato a sinistra qualunque sia la lunghezza del nome.
 
-  La riga aperta ha sfondo `--surface-2` e un filetto d'accento a sinistra (`aria-current`). Nell'elenco non ci sono azioni: l'eliminazione è solo in Profilo › Gestione scheda. Nel piede, sotto lo stato della connessione, «Versione X.Y.Z» in `--fs-xs` e `--text-muted`, link a Impostazioni › Informazioni ([decisioni/0036](decisioni/0036-versione-dell-app-e-rilasci.md)).
+  La riga aperta ha sfondo `--surface-2` e un filetto d'accento a sinistra (`aria-current`). Nell'elenco non ci sono azioni: l'eliminazione è solo in Profilo › Gestione scheda. Nel piede ci sono lo stato della connessione, «Impostazioni» ed «Esci»; la versione dell'app si legge solo in Impostazioni › Informazioni ([decisioni/0036](decisioni/0036-versione-dell-app-e-rilasci.md)).
 - **Header di pagina** (`.page-header`): titolo in `<h1>` e azioni principali ("Salva", "Salva impostazioni"; nella scheda, fuori dalla vista Profilo il pulsante compare solo con modifiche e dice "Salva il profilo"); i pulsanti di salvataggio sono attivi solo con modifiche. Sotto i 480px «Salva impostazioni» e «Salva il profilo» dicono solo «Salva» (`.label-short`), con il nome intero in `aria-label`, così il titolo resta leggibile. È sticky (`top: --titlebar-h`) in cima alla scheda atleta e alle impostazioni, così il salvataggio è sempre raggiungibile. Prima del pulsante, in ogni vista e a ogni larghezza, c'è lo stato del salvataggio (`ui/SaveStatus.vue`): solo una nuvola da 20px, senza testo né data, che cambia colore e disegno:
   - salvato: `CloudCheck` in `--accent`;
   - con modifiche: `CloudAlert` in `--danger`;
@@ -238,7 +238,7 @@ Altre compattazioni:
 
 **Dispositivi touch** (`@media (pointer: coarse)`, decisione in [decisioni/0026](decisioni/0026-touch-e-orientamento-pwa.md)):
 - i campi hanno il testo a 16px, perché sotto quella misura Safari su iOS ingrandisce la pagina al tocco;
-- pulsanti, campi, tab, voci dell'elenco atleti, pulsanti-icona, caselle con etichetta, «Aggiungi…» e «Versione X.Y.Z» sono alti almeno 44px;
+- pulsanti, campi, tab, voci dell'elenco atleti, pulsanti-icona, caselle con etichetta, e «Aggiungi…» sono alti almeno 44px;
 - i link nel testo restano in riga, con un'area di tocco più alta.
 
 ## Feedback settimanale

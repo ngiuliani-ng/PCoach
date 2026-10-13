@@ -12,7 +12,6 @@ import { CONNECTION_STATUS_LABELS, useConnectionStatus } from "../../composables
 import { disciplineLabel, fullName, formatSigned } from "../../constants";
 import { confirmLeaveProfile, confirmLeaveSettings } from "../../router";
 import IconButton from "../ui/IconButton.vue";
-import { APP_VERSION } from "../../version";
 import { Settings, LogOut, UserPlus, ListTodo } from "lucide-vue-next";
 
 const athletes = useAthletesStore();
@@ -120,10 +119,6 @@ async function onSignOut() {
         <span class="status-dot" :class="[status, { pulsing: status === 'online' }]" aria-hidden="true"></span>
         <span>{{ statusLabel }}</span>
       </div>
-      <!-- Versione dell'app (ADR 0036): discreta, porta a Impostazioni › Informazioni. -->
-      <RouterLink class="app-version" :to="{ name: 'settings', query: { sezione: 'imp-info' } }" :aria-label="`Versione ${APP_VERSION}, informazioni sull'app`">
-        Versione {{ APP_VERSION }}
-      </RouterLink>
       <div class="sidebar-footer-icons">
         <IconButton label="Impostazioni" @click="go({ name: 'settings' }, route.name === 'settings')">
           <Settings :size="18" aria-hidden="true" />

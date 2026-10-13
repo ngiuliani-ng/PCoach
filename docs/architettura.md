@@ -90,7 +90,7 @@ App.vue
      ├─ domain/AthleteSidebar.vue
      │    ├─ "Nuovo atleta" + lista atleti (nome con il numero di cose da fare, discipline e ultimo TSB)
      │    ├─ pallino di stato connessione (useConnectionStatus)
-     │    └─ footer compatto: IconButton "Impostazioni" + IconButton "Esci" (auth.signOut), "Versione X.Y.Z"
+     │    └─ footer compatto: IconButton "Impostazioni" + IconButton "Esci" (auth.signOut)
      ├─ <RouterView> (router.ts): una delle tre pagine seguenti
      ├─ domain/AthleteEditor.vue  (/atleta/:id/:tab e /atleta/nuovo: header sticky con "Salva", viste Panoramica / Piano / Profilo / Anomalie)
      │    ├─ Panoramica

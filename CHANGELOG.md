@@ -15,6 +15,9 @@ Ordine: più recente in cima. Versioni con [Semantic Versioning](https://semver.
 ### Modificato
 - Lo stato del salvataggio è solo una nuvola colorata, senza testo né data: verde se salvato, rossa con modifiche, grigia e barrata per una bozza mai salvata; c'è anche nelle Impostazioni; su telefono «Salva impostazioni» e «Salva il profilo» diventano «Salva», così il titolo non si taglia — richiesta del coach — docs: design-ui, architettura.
 
+### Rimosso
+- «Versione X.Y.Z» in fondo alla barra laterale: la versione resta in Impostazioni › Informazioni — richiesta del coach — docs: design-ui, architettura, sviluppo-deploy, decisioni/0036.
+
 ## [1.1.0] — 2026-10-13
 
 Rifiniture dopo la 1.0.0: richieste del coach e i quattro punti P3 dell'audit UI/UX completo (UX-05, UX-25, UX-35, UX-55).
