@@ -1,0 +1,50 @@
+import json, sys, collections
+rows = [json.loads(l) for l in open(sys.argv[1], encoding="utf-8")]
+rows = [r for r in rows if "@" in r["name"]]
+print("misure:", len(rows))
+# Tabella sintetica: rotta -> per viewport schermi / overflow
+by = collections.defaultdict(dict)
+for r in rows:
+    sc, rest = r["name"].split("@")
+    by[sc][rest] = r
+vps = ["1440/light", "1440/dark", "1280/light", "768/light", "390/light", "390/dark", "320/light", "zoom200/light"]
+print("\n## schermi (H = scorrimento orizzontale)")
+print("rotta".ljust(22), " ".join(v.split("/")[0][:7].rjust(7) + ("d" if "dark" in v else " ") for v in vps))
+for sc, d in by.items():
+    cells = []
+    for v in vps:
+        r = d.get(v)
+        cells.append(("-" if not r else f"{r['screens']}{'H' if r['hOverflow'] else ''}").rjust(8))
+    print(sc.ljust(22), " ".join(cells))
+def agg(key, fmt=lambda x: x):
+    print(f"\n## {key}")
+    for sc, d in by.items():
+        for v, r in d.items():
+            val = r.get(key)
+            if val:
+                print(f"{sc}@{v}: {fmt(val)}")
+agg("overflowers")
+agg("unlabeled")
+agg("skips")
+agg("smallText")
+agg("contrastFails")
+print("\n## small (bersagli < 24 px) per rotta, solo 390 e 320")
+for sc, d in by.items():
+    for v in ["390/light", "320/light", "1440/light"]:
+        r = d.get(v)
+        if r and r["smallCount"]:
+            print(f"{sc}@{v}: {r['smallCount']} {r['small'][:6]}")
+print("\n## console (escluso HEAD ERR_ABORTED noto)")
+for sc, d in by.items():
+    for v, r in d.items():
+        c = [x for x in r.get("console", []) if "HEAD" not in x]
+        if c:
+            print(f"{sc}@{v}: {c[:4]}")
+print("\n## headings 1440")
+for sc, d in by.items():
+    r = d.get("1440/light")
+    if r: print(sc, "|", " / ".join(r["headings"][:9]))
+print("\n## url finali")
+for sc, d in by.items():
+    r = d.get("1440/light")
+    if r: print(sc, "->", r["url"])

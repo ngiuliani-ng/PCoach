@@ -1,0 +1,166 @@
+// Strumenti dell'audit (non versionati): stato di prova ricco, misure in pagina, raccolta della console.
+import type { Page } from "@playwright/test";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { ATHLETE_ID, createState, type MockState } from "C:/Users/ngiuliani/Documents/PCoach/app/e2e/mockBackend";
+
+export const OUT = process.env.AUDIT_OUT || "C:/Users/NGIULI~1/AppData/Local/Temp/claude/out";
+fs.mkdirSync(OUT, { recursive: true });
+export { ATHLETE_ID };
+
+export function richState(): MockState {
+  const s = createState();
+  const p = s.tables.athletes[0].data as any;
+  const log = [];
+  for (let i = 59; i >= 0; i--) {
+    const d = new Date(Date.UTC(2026, 9, 10) - i * 86400000).toISOString().slice(0, 10);
+    const ctl = 40 + (60 - i) * 0.2, atl = ctl + Math.sin(i / 3) * 8;
+    log.push({ date: d, ctl: Math.round(ctl), atl: Math.round(atl), tsb: Math.round(ctl - atl), workouts_count: i % 7 === 0 ? 0 : 1 });
+  }
+  p.training_status.load_metrics_log = log;
+  p.goals.primary_objective = "preparazione_gara";
+  p.goals.periodization_model = "race_peak_taper";
+  p.goals.target_events = [
+    { name: "Mezza di Ravenna", date: "2026-11-15", discipline: "running", distance_or_duration: "21,1 km", priority: "A", target_result: "1h35" }
+  ];
+  p.physiological_thresholds.running.thresholds_log.push({ date: "2026-06-24", source: "manual", threshold_pace_per_km: "4:50", lthr_bpm: 172 });
+  p.constraints.days_available[6].active = false;
+  // Seconda atleta: feedback approvato con email non partita, zone diverse dall'ultimo controllo.
+  const second = JSON.parse(JSON.stringify(p));
+  second.meta.athlete_id = "ATL00002";
+  second.identity = { ...second.identity, nome: "Marco", cognome: "Bianchi-Santangelo", email: "marco@example.com" };
+  s.tables.athletes.push({ id: "ATL00002", data: second, updated_at: "2026-10-01T10:00:00Z" });
+  s.tables.weekly_reviews.push({
+    ...(s.tables.weekly_reviews[0] as any), id: "review-0", athlete_id: "ATL00002", period_start: "2026-09-28", period_end: "2026-10-04", status: "approved",
+    delivery_status: "failed", delivery_error: "Il provider ha rifiutato l'indirizzo (422)", approved_at: "2026-10-05T08:00:00Z"
+  });
+  s.tables.athlete_checks = [{
+    athlete_id: "ATL00002", checked_at: "2026-10-10T07:50:00Z", key_status: "valid",
+    zone_problems: ["Corsa (passo): 5 zone in PCoach, 7 su Intervals.icu"], threshold_problems: []
+  }];
+  // Email attiva: Giulia (senza indirizzo) ha l'anomalia «Manca l'email».
+  (s.tables.app_settings[0] as any).weekly_feedback_email_enabled = true;
+  // Una seduta da verificare.
+  const w = s.tables.workouts.find((x: any) => x.title === "Lungo") as any;
+  w.needs_review = "Durata oltre il massimo del giorno (90 min).";
+  return s;
+}
+
+export function workoutId(s: MockState, title: string): string {
+  return String((s.tables.workouts.find((w: any) => w.title === title) as any).id);
+}
+
+/** Console e richieste fallite durante la pagina. */
+export function watchConsole(page: Page) {
+  const out: string[] = [];
+  page.on("console", (m) => { if (m.type() === "error" || m.type() === "warning") out.push(`${m.type()}: ${m.text().slice(0, 200)}`); });
+  page.on("pageerror", (e) => out.push(`pageerror: ${e.message.slice(0, 200)}`));
+  page.on("requestfailed", (r) => out.push(`requestfailed: ${r.method()} ${r.url().slice(0, 120)} ${r.failure()?.errorText}`));
+  return out;
+}
+
+/** Misure in pagina: overflow, intestazioni, nomi, bersagli, testo piccolo, contrasto calcolato. */
+export async function measure(page: Page) {
+  return page.evaluate(() => {
+    const vis = (el: Element) => {
+      const r = (el as HTMLElement).getBoundingClientRect();
+      const cs = getComputedStyle(el);
+      return r.width > 0 && r.height > 0 && cs.visibility !== "hidden" && cs.display !== "none" && !(el as HTMLElement).closest("[hidden]");
+    };
+    const inViewportX = (el: Element) => { const r = el.getBoundingClientRect(); return r.right > 0 && r.left < innerWidth; };
+    const all = (sel: string) => [...document.querySelectorAll(sel)].filter(vis);
+    const nameOf = (el: Element): string => {
+      const lb = el.getAttribute("aria-labelledby");
+      if (lb) return lb.split(" ").map((id) => document.getElementById(id)?.textContent || "").join(" ").trim();
+      const aria = el.getAttribute("aria-label");
+      if (aria) return aria.trim();
+      const id = el.id && document.querySelector(`label[for="${el.id}"]`);
+      if (id) return id.textContent!.trim();
+      const wrap = el.closest("label");
+      if (wrap) return wrap.textContent!.trim();
+      if ((el as HTMLInputElement).placeholder) return "(solo placeholder) " + (el as HTMLInputElement).placeholder;
+      return (el.textContent || "").trim();
+    };
+    const interactive = all("button, a[href], summary, input:not([type=hidden]), select, textarea").filter(inViewportX);
+    const unlabeled = interactive.filter((el) => !nameOf(el) || nameOf(el).startsWith("(solo placeholder)")).map((el) => el.outerHTML.slice(0, 140));
+    // WCAG 2.5.8 (AA): bersagli di almeno 24×24, salvo link nel testo.
+    const small = interactive
+      .filter((el) => !(el.tagName === "A" && getComputedStyle(el).display === "inline") && !el.classList.contains("link-btn") && !(el as HTMLInputElement).type?.match(/checkbox|radio/))
+      .map((el) => ({ el, r: el.getBoundingClientRect() }))
+      .filter(({ r }) => r.height < 24 || r.width < 24)
+      .map(({ el, r }) => `${el.tagName.toLowerCase()} «${nameOf(el).slice(0, 40)}» ${Math.round(r.width)}×${Math.round(r.height)}`);
+    const headings = [...document.querySelectorAll("h1,h2,h3,h4,h5")].filter(vis).map((h) => `${h.tagName}:${h.textContent!.trim().replace(/\s+/g, " ").slice(0, 45)}`);
+    // Salti di livello fra intestazioni consecutive visibili.
+    const levels = [...document.querySelectorAll("h1,h2,h3,h4,h5")].filter(vis).map((h) => Number(h.tagName[1]));
+    const skips: string[] = [];
+    levels.forEach((l, i) => { if (i && l > levels[i - 1] + 1) skips.push(`h${levels[i - 1]}→h${l}`); });
+    const smallText = [...document.querySelectorAll("body *")].filter((el) => vis(el) && [...el.childNodes].some((c) => c.nodeType === 3 && c.textContent!.trim()) && parseFloat(getComputedStyle(el).fontSize) < 12).length;
+    // Elementi visibili oltre il bordo destro (escluse sidebar chiusa e pannelli fuori schermo voluti).
+    const overflowers = [...document.querySelectorAll("body *")].filter((el) => {
+      if (!vis(el)) return false;
+      const r = el.getBoundingClientRect();
+      if (r.right <= innerWidth + 1 || r.left >= innerWidth) return false;
+      if ((el as HTMLElement).closest(".sidebar:not(.open)")) return false;
+      // Un antenato che taglia o scorre in orizzontale contiene il traboccamento.
+      let p = el.parentElement;
+      while (p && p !== document.body) { const o = getComputedStyle(p).overflowX; if (o === "hidden" || o === "auto" || o === "scroll" || o === "clip") return false; p = p.parentElement; }
+      return true;
+    }).slice(0, 8).map((el) => `${el.tagName.toLowerCase()}.${[...el.classList].join(".")} right=${Math.round(el.getBoundingClientRect().right)}`);
+    // Contrasto: colore del testo contro il primo sfondo pieno degli antenati (approssimazione: niente immagini).
+    const parse = (c: string): number[] | null => {
+      let m = c.match(/rgba?\(([^)]+)\)/);
+      if (m) { const p = m[1].split(/[ ,/]+/).filter(Boolean).map(Number); return [p[0], p[1], p[2], p[3] ?? 1]; }
+      m = c.match(/color\(srgb ([^)]+)\)/);
+      if (m) { const p = m[1].split(/[ /]+/).filter(Boolean).map(Number); return [p[0] * 255, p[1] * 255, p[2] * 255, p[3] ?? 1]; }
+      return null;
+    };
+    const blend = (fg: number[], bg: number[]) => [0, 1, 2].map((i) => fg[i] * fg[3] + bg[i] * (1 - fg[3])).concat(1);
+    const bgOf = (el: Element): number[] => {
+      const stack: number[][] = [];
+      let e: Element | null = el;
+      while (e) {
+        const c = parse(getComputedStyle(e).backgroundColor);
+        if (c && c[3] > 0) { stack.push(c); if (c[3] >= 1) break; }
+        e = e.parentElement;
+      }
+      let bg = [255, 255, 255, 1];
+      if (!e) bg = parse(getComputedStyle(document.body).backgroundColor) ?? bg;
+      for (let i = stack.length - 1; i >= 0; i--) bg = blend(stack[i], bg);
+      return bg;
+    };
+    const lum = (c: number[]) => { const f = (v: number) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
+    const contrastFails: string[] = [];
+    for (const el of document.querySelectorAll("body *")) {
+      if (!vis(el) || !inViewportX(el)) continue;
+      if (![...el.childNodes].some((c) => c.nodeType === 3 && c.textContent!.trim())) continue;
+      if ((el as HTMLElement).closest("[aria-hidden=true]") && !(el as HTMLElement).closest(".chart-labels")) continue;
+      if ((el as HTMLButtonElement).disabled || (el as HTMLElement).closest("button:disabled, select:disabled, input:disabled, option")) continue;
+      const cs = getComputedStyle(el);
+      const fg0 = parse(cs.color); if (!fg0) continue;
+      const bg = bgOf(el);
+      const fg = blend([fg0[0], fg0[1], fg0[2], fg0[3] * parseFloat(cs.opacity || "1")], bg);
+      const L1 = lum(fg), L2 = lum(bg);
+      const ratio = (Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05);
+      const size = parseFloat(cs.fontSize), bold = Number(cs.fontWeight) >= 700;
+      const need = size >= 24 || (bold && size >= 18.66) ? 3 : 4.5;
+      if (ratio < need) contrastFails.push(`${ratio.toFixed(2)} «${(el.textContent || "").trim().slice(0, 40)}» ${el.tagName.toLowerCase()}.${[...el.classList].join(".")}`);
+    }
+    return {
+      viewport: `${innerWidth}x${innerHeight}`,
+      screens: +(document.documentElement.scrollHeight / innerHeight).toFixed(1),
+      hOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      overflowers,
+      interactive: interactive.length,
+      unlabeled,
+      small: small.slice(0, 12), smallCount: small.length,
+      smallText,
+      headings, skips: [...new Set(skips)],
+      contrastFails: contrastFails.slice(0, 12), contrastCount: contrastFails.length,
+      title: document.title
+    };
+  });
+}
+
+export function record(name: string, data: unknown) {
+  fs.appendFileSync(path.join(OUT, "misure.jsonl"), JSON.stringify({ name, ...(data as object) }) + "\n");
+}

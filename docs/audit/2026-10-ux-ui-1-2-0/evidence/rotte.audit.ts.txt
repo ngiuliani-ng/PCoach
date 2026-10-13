@@ -1,0 +1,83 @@
+// Matrice rotte × larghezze × tema: misure, screenshot, console. Backend finto degli e2e, data fissa 10/10/2026.
+import { test, type Page, type BrowserContextOptions } from "@playwright/test";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { installMockBackend, createState, type MockState } from "C:/Users/ngiuliani/Documents/PCoach/app/e2e/mockBackend";
+import { OUT, richState, workoutId, watchConsole, measure, record } from "./lib";
+
+type VP = { key: string; opts: BrowserContextOptions; shots: boolean; dark: boolean };
+const VIEWPORTS: VP[] = [
+  { key: "1440", opts: { viewport: { width: 1440, height: 900 } }, shots: true, dark: true },
+  { key: "1280", opts: { viewport: { width: 1280, height: 800 } }, shots: false, dark: false },
+  { key: "768", opts: { viewport: { width: 768, height: 1024 }, hasTouch: true, isMobile: true }, shots: false, dark: false },
+  { key: "390", opts: { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 }, shots: true, dark: true },
+  { key: "320", opts: { viewport: { width: 320, height: 640 }, hasTouch: true, isMobile: true }, shots: true, dark: false },
+  // Zoom al 200% su 1280×800: stesse dimensioni CSS (riflusso, WCAG 1.4.10 e 1.4.4), senza tocco.
+  { key: "zoom200", opts: { viewport: { width: 640, height: 400 } }, shots: false, dark: false }
+];
+
+type Scenario = { name: string; url: (s: MockState) => string; state?: () => MockState; prep?: (page: Page) => Promise<void>; noSession?: boolean };
+const A = "./#/atleta/ATL00001";
+const openAll = async (page: Page) => {
+  await page.evaluate(() => {
+    document.querySelectorAll<HTMLButtonElement>(".section-toggle[aria-expanded=false]").forEach((b) => b.click());
+    document.querySelectorAll("details").forEach((d) => (d.open = true));
+  });
+  await page.waitForTimeout(200);
+};
+const SCENARIOS: Scenario[] = [
+  { name: "home", url: () => "./#/" },
+  { name: "home-vuota", url: () => "./#/", state: () => {
+    const s = createState();
+    s.tables.weekly_reviews = [];
+    s.tables.workouts.forEach((w: any) => { if (w.status === "draft") w.status = "approved"; w.needs_review = null; });
+    return s;
+  } },
+  { name: "home-nessun-atleta", url: () => "./#/", state: () => { const s = createState(); s.tables.athletes = []; return s; } },
+  { name: "impostazioni", url: () => "./#/impostazioni" },
+  { name: "impostazioni-aperte", url: () => "./#/impostazioni", prep: openAll },
+  { name: "nuovo-atleta", url: () => "./#/atleta/nuovo" },
+  { name: "panoramica", url: () => `${A}/panoramica` },
+  { name: "panoramica-marco", url: () => "./#/atleta/ATL00002/panoramica" },
+  { name: "piano", url: () => `${A}/piano` },
+  { name: "storico", url: () => `${A}/piano`, prep: async (p) => { await p.getByRole("button", { name: "Storico" }).click(); } },
+  { name: "profilo", url: () => `${A}/profilo` },
+  { name: "profilo-aperto", url: () => `${A}/profilo`, prep: openAll },
+  { name: "anomalie", url: () => `${A}/anomalie` },
+  { name: "seduta-bozza", url: (s) => `${A}/piano?seduta=${workoutId(s, "VO2max 5 × 4'")}` },
+  { name: "seduta-annullata", url: (s) => `${A}/piano?seduta=${workoutId(s, "Forza massima")}` },
+  { name: "dialogo-prosegui", url: () => `${A}/piano?dialogo=prosegui` },
+  { name: "dialogo-ripianifica", url: () => `${A}/piano?dialogo=ripianifica` },
+  { name: "dialogo-sincronizza", url: () => `${A}/piano?dialogo=sincronizza` },
+  { name: "guida", url: () => `${A}/profilo?guida=profilo-soglie` },
+  { name: "conferma", url: () => `${A}/profilo?sezione=sec-gestione`, prep: async (p) => { await p.getByRole("button", { name: "Elimina scheda" }).click(); } },
+  { name: "login", url: () => "./", noSession: true }
+];
+
+for (const vp of VIEWPORTS) {
+  for (const scheme of vp.dark ? (["light", "dark"] as const) : (["light"] as const)) {
+    test(`rotte ${vp.key} ${scheme}`, async ({ browser }) => {
+      for (const sc of SCENARIOS) {
+        const context = await browser.newContext({ ...vp.opts, colorScheme: scheme, locale: "it-IT", timezoneId: "Europe/Rome", baseURL: "http://localhost:5187/PCoach/" });
+        const page = await context.newPage();
+        page.setDefaultTimeout(8000);
+        const log = watchConsole(page);
+        const state = (sc.state ?? richState)();
+        await installMockBackend(page, state);
+        if (sc.noSession) await page.addInitScript(() => localStorage.clear());
+        await page.goto(sc.url(state));
+        await page.locator(".main, .login-wrap").first().waitFor();
+        await page.waitForTimeout(400);
+        if (sc.prep) { try { await sc.prep(page); } catch (e) { log.push("prep fallita: " + String(e).slice(0, 160)); } await page.waitForTimeout(300); }
+        const m = await measure(page);
+        record(`${sc.name}@${vp.key}/${scheme}`, { ...m, console: log, url: page.url().replace(/^.*\/PCoach\//, "") });
+        if (vp.shots && (scheme === "light" || ["home", "panoramica", "piano", "seduta-bozza", "impostazioni"].includes(sc.name))) {
+          const dir = path.join(OUT, "screens");
+          fs.mkdirSync(dir, { recursive: true });
+          await page.screenshot({ path: path.join(dir, `${vp.key}-${scheme}-${sc.name}.png`), fullPage: !/seduta|dialogo|guida|conferma/.test(sc.name) });
+        }
+        await context.close();
+      }
+    });
+  }
+}

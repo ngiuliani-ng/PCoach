@@ -1,0 +1,296 @@
+// Verifiche mirate dell'audit: tastiera, nomi accessibili, flussi con errori. Ogni test registra l'esito osservato.
+import { test, expect, type Page, type BrowserContextOptions } from "@playwright/test";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { installMockBackend, createState, type MockState } from "C:/Users/ngiuliani/Documents/PCoach/app/e2e/mockBackend";
+import { OUT, richState, workoutId, record } from "./lib";
+
+const BASE = "http://localhost:5187/PCoach/";
+const A = "./#/atleta/ATL00001";
+async function open(browser: import("@playwright/test").Browser, opts: BrowserContextOptions, url: string, state: MockState = richState(), noSession = false) {
+  const context = await browser.newContext({ locale: "it-IT", timezoneId: "Europe/Rome", baseURL: BASE, ...opts });
+  const page = await context.newPage();
+  page.setDefaultTimeout(8000);
+  await installMockBackend(page, state);
+  if (noSession) await page.addInitScript(() => localStorage.clear());
+  await page.goto(url);
+  await page.locator(".main, .login-wrap").first().waitFor();
+  await page.waitForTimeout(500);
+  return { page, context, state };
+}
+const shot = (page: Page, name: string) => { fs.mkdirSync(path.join(OUT, "flussi"), { recursive: true }); return page.screenshot({ path: path.join(OUT, "flussi", name + ".png") }); };
+const focusInfo = (page: Page) => page.evaluate(() => {
+  const el = document.activeElement as HTMLElement | null;
+  if (!el || el === document.body) return { what: "body", inView: true };
+  const r = el.getBoundingClientRect();
+  const name = (el.getAttribute("aria-label") || el.textContent || "").trim().replace(/\s+/g, " ").slice(0, 40);
+  const header = document.querySelector(".page-header");
+  const hb = header ? header.getBoundingClientRect().bottom : 0;
+  return {
+    what: `${el.tagName.toLowerCase()} «${name}»`,
+    inView: r.right > 0 && r.left < innerWidth && r.bottom > 0 && r.top < innerHeight,
+    inSidebar: !!el.closest(".sidebar"),
+    underHeader: !el.closest(".page-header") && r.top < hb && r.bottom > 0 && getComputedStyle(header!).position === "sticky",
+    rect: [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)]
+  };
+});
+
+test("F01-F02 sidebar mobile: ordine del focus da chiusa e da aperta", async ({ browser }) => {
+  const { page, context } = await open(browser, { viewport: { width: 390, height: 844 } }, `${A}/panoramica`);
+  const closed = [];
+  for (let i = 0; i < 10; i++) { await page.keyboard.press("Tab"); closed.push(await focusInfo(page)); }
+  const tree = await page.locator("#athlete-sidebar").ariaSnapshot();
+  await page.getByRole("button", { name: "Apri la barra laterale" }).click();
+  await page.waitForTimeout(300);
+  const opened = [];
+  for (let i = 0; i < 14; i++) { await page.keyboard.press("Tab"); opened.push(await focusInfo(page)); }
+  await shot(page, "F02-sidebar-aperta-tab");
+  record("F01 sidebar chiusa: focus", { steps: closed, ariaSidebarClosed: tree.slice(0, 600) });
+  record("F02 sidebar aperta: focus", { steps: opened });
+  await context.close();
+});
+
+test("F03-F06 nomi accessibili: dialogo di conferma, tab Anomalie, riga seduta, pannello", async ({ browser }) => {
+  const { page, context, state } = await open(browser, { viewport: { width: 1440, height: 900 } }, `${A}/profilo?sezione=sec-gestione`);
+  await page.getByRole("button", { name: "Elimina scheda" }).click();
+  const confirm = await page.locator(".confirm-box").ariaSnapshot();
+  const confirmName = await page.locator(".confirm-box").evaluate((el) => ({ label: el.getAttribute("aria-label"), labelledby: el.getAttribute("aria-labelledby") }));
+  await page.keyboard.press("Escape");
+  const tabs = await page.getByRole("tablist").ariaSnapshot();
+  await page.goto(`${A}/piano?settimana=2026-10-12`);
+  await page.waitForTimeout(500);
+  const row = await page.locator(".w-row").first().ariaSnapshot();
+  const rowDraft = await page.locator(".w-row", { hasText: "VO2max" }).ariaSnapshot();
+  await page.goto(`${A}/piano?seduta=${workoutId(state, "VO2max 5 × 4'")}`);
+  await page.waitForTimeout(500);
+  const drawer = await page.locator(".workout-drawer").evaluate((el) => {
+    const id = el.getAttribute("aria-labelledby");
+    return { labelledby: id, name: id ? document.getElementById(id)?.textContent : null };
+  });
+  const steps = await page.locator(".step-editor").getByRole("button", { name: "Sposta su" }).count();
+  record("F03-F06 nomi", { confirm, confirmName, tabs, row, rowDraft, drawer, stepButtonsSameName: steps });
+  await context.close();
+});
+
+test("F07 nuovo atleta senza nome: errore e sezione Identità", async ({ browser }) => {
+  const { page, context } = await open(browser, { viewport: { width: 1440, height: 900 } }, "./#/atleta/nuovo");
+  const toggles = await page.locator(".section-toggle").evaluateAll((els) => els.map((e) => e.getAttribute("aria-expanded")));
+  const saveDisabledAtStart = await page.getByRole("button", { name: "Salva", exact: true }).isDisabled();
+  await page.locator("#sec-note .section-toggle").click();
+  await page.locator("textarea[aria-label='Note libere']").fill("prima nota");
+  await page.getByRole("button", { name: "Salva", exact: true }).click();
+  await page.waitForTimeout(400);
+  const toast = await page.locator(".toast").innerText();
+  const identityOpen = await page.locator("#sec-identita .section-toggle").getAttribute("aria-expanded");
+  const nomeInvalid = await page.getByLabel("Nome", { exact: true }).getAttribute("aria-invalid");
+  await shot(page, "F07-nuovo-atleta-senza-nome");
+  record("F07 nuovo atleta senza nome", { sectionsAtStart: toggles, saveDisabledAtStart, toast, identityOpen, nomeInvalid });
+  await context.close();
+});
+
+test("F08 generazione: «Modifica i parametri» scarta la proposta senza chiedere", async ({ browser }) => {
+  const state = richState();
+  state.claudeResponse = {
+    plan_name: "Prosecuzione", weeks: [{ week_start: "2026-11-09", label: "Carico", is_deload: false }],
+    workouts: [{ date: "2026-11-10", discipline: "running", title: "Corsa facile", objective: "Base", steps: [{ kind: "step", role: "steady", duration_sec: 2400, zone: "Z2" }] }]
+  };
+  const { page, context } = await open(browser, { viewport: { width: 1440, height: 900 } }, `${A}/piano`, state);
+  await page.getByRole("button", { name: "Prosegui il piano" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Settimane da generare").fill("1");
+  await dialog.getByRole("button", { name: "Genera la proposta" }).click();
+  await expect(dialog.getByRole("button", { name: "Applica la nuova programmazione" })).toBeVisible({ timeout: 10000 });
+  await dialog.getByRole("button", { name: "Modifica i parametri" }).click();
+  await page.waitForTimeout(400);
+  const confirmShown = await page.locator(".confirm-overlay").isVisible();
+  const gens = state.tables.plan_generations.map((g: any) => g.status);
+  const stepNow = await dialog.getByRole("button", { name: "Genera la proposta" }).isVisible();
+  record("F08 Modifica i parametri", { confirmShown, generationStatuses: gens, backToParams: stepNow });
+  await context.close();
+});
+
+test("F09 toast informativo: durata", async ({ browser }) => {
+  const { page, context } = await open(browser, { viewport: { width: 1440, height: 900 } }, `${A}/piano?settimana=2026-10-12`);
+  await page.waitForTimeout(500);
+  await page.locator(".w-row", { hasText: "VO2max" }).getByRole("button", { name: "Approva" }).click();
+  const t0 = Date.now();
+  await expect(page.locator(".toast.show")).toBeVisible();
+  const text = await page.locator(".toast").innerText();
+  await expect(page.locator(".toast.show")).toBeHidden({ timeout: 10000 });
+  record("F09 toast", { text, visibleMs: Date.now() - t0 });
+  await context.close();
+});
+
+test("F10 modelli di zone non validi: salvataggio con la sezione chiusa", async ({ browser }) => {
+  const { page, context } = await open(browser, { viewport: { width: 1440, height: 900 } }, "./#/impostazioni?sezione=imp-modelli");
+  await page.locator("#imp-modelli details").first().evaluate((d) => ((d as HTMLDetailsElement).open = true));
+  const first = page.locator("#imp-modelli details").first().locator("input[type=number]").first();
+  await first.fill("500");
+  await page.waitForTimeout(200);
+  const errorText = await page.locator("#imp-modelli .error-text").first().innerText().catch(() => "");
+  await page.locator("#imp-modelli .section-toggle").click();
+  await page.waitForTimeout(200);
+  const summary = await page.locator("#imp-modelli .section-summary").evaluate((el) => ({ text: el.textContent, attention: el.classList.contains("has-anomaly") }));
+  await page.getByRole("button", { name: "Salva impostazioni" }).click();
+  await page.waitForTimeout(400);
+  const confirm = await page.locator(".confirm-overlay").isVisible();
+  if (confirm) await page.getByRole("button", { name: "Salva i modelli" }).click();
+  await page.waitForTimeout(300);
+  const toast = await page.locator(".toast").innerText();
+  const reopened = await page.locator("#imp-modelli .section-toggle").getAttribute("aria-expanded");
+  await shot(page, "F10-modelli-non-validi");
+  record("F10 modelli non validi", { errorText, summaryClosed: summary, confirmBeforeValidation: confirm, toast, reopened });
+  await context.close();
+});
+
+test("F11 rotte sconosciute e parametri non validi", async ({ browser }) => {
+  const out: Record<string, unknown> = {};
+  for (const url of ["./#/xyz", "./#/atleta/NOPE/panoramica", `${A}/xyz`, `${A}/piano?seduta=inesistente`, `${A}/piano?dialogo=boh`, `${A}/profilo?guida=boh`, `${A}/piano?settimana=2026-13-45`, "./#/impostazioni?sezione=boh", "./#/atleta/nuovo/anomalie"]) {
+    const { page, context } = await open(browser, { viewport: { width: 1440, height: 900 } }, url);
+    await page.waitForTimeout(300);
+    out[url] = { final: page.url().replace(/^.*\/PCoach\//, ""), h1: await page.locator("h1").first().innerText().catch(() => null), toast: await page.locator(".toast.show").innerText().catch(() => ""), dialog: await page.locator("[role=dialog]").count(), weekTitle: await page.locator(".week-title").innerText().catch(() => null) };
+    await context.close();
+  }
+  record("F11 rotte", out);
+});
+
+test("F12 login: errore di rete e credenziali sbagliate", async ({ browser }) => {
+  const { page, context } = await open(browser, { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true }, "./", createState(), true);
+  const form = await page.locator(".login-card").ariaSnapshot();
+  await page.route("**/auth/v1/token**", (r) => r.abort("internetdisconnected"));
+  await page.getByLabel("Email").fill("coach@example.com");
+  await page.getByLabel("Password").fill("x");
+  await page.getByRole("button", { name: "Accedi" }).click();
+  await page.waitForTimeout(800);
+  const networkError = await page.locator(".login-error").innerText().catch(() => "");
+  await page.unroute("**/auth/v1/token**");
+  await page.route("**/auth/v1/token**", (r) => r.fulfill({ status: 400, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: JSON.stringify({ error: "invalid_grant", error_description: "Invalid login credentials" }) }));
+  await page.getByRole("button", { name: "Accedi" }).click();
+  await page.waitForTimeout(800);
+  const badCreds = await page.locator(".login-error").innerText().catch(() => "");
+  const focusAfter = await focusInfo(page);
+  await shot(page, "F12-login-errore-390");
+  record("F12 login", { form, networkError, badCreds, focusAfter });
+  await context.close();
+});
+
+test("F16 grafico del carico: raggiungibile da tastiera?", async ({ browser }) => {
+  const { page, context } = await open(browser, { viewport: { width: 1440, height: 900 } }, `${A}/panoramica`);
+  const chart = await page.locator(".load-chart, [class*=chart]").first().evaluate((el) => ({
+    focusable: el.querySelectorAll("button, [tabindex]:not([tabindex='-1']), a[href]").length,
+    label: el.querySelector("[role=img]")?.getAttribute("aria-label")
+  }));
+  record("F16 grafico", chart);
+  await context.close();
+});
+
+test("F19 focus coperto dall'intestazione sticky (WCAG 2.4.11)", async ({ browser }) => {
+  for (const vp of [{ width: 1440, height: 900 }, { width: 390, height: 844 }, { width: 640, height: 400 }]) {
+    const { page, context } = await open(browser, { viewport: vp }, `${A}/profilo`);
+    await page.evaluate(() => { document.querySelectorAll<HTMLButtonElement>(".section-toggle[aria-expanded=false]").forEach((b) => b.click()); });
+    await page.waitForTimeout(200);
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await page.locator("textarea[aria-label='Note libere']").focus();
+    const hidden: unknown[] = [];
+    for (let i = 0; i < 60; i++) {
+      await page.keyboard.press("Shift+Tab");
+      const f = await focusInfo(page);
+      if ((f as any).underHeader || !(f as any).inView) hidden.push(f);
+    }
+    record(`F19 focus coperto ${vp.width}`, { coveredOrOutside: hidden.length, samples: hidden.slice(0, 5) });
+    if (hidden.length) await shot(page, `F19-focus-${vp.width}`);
+    await context.close();
+  }
+});
+
+test("F20 seduta: pulsanti dell'editor e annulla", async ({ browser }) => {
+  const s = richState();
+  const { page, context } = await open(browser, { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true }, `${A}/piano?seduta=${workoutId(s, "VO2max 5 × 4'")}`, s);
+  const firstUp = page.locator(".step-editor .step-row").first().getByRole("button", { name: "Sposta su" });
+  const disabled = await firstUp.isDisabled();
+  const foot = await page.locator(".drawer-foot").ariaSnapshot();
+  await shot(page, "F20-seduta-390");
+  record("F20 seduta", { firstMoveUpDisabled: disabled, foot });
+  await context.close();
+});
+
+test("F21 settimana con sedute: 1440, 390, 320 e zoom 200%", async ({ browser }) => {
+  for (const [w, h, touch] of [[1440, 900, false], [390, 844, true], [320, 640, true], [640, 400, false]] as const) {
+    const { page, context } = await open(browser, { viewport: { width: w, height: h }, hasTouch: touch, isMobile: touch }, `${A}/piano?settimana=2026-10-12`);
+    await page.waitForTimeout(300);
+    const m = await import("./lib").then((l) => l.measure(page));
+    const rowName = await page.locator(".w-row-open").first().getAttribute("aria-label");
+    record(`F21 settimana ${w}`, { ...m, rowName });
+    await page.screenshot({ path: path.join(OUT, "flussi", `F21-settimana-${w}.png`), fullPage: true });
+    await context.close();
+  }
+});
+
+test("F22 segnaposto e controlli nativi nei due temi", async ({ browser }) => {
+  for (const scheme of ["light", "dark"] as const) {
+    const s = richState();
+    const { page, context } = await open(browser, { viewport: { width: 1440, height: 900 }, colorScheme: scheme }, `${A}/profilo?sezione=sec-metodologia`, s);
+    const r = await page.evaluate(() => {
+      const parse = (c: string) => (c.match(/[\d.]+/g) || []).map(Number);
+      const lum = (c: number[]) => { const f = (v: number) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
+      const input = document.querySelector<HTMLInputElement>("input[placeholder^='predefinito']")!;
+      const ph = getComputedStyle(input, "::placeholder").color;
+      const bg = getComputedStyle(input).backgroundColor;
+      const a = parse(ph), b = parse(bg);
+      const alpha = a[3] ?? 1;
+      const fg = [0, 1, 2].map((i) => a[i] * alpha + b[i] * (1 - alpha));
+      const L1 = lum(fg), L2 = lum(b);
+      return { placeholder: ph, background: bg, ratio: +((Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05)).toFixed(2), colorScheme: getComputedStyle(document.documentElement).colorScheme };
+    });
+    record(`F22 segnaposto ${scheme}`, r);
+    await context.close();
+  }
+});
+
+test("F23 Prosegui il piano: data di partenza dal pulsante e dopo un ricaricamento", async ({ browser }) => {
+  const { page, context } = await open(browser, { viewport: { width: 1440, height: 900 } }, `${A}/piano`);
+  await page.getByRole("button", { name: "Prosegui il piano" }).click();
+  const dialog = page.getByRole("dialog");
+  const fromButton = await dialog.getByLabel("Primo giorno").inputValue();
+  const candidatesButton = await dialog.locator(".keep-list label").count();
+  await page.reload();
+  await page.locator(".dialog-box").waitFor();
+  await page.waitForTimeout(800);
+  const fromReload = await page.getByRole("dialog").getByLabel("Primo giorno").inputValue();
+  const candidatesReload = await page.getByRole("dialog").locator(".keep-list label").count();
+  const checked = await page.getByRole("dialog").locator(".keep-list input:checked").count();
+  await shot(page, "F23-prosegui-dopo-ricaricamento");
+  record("F23 prosegui", { fromButton, candidatesButton, fromReload, candidatesReload, checkedAfterReload: checked, url: page.url().replace(/^.*\/PCoach\//, "") });
+  await context.close();
+});
+
+test("F24 Ripianifica: seduta bloccata dal pulsante e dopo un ricaricamento", async ({ browser }) => {
+  const s = richState();
+  (s.tables.workouts.find((w: any) => w.title === "Tempo") as any).locked = true;
+  const { page, context } = await open(browser, { viewport: { width: 1440, height: 900 } }, `${A}/piano`, s);
+  await page.getByRole("button", { name: /Ripianifica da/ }).click();
+  const lockedRow = () => page.getByRole("dialog").locator(".keep-list label", { hasText: "Tempo" }).locator("input");
+  const fromButton = await lockedRow().isChecked();
+  await page.reload();
+  await page.locator(".dialog-box").waitFor();
+  await page.waitForTimeout(800);
+  const fromReload = await lockedRow().isChecked();
+  record("F24 ripianifica bloccata", { lockedCheckedFromButton: fromButton, lockedCheckedAfterReload: fromReload });
+  await context.close();
+});
+
+test("F25 bozza di nuovo atleta: «Resta» all'uscita", async ({ browser }) => {
+  for (const vp of [{ width: 1440, height: 900 }]) {
+    const { page, context } = await open(browser, { viewport: vp }, "./#/atleta/nuovo", createState());
+    await page.locator("#sec-identita .section-toggle").click();
+    await page.getByLabel("Cognome").fill("Rossi");
+    await page.getByRole("button", { name: /^Da fare/ }).click();
+    await page.getByRole("alertdialog").getByRole("button", { name: "Resta" }).click();
+    await page.waitForTimeout(800);
+    const main = await page.locator("main").innerText();
+    const cognome = await page.getByLabel("Cognome").inputValue().catch(() => "(campo assente)");
+    await shot(page, "F25-bozza-resta");
+    record("F25 bozza resta", { url: page.url().replace(/^.*\/PCoach\//, ""), mainStart: main.slice(0, 60), cognome });
+    await context.close();
+  }
+});
