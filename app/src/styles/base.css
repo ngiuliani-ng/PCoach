@@ -1226,9 +1226,9 @@ body:has(.drawer-foot) .toast, body:has(.dialog-foot) .toast { bottom: calc(var(
     z-index: 15;
     transform: translateX(-100%);
     transition: transform 0.2s ease;
-    box-shadow: 2px 0 12px rgba(0,0,0,0.25);
   }
-  .sidebar.open { transform: translateX(0); }
+  /* Ombra solo da aperta: chiusa sporgeva sul bordo sinistro (audit A-13). */
+  .sidebar.open { transform: translateX(0); box-shadow: 2px 0 12px rgba(0,0,0,0.25); }
   .sidebar-toggle {
     display: flex;
     align-items: center;

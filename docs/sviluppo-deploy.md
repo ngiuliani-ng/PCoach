@@ -56,10 +56,10 @@ Playwright (`playwright.config.ts`, cartella `app/e2e/`) avvia Vite sulla porta 
 
 Nessuna chiamata raggiunge Supabase, Claude o Intervals.icu. La data è fissata al 10 ottobre 2026 con `page.clock`.
 
-Settantadue flussi, ognuno su un progetto desktop e uno mobile (144 test al 13 ottobre 2026), in sette file:
+Settantaquattro flussi, ognuno su un progetto desktop e uno mobile (148 test al 13 ottobre 2026), in sette file:
 - `plan.spec.ts`: modifica e approvazione di una seduta, rigenerazione con anteprima delle differenze, dialoghi di generazione riaperti da un ricaricamento o da un link (sedute in caricamento, lette, non lette, proposta in sospeso), conferma prima di scartare una proposta o una risposta incollata, settimane fuori dai limiti, «Sincronizza settimana» con un errore parziale e il nuovo tentativo;
 - `feedback.spec.ts`: revisione e approvazione di un feedback settimanale;
-- `navigation.spec.ts`: bozza di un nuovo atleta con «Resta», «indietro», uscita confermata o salvata, nome mancante in una scheda nuova, messaggi e focus del login, modifiche non salvate al cambio di atleta e all'uscita dalle Impostazioni, salvataggi falliti, vista e seduta nell'URL, errore di rete al salvataggio di una seduta;
+- `navigation.spec.ts`: barra laterale su telefono chiusa (Tab e albero accessibile di Chromium) e aperta (focus intrappolato, Esc), bozza di un nuovo atleta con «Resta», «indietro», uscita confermata o salvata, nome mancante in una scheda nuova, messaggi e focus del login, modifiche non salvate al cambio di atleta e all'uscita dalle Impostazioni, salvataggi falliti, vista e seduta nell'URL, errore di rete al salvataggio di una seduta;
 - `coherence.spec.ts`: doppio clic su «Genera la proposta», schema di carico non riconosciuto, generazione con modifiche non salvate, email mancante con l'invio attivo, fuso non valido, valutazione in preparazione, sistema di zone nell'editor;
 - `zones.spec.ts`: zone e soglie diverse da Intervals.icu, modelli di zone in Impostazioni, sedute da verificare dalla tab Anomalie, modello di zone non valido al salvataggio, azione bloccata dalle modifiche non salvate come errore che resta;
 - `feedback-ui.spec.ts`: verifica UI/UX del feedback, cioè testo salvato in automatico e dopo un ricaricamento, salvataggio non riuscito e uscita dalla scheda, «Rigenera» con le correzioni, campo che cresce, casella del reinvio, settimane chiuse, «Prepara il feedback», nota «senza email» prima di «Approva» con il link al Profilo;

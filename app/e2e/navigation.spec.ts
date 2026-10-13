@@ -316,3 +316,58 @@ test("bozza di nuovo atleta, «Salva e continua» riuscito: la scheda è salvata
   expect(state.tables.athletes.some((a) => (a.data as { identity: { cognome: string } }).identity.cognome === "Rossi")).toBe(true);
   await expect(page.getByRole("button", { name: /Anna Rossi/ })).toBeAttached();
 });
+
+// ---------- Audit A-02, A-12, A-13: barra laterale su telefono ----------
+
+/** Nomi dei nodi con un ruolo nell'albero accessibile di Chromium (esclude i nodi inerti o nascosti). */
+async function axNames(page: Page, role: string): Promise<string[]> {
+  const cdp = await page.context().newCDPSession(page);
+  const { nodes } = (await cdp.send("Accessibility.getFullAXTree")) as { nodes: { ignored: boolean; role?: { value: string }; name?: { value: string } }[] };
+  await cdp.detach();
+  return nodes.filter((n) => !n.ignored && n.role?.value === role).map((n) => n.name?.value ?? "");
+}
+
+test("barra laterale su telefono: chiusa non si raggiunge col Tab né la legge un lettore di schermo; aperta tiene il focus (A-02, A-12)", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installMockBackend(page, createState());
+  await page.goto(`./#/atleta/${ATHLETE_ID}/panoramica`);
+  const sidebar = page.locator("#athlete-sidebar");
+  const menu = page.getByRole("button", { name: "Apri la barra laterale" });
+
+  // Chiusa: dopo l'hamburger il Tab va nel contenuto, mai nella barra.
+  await menu.focus();
+  for (let i = 0; i < 4; i++) {
+    await page.keyboard.press("Tab");
+    expect(await page.evaluate(() => !!document.activeElement?.closest("#athlete-sidebar"))).toBe(false);
+  }
+  // Albero accessibile di Chromium (quello che legge un lettore di schermo): la barra chiusa non c'e'.
+  expect(await axNames(page, "complementary")).not.toContain("Atleti");
+
+  // Aperta: il focus entra e resta nella barra (contenuto sotto lo sfondo non raggiungibile).
+  await menu.click();
+  await expect(sidebar).toHaveClass(/open/);
+  expect(await axNames(page, "complementary")).toContain("Atleti");
+  for (let i = 0; i < 14; i++) {
+    await page.keyboard.press("Tab");
+    const where = await page.evaluate(() => {
+      const el = document.activeElement;
+      return el === document.body ? "body" : el?.closest("#athlete-sidebar") ? "sidebar" : "fuori";
+    });
+    expect(where).not.toBe("fuori");
+  }
+  // Esc la chiude e il focus torna sull'hamburger.
+  await page.keyboard.press("Escape");
+  await expect(menu).toBeFocused();
+  await expect(sidebar).not.toHaveClass(/open/);
+});
+
+test("barra laterale: chiusa su telefono non lascia ombra sul bordo; su desktop resta raggiungibile (A-13, A-02)", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installMockBackend(page, createState());
+  await page.goto("./");
+  expect(await page.locator("#athlete-sidebar").evaluate((el) => getComputedStyle(el).boxShadow)).toBe("none");
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(page.getByRole("complementary", { name: "Atleti" })).toBeVisible();
+  await page.getByRole("button", { name: /^Da fare/ }).focus();
+  await expect(page.getByRole("button", { name: /^Da fare/ })).toBeFocused();
+});

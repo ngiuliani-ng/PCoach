@@ -31,6 +31,7 @@ import SectionNav from "../ui/SectionNav.vue";
 import GuidePanel from "../ui/GuidePanel.vue";
 import { useSections, scrollToSection } from "../../composables/useSections";
 import { useQueryLayer } from "../../composables/useQueryLayer";
+import { closeMobileSidebarFor } from "../../composables/useMobileSidebar";
 import { isGuideKey, type GuideKey } from "../../help/guide";
 import {
   constraintsSummary, disciplinesSummary, goalsSummary, identitySummary, methodologySummary, notesSummary, statusSummary, thresholdsSummary
@@ -253,6 +254,8 @@ function onExport() {
 // campo, che porta l'errore (audit A-06).
 watch(() => athletes.nameRequiredAttempts, async (n) => {
   if (!n) return;
+  // Uscita annullata dal drawer su telefono: si chiude, perche' sotto il campo non e' raggiungibile.
+  closeMobileSidebarFor();
   await goToSection("sec-identita");
   document.getElementById("athlete-nome")?.focus({ preventScroll: true });
 });

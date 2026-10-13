@@ -22,6 +22,7 @@ const route = useRoute();
 const sidebarToggleEl = ref<HTMLElement | null>(null);
 const {
   open: mobileSidebarOpen,
+  isMobile,
   openSidebar: openMobileSidebar,
   closeSidebar: closeMobileSidebar,
 } = useMobileSidebar({ sidebarId: "athlete-sidebar", toggleEl: sidebarToggleEl });
@@ -78,8 +79,10 @@ watch(() => route.path, () => {
     <Transition name="backdrop-fade">
       <div v-if="mobileSidebarOpen" class="sidebar-backdrop" aria-hidden="true" @click="closeMobileSidebar"></div>
     </Transition>
-    <AthleteSidebar :class="{ open: mobileSidebarOpen }" @close="closeMobileSidebar" />
-    <main class="main">
+    <!-- Su telefono la barra chiusa e' inerte (niente Tab, niente lettore di schermo) e, aperta, rende inerte
+         il contenuto sotto lo sfondo: il focus resta nel drawer (audit A-02, A-12). -->
+    <AthleteSidebar :class="{ open: mobileSidebarOpen }" :inert="(isMobile && !mobileSidebarOpen) || undefined" @close="closeMobileSidebar" />
+    <main class="main" :inert="(isMobile && mobileSidebarOpen) || undefined">
       <RouterView />
     </main>
     <ToastHost />

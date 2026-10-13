@@ -25,6 +25,7 @@ Ordine: più recente in cima. Versioni con [Semantic Versioning](https://semver.
 - Feedback di un atleta senza email: la nota su cosa succede approvando sta prima di «Approva», e «Aggiungi l'indirizzo nel Profilo» è un link che apre Identità, anche nella riga «Email non inviata» ([audit A-18](docs/audit/2026-10-ux-ui-1-2-0/README.md#a-18)) — docs: design-ui, sviluppo-deploy.
 - Bozza di un nuovo atleta: scegliendo «Resta» all'uscita (o con «Salva e continua» rifiutato, o con «indietro» del browser) quanto scritto restava perso e la pagina bloccata su «Caricamento…»; ora la bozza resta intatta — la chiusura della bozza scattava anche sulle navigazioni annullate ([audit A-28](docs/audit/2026-10-ux-ui-1-2-0/README.md#a-28)) — docs: architettura, sviluppo-deploy.
 - Gli errori delle azioni su Intervals.icu dalla tab Anomalie, «Salva o annulla prima le modifiche della scheda.» e «Copia non riuscita» del prompt sono errori che restano, non messaggi che spariscono; il salvataggio non riuscito del testo del feedback non mostra più il messaggio tecnico del server ([audit A-19](docs/audit/2026-10-ux-ui-1-2-0/README.md#a-19)) — docs: design-ui, sviluppo-deploy.
+- Barra laterale su telefono (e con lo zoom al 200%): chiusa non si raggiunge più con il Tab né la legge un lettore di schermo, aperta tiene il focus fino alla chiusura, e chiusa non lascia l'ombra sul bordo sinistro — il Tab passava per sette comandi fuori schermo ([audit A-02, A-12, A-13](docs/audit/2026-10-ux-ui-1-2-0/README.md#a-02)) — docs: design-ui, sviluppo-deploy.
 
 ## [1.2.0] — 2026-10-13
 
