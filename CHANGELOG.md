@@ -12,6 +12,10 @@ Ordine: più recente in cima. Versioni con [Semantic Versioning](https://semver.
 
 ## [Unreleased]
 
+## [1.2.0] — 2026-10-13
+
+Feedback settimanale rivisto dopo la verifica UI/UX ([docs/audit/2026-10-feedback-settimanale-ui](docs/audit/2026-10-feedback-settimanale-ui/README.md)): il testo corretto si salva da solo e non si perde più. Stato del salvataggio come sola nuvola colorata; versione tolta dalla barra laterale.
+
 ### Aggiunto
 - Il testo del feedback che correggi si salva da solo, sul server, un secondo dopo l'ultima battuta: la nuvola è rossa finché non è salvato, e uscendo dalla scheda con un salvataggio non riuscito l'app chiede cosa fare — le correzioni si perdevano uscendo dalla scheda (audit FB-02) — docs: modello-dati, backend, design-ui, architettura, decisioni/0038.
 
