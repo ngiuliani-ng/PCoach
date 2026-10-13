@@ -197,3 +197,56 @@ test("la home mostra l'esito dell'ultimo controllo su Intervals.icu: zone divers
   if (await menu.isVisible().catch(() => false)) await menu.click();
   await expect(page.locator(".todo-item .todo-count")).toHaveClass(/has-anomaly/);
 });
+
+/** Selettori visibili il cui valore scelto non entra nel campo: testo + margini interni + freccia. */
+async function clippedSelects(page: import("@playwright/test").Page, scope: string) {
+  return page.locator(`${scope} select`).evaluateAll((selects) => {
+    const ctx = document.createElement("canvas").getContext("2d")!;
+    return (selects as HTMLSelectElement[])
+      .filter((s) => s.offsetParent !== null && s.selectedIndex >= 0)
+      .flatMap((s) => {
+        const cs = getComputedStyle(s);
+        ctx.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+        const text = s.options[s.selectedIndex].text;
+        const need = ctx.measureText(text).width + parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) + 20;
+        return need > s.clientWidth ? [`${text} (${Math.round(need)} > ${s.clientWidth})`] : [];
+      });
+  });
+}
+
+test("rilevazioni delle soglie: nessun valore tagliato nei selettori, a 1440 e su telefono (UX-35)", async ({ page }, info) => {
+  if (info.project.name === "desktop") await page.setViewportSize({ width: 1440, height: 900 });
+  const state = createState();
+  const athlete = state.tables.athletes[0] as { data: { physiological_thresholds: { running: { thresholds_log: Record<string, unknown>[] } } } };
+  athlete.data.physiological_thresholds.running.thresholds_log = [
+    { date: "2026-09-01", source: "intervals_icu_sync", threshold_pace_per_km: "4:46", test_type: "campo_time_trial" },
+    { date: "2026-08-01", source: "manual", test_type: "nessun_test" }
+  ];
+  await installMockBackend(page, state);
+  await page.goto(`./#/atleta/${ATHLETE_ID}/profilo`);
+  await openSection(page, "Soglie e zone");
+  await expect(page.locator("#sec-soglie select").first()).toBeVisible();
+  expect(await clippedSelects(page, "#sec-soglie")).toEqual([]);
+});
+
+test("intestazione della scheda: su telefono solo il prossimo evento e le tab in alto; «Scheda salvata il» accanto a «Salva» nel Profilo (UX-05)", async ({ page }, info) => {
+  const state = createState();
+  const profile = (state.tables.athletes[0] as { data: { goals: Record<string, unknown> } }).data;
+  profile.goals.target_events = [{ name: "Mezza di Bergamo", date: "2026-11-15", discipline: "running", distance_or_duration: "21 km", priority: "A", target_result: "" }];
+  await installMockBackend(page, state);
+  await page.goto(`./#/atleta/${ATHLETE_ID}/panoramica`);
+  const sub = page.locator(".page-sub");
+  await expect(sub).toContainText("Prossimo evento: Mezza di Bergamo, 15 nov 2026");
+  await expect(page.getByText("Scheda salvata il")).toHaveCount(0);
+  await expect(page.getByText(/^Aggiornata il/)).toHaveCount(0);
+  if (info.project.name === "mobile") {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(sub.getByText("Corsa, Bici")).toBeHidden();
+    const tabs = (await page.getByRole("tablist", { name: "Sezioni della scheda" }).boundingBox())!;
+    expect(tabs.y).toBeLessThanOrEqual(200);
+  } else {
+    await expect(sub.getByText("Corsa, Bici")).toBeVisible();
+    await page.getByRole("tab", { name: "Profilo" }).click();
+    await expect(page.locator(".page-header")).toContainText("Scheda salvata il 1 set 2026");
+  }
+});

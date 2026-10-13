@@ -50,7 +50,7 @@ function setField(index: number, key: string, value: unknown) {
           <Trash2 :size="16" aria-hidden="true" />
         </IconButton>
       </div>
-      <div class="field-row">
+      <div class="field-row metric-fields">
         <label class="field">
           <span class="field-label">Data</span>
           <input type="date" :value="row.date" @change="setField(index, 'date', ($event.target as HTMLInputElement).value)" />

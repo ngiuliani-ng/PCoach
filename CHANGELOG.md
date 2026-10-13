@@ -15,12 +15,17 @@ Ordine: più recente in cima. Versioni con [Semantic Versioning](https://semver.
 ### Modificato
 - Il contatore «Da fare» nella barra laterale è sempre un quadrato della stessa misura, grigio o giallo: il giallo prendeva lo stile del riquadro d'avviso del Piano e cambiava forma — richiesta del coach — docs: design-ui.
 - La pagina «Da fare» non dice più a che ora sono state controllate chiave, zone e soglie — richiesta del coach — docs: design-ui, decisioni/0037.
+- Sotto il nome dell'atleta, su telefono, solo il prossimo evento; «Aggiornata il» diventa «Scheda salvata il» e sta accanto a «Salva» nel Profilo — su telefono la riga occupava tre righe sopra le tab e la data si leggeva come aggiornamento del carico (audit UX-05) — docs: design-ui.
 
 ### Rimosso
 - Novità della versione in Impostazioni › Informazioni: l'utente non le deve leggere — decisione del coach — docs: design-ui, architettura, sviluppo-deploy, decisioni/0036.
 
 ### Corretto
 - Il riepilogo giallo di una sezione chiusa (per esempio «Manca l'email») prendeva il bordo e lo sfondo del riquadro d'avviso del Piano; ora cambia solo il colore del testo.
+- Rilevazioni delle soglie: i selettori «Fonte» e «Tipo test» non tagliano più «Intervals.icu (sync)», «Time trial in campo» e «Nessun test (stima)» (audit UX-35) — docs: design-ui.
+
+### Interno
+- Il Profilo è diviso in una componente per sezione (`Profile*.vue`); `AthleteEditor.vue` passa da 749 a 419 righe e tiene ordine, riepiloghi e stato condiviso (audit UX-55) — docs: architettura.
 
 ## [1.0.0] — 2026-10-13
 

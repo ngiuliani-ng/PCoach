@@ -102,10 +102,12 @@ App.vue
      │    │    ├─ domain/WorkoutDrawer.vue      (pannello della seduta: dati, StepEditor, testo per Intervals.icu, cronologia)
      │    │    ├─ domain/RegenerateDialog.vue   (genera o ripianifica: parametri, proposta di Claude, anteprima delle differenze)
      │    │    └─ domain/SyncWeekDialog.vue     (Sincronizza settimana: anteprima, scelte, esito per riga)
-     │    ├─ Profilo: ui/PageSection.vue per ogni sezione, ui/SectionNav.vue (indice), ui/GuidePanel.vue (?guida=)
-     │    │    ├─ ui/PasswordField.vue          (chiave Intervals.icu, mostra/nascondi)
-     │    │    ├─ domain/MetricLogList.vue      (rilevazioni delle soglie per corsa/bici/nuoto)
-     │    │    └─ identità, discipline, stato, obiettivi, vincoli, metodologia, note, esporta/elimina
+     │    ├─ Profilo: ui/PageSection.vue per ogni sezione, ui/SectionNav.vue (indice), ui/GuidePanel.vue (?guida=);
+     │    │    l'editor tiene ordine, riepiloghi e stato condiviso, il contenuto di ogni sezione è una componente
+     │    │    ├─ domain/ProfileIdentity.vue, ProfileIntervals.vue (ui/PasswordField.vue), ProfileDisciplines.vue
+     │    │    ├─ domain/ProfileThresholds.vue  (disciplina in v-model; domain/MetricLogList.vue per le rilevazioni)
+     │    │    ├─ domain/ProfileTrainingStatus.vue, ProfileGoals.vue, ProfileConstraints.vue, ProfileMethodology.vue
+     │    │    └─ note libere ed esporta/elimina, direttamente nell'editor
      │    └─ Anomalie: domain/AnomaliesTab.vue  (elenco da useAthleteAnomalies)
      ├─ domain/TodoPage.vue       (/: «Da fare» per tutti gli atleti, da stores/todo.ts e domain/todo.ts)
      └─ domain/SettingsPanel.vue  (/impostazioni: Claude e generazione, feedback settimanale, Avanzate, Informazioni)

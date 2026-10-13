@@ -272,6 +272,7 @@ button:focus-visible, a:focus-visible {
   font-size: var(--fs-sm);
   font-weight: 500;
 }
+.saved-note { color: var(--text-muted); font-size: var(--fs-sm); }
 .update-banner {
   margin: 0 0 var(--sp-3);
   padding: var(--sp-2) var(--sp-3);
@@ -541,6 +542,8 @@ section.block h3 {
   margin-bottom: var(--sp-3);
 }
 .field-row:last-child { margin-bottom: 0; }
+/* Rilevazioni (soglie): colonne piu' larghe, perche' i selettori («Time trial in campo») entrino interi (audit UX-35). */
+.field-row.metric-fields { grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr)); }
 .field { display: block; min-width: 0; }
 .field-label {
   display: block;
@@ -1237,6 +1240,8 @@ body:has(.drawer-foot) .toast, body:has(.dialog-foot) .toast { bottom: calc(var(
     padding: 10px 0 10px 48px;
   }
   .page-header h1 { font-size: var(--fs-xl); }
+  /* Sotto il titolo solo il prossimo evento (audit UX-05). */
+  .page-sub .wide-only, .page-sub.event-less { display: none; }
   .placeholder { padding-top: 96px; }
   .day-row { grid-template-columns: 1fr 1fr; }
   .day-row .day-label { padding-bottom: 0; align-self: center; }
@@ -1246,7 +1251,7 @@ body:has(.drawer-foot) .toast, body:has(.dialog-foot) .toast { bottom: calc(var(
   .backdrop-fade-enter-active, .backdrop-fade-leave-active { transition: none; }
 }
 @media (max-width: 480px) {
-  .unsaved-badge { display: none; }
+  .unsaved-badge, .saved-note { display: none; }
   .field-row { grid-template-columns: 1fr; }
   .checkbox-grid { grid-template-columns: 1fr; }
   .action-bar { flex-direction: column; }
