@@ -27,9 +27,8 @@ Dopo la pagina «Da fare» restavano fuori tre anomalie, perché richiedono una 
 Confermate dal coach il 13 ottobre 2026:
 - minuti 20 e 50, per stare lontano dal job del feedback al minuto 5;
 - riuso della chiave di Vault `weekly_feedback_service_role_key`, invece di crearne una nuova con lo stesso valore;
-- «Sistemale nelle Anomalie» come link per zone e soglie.
-
-Scelta dell'assistente, da confermare: un atleta alla volta, con un tempo massimo di 15 s per richiesta a Intervals.icu.
+- «Sistemale nelle Anomalie» come link per zone e soglie;
+- un atleta alla volta, con un tempo massimo di 15 s per richiesta a Intervals.icu.
 
 ## Conseguenze
 
