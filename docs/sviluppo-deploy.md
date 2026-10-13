@@ -56,7 +56,7 @@ Playwright (`playwright.config.ts`, cartella `app/e2e/`) avvia Vite sulla porta 
 
 Nessuna chiamata raggiunge Supabase, Claude o Intervals.icu. La data è fissata al 10 ottobre 2026 con `page.clock`.
 
-Centosei flussi, ognuno su un progetto desktop e uno mobile (212 test al 13 ottobre 2026), in otto file:
+Centosette flussi, ognuno su un progetto desktop e uno mobile (214 test al 13 ottobre 2026), in otto file:
 - `plan.spec.ts`: modifica e approvazione di una seduta, rigenerazione con anteprima delle differenze, dialoghi di generazione riaperti da un ricaricamento o da un link (sedute in caricamento, lette, non lette, proposta in sospeso), conferma prima di scartare una proposta o una risposta incollata, settimane fuori dai limiti, «Sincronizza settimana» con un errore parziale e il nuovo tentativo;
 - `feedback.spec.ts`: revisione e approvazione di un feedback settimanale;
 - `navigation.spec.ts`: barra laterale su telefono chiusa (Tab e albero accessibile di Chromium) e aperta (focus intrappolato, Esc), bozza di un nuovo atleta con «Resta», «indietro», uscita confermata o salvata, nome mancante in una scheda nuova, messaggi e focus del login, modifiche non salvate al cambio di atleta e all'uscita dalle Impostazioni, salvataggi falliti, vista e seduta nell'URL, errore di rete al salvataggio di una seduta;
@@ -64,7 +64,7 @@ Centosei flussi, ognuno su un progetto desktop e uno mobile (212 test al 13 otto
 - `zones.spec.ts`: zone e soglie diverse da Intervals.icu, modelli di zone in Impostazioni, sedute da verificare dalla tab Anomalie, modello di zone non valido al salvataggio, azione bloccata dalle modifiche non salvate come errore che resta;
 - `feedback-ui.spec.ts`: verifica UI/UX del feedback, cioè testo salvato in automatico e dopo un ricaricamento, salvataggio non riuscito e uscita dalla scheda, «Rigenera» con le correzioni, campo che cresce, casella del reinvio, settimane chiuse, «Prepara il feedback», nota «senza email» prima di «Approva» con il link al Profilo;
 - `a11y.spec.ts`: controllo automatico di accessibilità (vedi sotto) su 14 schermate nei due temi, più un controllo che axe sia attivo;
-- `ux.spec.ts`: audit UI/UX completo, cioè tab a 320 px, seduta aperta dalla Panoramica, stati delle righe e selettore dello storico, sezioni e guida, ripristini, pagina «Da fare» e contatore, controllo su Intervals.icu nella home, versione in Informazioni, toast informativo fermo con puntatore o focus e chiudibile da tastiera, focus da tastiera mai sotto l'intestazione fissa, segnaposto e controlli nativi nel tema chiaro e scuro, titoli senza salti di livello e titolo della pagina in dieci schermate.
+- `ux.spec.ts`: audit UI/UX completo, cioè tab a 320 px, seduta aperta dalla Panoramica, stati delle righe e selettore dello storico, sezioni e guida, ripristini, pagina «Da fare» e contatore, controllo su Intervals.icu nella home, versione in Informazioni, toast informativo fermo con puntatore o focus e chiudibile da tastiera, focus da tastiera mai sotto l'intestazione fissa, segnaposto e controlli nativi nel tema chiaro e scuro, titoli senza salti di livello e titolo della pagina in dieci schermate, tabella dei valori del grafico da tastiera e a 320 px.
 
 `e2e/helpers.ts` ha `openSection`, che apre una sezione comprimibile se è chiusa.
 
@@ -74,7 +74,7 @@ Gli e2e si eseguono con un solo worker (`npx playwright test --workers=1`): con 
 
 ### Controllo automatico di accessibilità
 
-`a11y.spec.ts` usa `@axe-core/playwright` (axe-core 4.13, dipendenza di sviluppo) con le regole WCAG 2.0, 2.1 e 2.2 di livello A e AA (`wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`, `wcag22aa`): una violazione fa fallire il test e il messaggio elenca regola ed elementi. Le schermate: «Da fare», Impostazioni e Profilo con tutto aperto, nuovo atleta, Panoramica con un feedback da approvare, settimana e storico del Piano, Anomalie, pannello della seduta, «Ripianifica», «Sincronizza settimana», guida, conferma di eliminazione, accesso; ognuna nel tema chiaro e scuro, su desktop e mobile.
+`a11y.spec.ts` usa `@axe-core/playwright` (axe-core 4.13, dipendenza di sviluppo) con le regole WCAG 2.0, 2.1 e 2.2 di livello A e AA (`wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`, `wcag22aa`): una violazione fa fallire il test e il messaggio elenca regola ed elementi. Le schermate: «Da fare», Impostazioni e Profilo con tutto aperto, nuovo atleta, Panoramica con un feedback da approvare e i valori del carico (tabella compresa), settimana e storico del Piano, Anomalie, pannello della seduta, «Ripianifica», «Sincronizza settimana», guida, conferma di eliminazione, accesso; ognuna nel tema chiaro e scuro, su desktop e mobile.
 
 Non è una prova di conformità WCAG: axe controlla ciò che si calcola (nomi, ruoli, attributi, contrasti, struttura). Tastiera, ordine e visibilità del focus, annunci ai lettori di schermo e comprensibilità restano verifiche manuali o test dedicati (`navigation.spec.ts`, `ux.spec.ts`). Le regole `best-practice` di axe non sono nel controllo: si usano per esplorare.
 

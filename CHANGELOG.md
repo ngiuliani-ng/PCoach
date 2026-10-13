@@ -12,6 +12,9 @@ Ordine: più recente in cima. Versioni con [Semantic Versioning](https://semver.
 
 ## [Unreleased]
 
+### Aggiunto
+- Sotto il grafico del carico, «Valori giorno per giorno» apre una tabella con fitness, fatica, forma e allenamenti di ogni giorno, leggibile da tastiera e da un lettore di schermo — i valori dei singoli giorni si vedevano solo con il mouse o al tocco — decisione del coach D-04 ([audit A-20](docs/audit/2026-10-ux-ui-1-2-0/README.md#a-20)) — docs: design-ui, sviluppo-deploy.
+
 ### Modificato
 - «Modifica i parametri» dopo una proposta di Claude, e «Indietro» con una risposta incollata, chiedono conferma («Scarta la proposta e modifica i parametri» / «Tieni la proposta») — la proposta si perdeva con un clic — decisione del coach D-01 ([audit A-07](docs/audit/2026-10-ux-ui-1-2-0/README.md#a-07)) — docs: design-ui, sviluppo-deploy.
 - I messaggi informativi restano a schermo in base alla lunghezza del testo (da 4 a 10 secondi), si fermano con il puntatore o il focus sopra e hanno il pulsante di chiusura — sparivano dopo 2,6 secondi anche se lunghi — decisione del coach D-02 ([audit A-08](docs/audit/2026-10-ux-ui-1-2-0/README.md#a-08)) — docs: design-ui, sviluppo-deploy.

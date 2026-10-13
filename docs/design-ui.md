@@ -200,7 +200,7 @@ Ogni componente interattivo gestisce esplicitamente: default, hover, focus (visi
 - Ogni campo ha un'etichetta associata (vedi [§ Layout](#layout)); i campi senza etichetta visibile (note libere, prompt, JSON del piano) hanno `aria-label`.
 - Icone e pulsanti solo-icona privi di testo visibile accompagnati da `aria-label` (nessun attributo `title`, per evitare tooltip nativi ridondanti).
 - Dialoghi (`ConfirmDialog`, drawer mobile, pannello della seduta, guida, dialoghi di generazione e «Sincronizza settimana») intrappolano il focus e lo restituiscono all'elemento che li ha aperti alla chiusura; Esc chiude (tranne durante un'operazione in corso). Pannello della seduta e dialoghi del piano si chiudono anche con «indietro» del browser o del telefono (vedi [architettura.md](architettura.md#flussi-principali)). Gli esiti asincroni dei dialoghi sono in una regione `aria-live`.
-- Il grafico del carico ha un `aria-label` con periodo e valori attuali; il tooltip è solo visivo (`aria-hidden`).
+- Il grafico del carico ha un `aria-label` con periodo e valori attuali; il tooltip è solo visivo (`aria-hidden`); i valori di ogni giorno sono nella tabella «Valori giorno per giorno», raggiungibile da tastiera.
 - Animazioni continue e transizioni rispettano `prefers-reduced-motion`.
 - Un controllo automatico con axe-core (regole WCAG A e AA) gira negli e2e sulle schermate principali, nei due temi: vedi [sviluppo-deploy.md](sviluppo-deploy.md#controllo-automatico-di-accessibilità). Non sostituisce le verifiche con tastiera e lettore di schermo.
 
@@ -224,7 +224,8 @@ Ogni componente interattivo gestisce esplicitamente: default, hover, focus (visi
 - **TSB (forma)**: banda tra lo zero e il valore in `--chart-tsb` (neutro trasparente); il segno si legge dalla posizione rispetto alla linea dello zero, più marcata delle altre linee di griglia.
 - **Allenamenti al giorno**: barre in `--chart-bar` in una striscia separata sotto il grafico, mai sovrapposte alle serie.
 - Asse y con etichette a passo "tondo" (1, 2, 5 × 10ⁿ); date di inizio e fine sotto la striscia; legenda con l'ultimo valore di CTL, ATL e TSB. Etichette e date sono HTML in `--fs-xs` posizionate sopra l'SVG, non testo SVG: non rimpiccioliscono con il grafico.
-- Crosshair e tooltip al passaggio del mouse o al tocco (eventi touch e mouse unificati). Senza dati, al posto del grafico compare uno stato vuoto fornito dal chiamante (slot `empty`), che indica come ottenere i dati.
+- Crosshair e tooltip al passaggio del mouse o al tocco (eventi touch e mouse unificati).
+- Sotto la legenda, «Valori giorno per giorno» (`<details>`, chiuso all'arrivo) apre una tabella con gli stessi dati, dal giorno più recente: giorno (intestazione di riga), fitness, fatica, forma con il segno, allenamenti; «—» per un valore mancante, didascalia nascosta a schermo con il periodo. Serve a chi usa tastiera o lettore di schermo, che del grafico riceve solo il riepilogo ([decisione D-04 dell'audit](audit/2026-10-ux-ui-1-2-0/README.md#a-20)); entra a 320 px senza scorrimento orizzontale. Senza dati, al posto del grafico compare uno stato vuoto fornito dal chiamante (slot `empty`), che indica come ottenere i dati.
 
 ## Regole mobile
 

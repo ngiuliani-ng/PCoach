@@ -23,7 +23,16 @@ const SCREENS: Screen[] = [
   { name: "Da fare", url: () => "./#/" },
   { name: "Impostazioni, tutto aperto", url: () => "./#/impostazioni", prep: openAllSections },
   { name: "Nuovo atleta", url: () => "./#/atleta/nuovo", prep: openAllSections },
-  { name: "Panoramica con feedback da approvare", url: () => `${A}/panoramica`, prep: openAllSections },
+  {
+    // Con i valori del carico: grafico, legenda e tabella dei valori giorno per giorno (aperta da openAllSections).
+    name: "Panoramica con feedback da approvare e carico", url: () => `${A}/panoramica`, prep: openAllSections,
+    state: (s) => {
+      (s.tables.athletes[0].data as { training_status: { load_metrics_log: unknown[] } }).training_status.load_metrics_log =
+        Array.from({ length: 14 }, (_, i) => ({
+          date: new Date(Date.UTC(2026, 8, 27 + i)).toISOString().slice(0, 10), ctl: 40 + i, atl: 45 - i, tsb: i - 5, workouts_count: i % 3
+        }));
+    }
+  },
   { name: "Piano, settimana con sedute", url: () => `${A}/piano?settimana=2026-10-12` },
   { name: "Piano, storico", url: () => `${A}/piano?settimana=2026-10-12`, prep: async (p) => { await p.getByRole("button", { name: "Storico" }).click(); } },
   { name: "Profilo, tutto aperto", url: () => `${A}/profilo`, prep: openAllSections },
@@ -52,6 +61,7 @@ for (const scheme of ["light", "dark"] as const) {
         await expect(page.locator("h1").first()).toBeVisible();
         await page.waitForTimeout(400);
         if (screen.prep) { await screen.prep(page); await page.waitForTimeout(300); }
+        if (screen.name.includes("carico")) await expect(page.locator(".chart-values table")).toBeVisible();
         const results = await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();
         const found = results.violations.map((v) => ({
           rule: v.id, impact: v.impact, help: v.help,

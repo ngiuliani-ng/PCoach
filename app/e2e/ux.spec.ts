@@ -447,3 +447,38 @@ test("titoli senza salti di livello e titolo della pagina che dice dove si è (A
     await expect(page, url).toHaveTitle(title);
   }
 });
+
+test("grafico del carico: tabella dei valori giorno per giorno, da tastiera e a 320 px (A-20, D-04)", async ({ page }) => {
+  const state = createState();
+  (state.tables.athletes[0].data as { training_status: { load_metrics_log: unknown[] } }).training_status.load_metrics_log = [
+    { date: "2026-10-08", ctl: 40.4, atl: 45.2, tsb: -4.8, workouts_count: 1 },
+    { date: "2026-10-09", ctl: 41, atl: 43, tsb: -2, workouts_count: 0 },
+    { date: "2026-10-10", ctl: 41.6, atl: null, tsb: 3, workouts_count: 2 }
+  ];
+  await installMockBackend(page, state);
+  await page.goto(`./#/atleta/${ATHLETE_ID}/panoramica`);
+  const summary = page.getByText("Valori giorno per giorno");
+  await expect(summary).toBeVisible();
+  const table = page.getByRole("table", { name: "Valori del carico dal 8 ott 2026 al 10 ott 2026" });
+  await expect(table).toBeHidden();
+
+  // Da tastiera: il riepilogo prende il focus e Invio apre la tabella.
+  await summary.focus();
+  await page.keyboard.press("Enter");
+  await expect(table).toBeVisible();
+  await expect(table.getByRole("columnheader")).toHaveText(["Giorno", "Fitness (CTL)", "Fatica (ATL)", "Forma (TSB)", "Allenamenti"]);
+  const rows = table.getByRole("row");
+  await expect(rows).toHaveCount(4);
+  // Il giorno più recente in cima; arrotondamenti e segni come nella legenda; «—» per un valore mancante.
+  await expect(rows.nth(1).getByRole("rowheader")).toHaveText("10 ott 2026");
+  await expect(rows.nth(1).getByRole("cell")).toHaveText(["42", "—", "+3", "2"]);
+  await expect(rows.nth(3).getByRole("rowheader")).toHaveText("8 ott 2026");
+  await expect(rows.nth(3).getByRole("cell")).toHaveText(["40", "45", "−5", "1"]);
+
+  await page.setViewportSize({ width: 320, height: 640 });
+  await expect(table).toBeVisible();
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+  const box = await table.boundingBox();
+  expect(box!.x + box!.width).toBeLessThanOrEqual(320);
+});

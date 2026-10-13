@@ -129,9 +129,12 @@ function onTouchMove(ev: TouchEvent) {
 }
 
 const hoverEntry = computed(() => (hoverIndex.value !== null ? sorted.value[hoverIndex.value] : null));
-function fmt(v: number | undefined): string {
+function fmt(v: number | null | undefined): string {
   return v == null ? "—" : String(Math.round(v));
 }
+// Gli stessi valori in una tabella, dal giorno più recente: leggibili da tastiera e da un lettore di
+// schermo, che del grafico ricevono solo il riepilogo (decisione D-04, audit A-20).
+const tableRows = computed(() => [...sorted.value].reverse());
 </script>
 
 <template>
@@ -199,6 +202,24 @@ function fmt(v: number | undefined): string {
         <li><i class="swatch" style="background: var(--chart-tsb)"></i>Forma (TSB)<strong v-if="current.tsb != null">{{ formatSigned(current.tsb) }}</strong></li>
         <li><i class="swatch swatch-bar" style="background: var(--chart-bar)"></i>Allenamenti al giorno</li>
       </ul>
+      <details class="chart-values">
+        <summary>Valori giorno per giorno</summary>
+        <table>
+          <caption class="visually-hidden">Valori del carico dal {{ formatDate(sorted[0].date) }} al {{ formatDate(sorted.at(-1)?.date) }}</caption>
+          <thead>
+            <tr><th scope="col">Giorno</th><th scope="col">Fitness (CTL)</th><th scope="col">Fatica (ATL)</th><th scope="col">Forma (TSB)</th><th scope="col">Allenamenti</th></tr>
+          </thead>
+          <tbody>
+            <tr v-for="e in tableRows" :key="e.date">
+              <th scope="row">{{ formatDate(e.date) }}</th>
+              <td>{{ fmt(e.ctl) }}</td>
+              <td>{{ fmt(e.atl) }}</td>
+              <td>{{ e.tsb == null ? "—" : formatSigned(e.tsb) }}</td>
+              <td>{{ e.workouts_count ?? 0 }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </details>
     </template>
   </div>
 </template>
