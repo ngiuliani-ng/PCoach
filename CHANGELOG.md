@@ -12,6 +12,9 @@ Ordine: più recente in cima. Versioni con [Semantic Versioning](https://semver.
 
 ## [Unreleased]
 
+### Modificato
+- Anche le Impostazioni hanno la nuvola dello stato di salvataggio («Impostazioni salvate» o «Modifiche non salvate»), come la scheda atleta; su telefono «Salva impostazioni» e «Salva il profilo» diventano «Salva», così il titolo non si taglia — richiesta del coach — docs: design-ui, architettura.
+
 ## [1.1.0] — 2026-10-13
 
 Rifiniture dopo la 1.0.0: richieste del coach e i quattro punti P3 dell'audit UI/UX completo (UX-05, UX-25, UX-35, UX-55).

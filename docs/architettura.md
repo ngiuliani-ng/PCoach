@@ -39,7 +39,7 @@ Applicazione mono-coach, pensata per uso personale con un link non condiviso pub
 app/
   src/
     components/
-      ui/        Componenti generici riutilizzabili (toast, dialog di conferma, IconButton, sezioni comprimibili, indice, guida, ...)
+      ui/        Componenti generici riutilizzabili (toast, dialog di conferma, IconButton, sezioni comprimibili, indice, guida, stato del salvataggio, ...)
       domain/    Componenti specifici del dominio PCoach (scheda atleta, sidebar, grafico carico, ...)
     composables/ Logica riutilizzabile con stato reattivo (toast, dialog di conferma, stato mobile sidebar, livelli nella query dell'URL, ...)
     constants.ts Opzioni condivise tra componenti (discipline, obiettivi, ...), prompt predefiniti e helper di presentazione (formatDate, formatSigned, icone ed etichette delle discipline)

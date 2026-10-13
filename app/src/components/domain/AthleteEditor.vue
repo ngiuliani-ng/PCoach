@@ -43,7 +43,8 @@ import ProfileTrainingStatus from "./ProfileTrainingStatus.vue";
 import ProfileGoals from "./ProfileGoals.vue";
 import ProfileConstraints from "./ProfileConstraints.vue";
 import ProfileMethodology from "./ProfileMethodology.vue";
-import { CloudAlert, CloudCheck, CloudOff, Download, Trash2 } from "lucide-vue-next";
+import SaveStatus from "../ui/SaveStatus.vue";
+import { Download, Trash2 } from "lucide-vue-next";
 
 const athletes = useAthletesStore();
 const workouts = useWorkoutsStore();
@@ -135,11 +136,11 @@ const disciplinesText = computed(() =>
 // corto e' per il telefono: la data senza l'anno, se e' quello in corso; nessun testo per le modifiche,
 // che «Salva» attivo gia' segnala.
 const saveStatus = computed(() => {
-  if (athletes.isDirty) return { icon: CloudAlert, tone: "unsaved", long: "Modifiche non salvate", short: "" };
-  if (!athletes.currentId) return { icon: CloudOff, tone: "draft", long: "Bozza non ancora salvata", short: "" };
+  if (athletes.isDirty) return { state: "unsaved" as const, text: "Modifiche non salvate", short: "" };
+  if (!athletes.currentId) return { state: "draft" as const, text: "Bozza non ancora salvata", short: "" };
   const date = profile.value.meta.updated_at ?? "";
   return {
-    icon: CloudCheck, tone: "saved", long: `Scheda salvata il ${formatDate(date)}`,
+    state: "saved" as const, text: `Scheda salvata il ${formatDate(date)}`,
     short: formatDate(date, date.slice(0, 4) !== todayISO().slice(0, 4))
   };
 });
@@ -290,13 +291,13 @@ watch(
         <!-- Stato del salvataggio, sempre visibile con la nuvola (richiesta del coach): salvata con la data,
              modifiche non salvate, bozza mai salvata. Su telefono icona e testo corto; il testo intero resta
              per i lettori di schermo. -->
-        <span class="save-status" :class="saveStatus.tone">
-          <component :is="saveStatus.icon" :size="16" class="save-icon" aria-hidden="true" />
-          <span class="save-long">{{ saveStatus.long }}</span>
-          <span v-if="saveStatus.short" class="save-short" aria-hidden="true">{{ saveStatus.short }}</span>
-        </span>
+        <SaveStatus :state="saveStatus.state" :text="saveStatus.text" :short="saveStatus.short" />
         <!-- Salva i dati del Profilo: fuori da quella vista compare solo se ci sono modifiche da salvare. -->
-        <button v-if="tab === 'profilo' || athletes.isDirty" type="button" class="primary" :disabled="!athletes.isDirty" @click="onSave">{{ tab === "profilo" ? "Salva" : "Salva il profilo" }}</button>
+        <!-- Su telefono il pulsante dice solo «Salva»: il nome resta intero per i lettori di schermo. -->
+        <button v-if="tab === 'profilo'" type="button" class="primary" :disabled="!athletes.isDirty" @click="onSave">Salva</button>
+        <button v-else-if="athletes.isDirty" type="button" class="primary" aria-label="Salva il profilo" @click="onSave">
+          <span class="label-long">Salva il profilo</span><span class="label-short" aria-hidden="true">Salva</span>
+        </button>
       </div>
     </header>
     <p v-if="athletes.hasRemoteUpdate" class="update-banner" role="status">

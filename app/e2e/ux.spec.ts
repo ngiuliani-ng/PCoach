@@ -309,3 +309,20 @@ test("editor della struttura: etichette visibili dei campi e intervallo di zone 
   await expect(rows.nth(0).getByRole("combobox", { name: "Fino alla zona" })).toHaveCount(0);
   await expect(rows.nth(0).getByRole("button", { name: /^Intervallo di zone/ })).toBeVisible();
 });
+
+test("Impostazioni: la nuvola del salvataggio sempre, salvata o con modifiche", async ({ page }, info) => {
+  await installMockBackend(page, createState());
+  if (info.project.name === "mobile") await page.setViewportSize({ width: 320, height: 700 });
+  await page.goto("./#/impostazioni");
+  const status = page.locator(".page-header .save-status");
+  await expect(status.locator(".save-icon")).toBeVisible();
+  await expect(status).toHaveClass(/saved/);
+  await expect(status).toContainText("Impostazioni salvate");
+  await openSection(page, "Feedback settimanale");
+  await page.getByLabel("Tono del feedback").fill("Tono asciutto.");
+  await expect(status).toHaveClass(/unsaved/);
+  await expect(status.locator(".save-icon")).toBeVisible();
+  await expect(status).toContainText("Modifiche non salvate");
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+});

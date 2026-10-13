@@ -21,6 +21,7 @@ import { defaultZoneModels } from "@shared/workouts/zoneModels.ts";
 import { isGuideKey, type GuideKey } from "../../help/guide";
 import PasswordField from "../ui/PasswordField.vue";
 import PageSection from "../ui/PageSection.vue";
+import SaveStatus from "../ui/SaveStatus.vue";
 import SectionNav from "../ui/SectionNav.vue";
 import GuidePanel from "../ui/GuidePanel.vue";
 import ZoneModelsEditor from "./ZoneModelsEditor.vue";
@@ -167,8 +168,12 @@ async function onSave() {
     <header class="page-header">
       <h1>Impostazioni</h1>
       <div class="page-header-actions">
-        <span v-if="settings.isDirty" class="unsaved-badge">Modifiche non salvate</span>
-        <button type="button" class="primary" :disabled="!settings.isDirty" @click="onSave">Salva impostazioni</button>
+        <SaveStatus v-if="settings.isDirty" state="unsaved" text="Modifiche non salvate" />
+        <SaveStatus v-else state="saved" text="Impostazioni salvate" />
+        <!-- Su telefono il pulsante dice solo «Salva», cosi' il titolo resta leggibile. -->
+        <button type="button" class="primary" :disabled="!settings.isDirty" aria-label="Salva impostazioni" @click="onSave">
+          <span class="label-long">Salva impostazioni</span><span class="label-short" aria-hidden="true">Salva</span>
+        </button>
       </div>
     </header>
     <SectionNav :sections="SECTIONS" @go="go" />
