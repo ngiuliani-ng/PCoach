@@ -72,7 +72,7 @@ const SECTIONS = [
 // Sezioni sempre chiuse all'arrivo (scelta del coach): i riepiloghi dicono cosa c'e' dentro.
 const sections = useSections();
 const go = (id: string) => scrollToSection(id, sections.reveal, nextTick);
-// Link a una sezione (?sezione=…, ad esempio la versione nella barra laterale).
+// Link a una sezione (?sezione=…): apre la sezione indicata e la porta in vista.
 const route = useRoute();
 watch(() => route.query.sezione, (id) => {
   if (typeof id === "string" && SECTIONS.some((s) => s.id === id)) void go(id);
