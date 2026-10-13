@@ -51,7 +51,7 @@ const ICONS = { err: CircleAlert, warn: TriangleAlert, info: Clock };
         </ul>
       </section>
       </template>
-      <p v-if="todo.loaded && !todo.error" class="helper-text todo-note">Zone e soglie diverse da Intervals.icu si controllano all'apertura della scheda, nella tab Anomalie.</p>
+      <p v-if="todo.loaded && !todo.error" class="helper-text todo-note">Qui non compaiono zone e soglie diverse da Intervals.icu e la chiave Intervals.icu non valida: si vedono nella tab Anomalie quando apri la scheda dell'atleta.</p>
     </template>
   </div>
 </template>

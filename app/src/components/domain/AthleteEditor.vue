@@ -6,7 +6,7 @@
 //   stato, obiettivi, vincoli, metodologia, note) e la gestione della scheda.
 // L'header con nome, stato di salvataggio e "Salva" resta sticky in entrambe le viste.
 // Atleta e vista vengono dalla rotta (router.ts): /atleta/:id/:tab, oppure /atleta/nuovo per la bozza.
-import { computed, nextTick, reactive, ref, watch } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAthletesStore } from "../../stores/athletes";
 import { useWorkoutsStore } from "../../stores/workouts";
@@ -107,20 +107,10 @@ const PROFILE_SECTIONS = [
   { id: "sec-vincoli", title: "Vincoli e disponibilità" }, { id: "sec-metodologia", title: "Metodologia" },
   { id: "sec-note", title: "Note libere" }, { id: "sec-gestione", title: "Gestione scheda" }
 ];
-// Aperte all'inizio le sezioni che si aggiornano spesso; le altre mostrano il riepilogo.
-const sections = useSections("profilo", () => ["sec-soglie", "sec-obiettivi", "sec-vincoli"]);
-// Una bozza si compila tutta: le sezioni partono aperte.
-const draftClosed = reactive(new Set<string>());
-const isOpen = (id: string) => (isNewRoute.value ? !draftClosed.has(id) : sections.isOpen(id));
-function toggle(id: string) {
-  if (!isNewRoute.value) return sections.toggle(id);
-  if (draftClosed.has(id)) draftClosed.delete(id);
-  else draftClosed.add(id);
-}
-function reveal(id: string) {
-  if (isNewRoute.value) draftClosed.delete(id);
-  else sections.reveal(id);
-}
+// Sezioni sempre chiuse all'arrivo, anche per una bozza e cambiando atleta (scelta del coach).
+const sections = useSections();
+const { isOpen, toggle, reveal } = sections;
+watch(() => route.params.id ?? route.name, () => sections.closeAll());
 async function goToSection(sectionId: string) {
   tab.value = "profilo";
   await scrollToSection(sectionId, reveal, nextTick);

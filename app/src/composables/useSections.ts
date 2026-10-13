@@ -1,49 +1,27 @@
-// Sezioni comprimibili di una pagina lunga (Profilo, Impostazioni; decisione del coach D-02): quali
-// sono aperte resta per la sessione del browser, cosi' tornando sulla pagina la si ritrova com'era.
-// sessionStorage puo' mancare o rifiutare la scrittura: in quel caso valgono le sezioni predefinite.
+// Sezioni comprimibili di una pagina lunga (Profilo, Impostazioni; decisione del coach D-02): ogni volta
+// che si arriva sulla pagina sono tutte chiuse (scelta del coach). Si aprono a mano, da un link che porta a
+// una sezione o da sole quando contengono un errore da correggere.
 import { reactive } from "vue";
 
-export function useSections(page: string, defaults: () => string[]) {
-  const key = `pcoach.sezioni.${page}`;
-  let stored: string[] | null = null;
-  try {
-    const raw = sessionStorage.getItem(key);
-    stored = raw ? (JSON.parse(raw) as string[]) : null;
-  } catch {
-    stored = null;
-  }
-  const open = reactive(new Set<string>(Array.isArray(stored) ? stored : defaults()));
-
-  function persist() {
-    try {
-      sessionStorage.setItem(key, JSON.stringify([...open]));
-    } catch {
-      // Solo una comodita': senza memoria le sezioni ripartono da quelle predefinite.
-    }
-  }
+export function useSections() {
+  const open = reactive(new Set<string>());
 
   const isOpen = (id: string) => open.has(id);
   function toggle(id: string) {
     if (open.has(id)) open.delete(id);
     else open.add(id);
-    persist();
   }
   function reveal(id: string) {
     open.add(id);
-    persist();
   }
-  function setAll(ids: string[], value: boolean) {
-    for (const id of ids) {
-      if (value) open.add(id);
-      else open.delete(id);
-    }
-    persist();
+  function closeAll() {
+    open.clear();
   }
 
-  return { isOpen, toggle, reveal, setAll };
+  return { isOpen, toggle, reveal, closeAll };
 }
 
-/** Apre una sezione e la porta in vista (link dalle anomalie, dall'indice). */
+/** Apre una sezione e la porta in vista (link dalle anomalie, dall'indice, dalla pagina «Da fare»). */
 export async function scrollToSection(id: string, reveal: (id: string) => void, nextTick: () => Promise<void>) {
   reveal(id);
   await nextTick();

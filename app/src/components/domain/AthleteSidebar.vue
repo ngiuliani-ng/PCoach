@@ -13,7 +13,7 @@ import { disciplineLabel, fullName, formatSigned } from "../../constants";
 import { confirmLeaveProfile, confirmLeaveSettings } from "../../router";
 import IconButton from "../ui/IconButton.vue";
 import { APP_VERSION } from "../../version";
-import { Settings, LogOut, UserPlus } from "lucide-vue-next";
+import { Settings, LogOut, UserPlus, ListTodo } from "lucide-vue-next";
 
 const athletes = useAthletesStore();
 const auth = useAuthStore();
@@ -25,6 +25,8 @@ const { status } = useConnectionStatus();
 const emit = defineEmits<{ (e: "close"): void }>();
 
 const isDraftOpen = computed(() => route.name === "new-athlete");
+const isHome = computed(() => route.name === "home");
+const todoTotal = computed(() => todo.list.reduce((n, a) => n + a.count, 0));
 const openId = computed(() => (route.name === "athlete" ? String(route.params.id) : null));
 const draftName = computed(() => fullName(athletes.currentProfile?.identity) || "Bozza senza nome");
 const statusLabel = computed(() => CONNECTION_STATUS_LABELS[status.value]);
@@ -60,10 +62,16 @@ async function onSignOut() {
        programmatico all'apertura (vedi useMobileSidebar). -->
   <aside id="athlete-sidebar" class="sidebar" tabindex="-1" aria-label="Atleti">
     <div class="sidebar-header">
-      <p class="brand">PCoach</p>
+      <RouterLink class="brand" :to="{ name: 'home' }">PCoach</RouterLink>
     </div>
     <div class="sidebar-separator"></div>
     <ul class="athlete-list">
+      <!-- La pagina iniziale «Da fare» (D-01), con il totale di tutti gli atleti. -->
+      <li class="athlete-item todo-item" :class="{ active: isHome }">
+        <button type="button" class="athlete-select" :aria-current="isHome ? 'page' : undefined" @click="go({ name: 'home' }, isHome)">
+          <ListTodo :size="16" aria-hidden="true" />Da fare<span v-if="todoTotal" class="todo-count" :aria-label="`, ${todoTotal} in tutto`">{{ todoTotal }}</span>
+        </button>
+      </li>
       <li class="athlete-item new-athlete-card" :class="{ active: isDraftOpen }">
         <button type="button" class="athlete-select" :aria-pressed="isDraftOpen" @click="go({ name: 'new-athlete' }, isDraftOpen)">
           <UserPlus :size="16" aria-hidden="true" />Nuovo atleta
@@ -93,7 +101,7 @@ async function onSignOut() {
           @click="go({ name: 'athlete', params: { id: a.id } }, openId === a.id)"
         >
           <span class="meta">
-            <span class="name">{{ a.name }}<span v-if="todo.countFor(a.id)" class="tab-count" :aria-label="`, ${todo.countFor(a.id)} da fare`">{{ todo.countFor(a.id) }}</span></span>
+            <span class="name">{{ a.name }}<span v-if="todo.countFor(a.id)" class="todo-count" :aria-label="`, ${todo.countFor(a.id)} da fare`">{{ todo.countFor(a.id) }}</span></span>
             <span class="sub">{{ a.disciplines || "Nessuna disciplina" }}</span>
             <span v-if="a.tsb" class="sub">TSB {{ a.tsb }}</span>
           </span>

@@ -68,7 +68,8 @@ const SECTIONS = [
   { id: "imp-modelli", title: "Modelli di zone" },
   { id: "imp-info", title: "Informazioni" }
 ];
-const sections = useSections("impostazioni", () => ["imp-claude", "imp-feedback"]);
+// Sezioni sempre chiuse all'arrivo (scelta del coach): i riepiloghi dicono cosa c'e' dentro.
+const sections = useSections();
 const go = (id: string) => scrollToSection(id, sections.reveal, nextTick);
 // Link a una sezione (?sezione=…, ad esempio la versione nella barra laterale).
 const route = useRoute();

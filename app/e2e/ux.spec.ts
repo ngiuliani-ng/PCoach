@@ -2,6 +2,7 @@
 // dopo le correzioni.
 import { expect, test } from "@playwright/test";
 import { ATHLETE_ID, createState, installMockBackend } from "./mockBackend";
+import { openSection } from "./helpers";
 
 test("a 320 px la scheda non scorre in orizzontale, anche con il numero delle anomalie (UX-03)", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 640 });
@@ -57,6 +58,7 @@ test("Profilo: sezioni chiuse con il riepilogo, guida dall'icona Info chiusa da 
   await expect(identity).toContainText("Giulia Ferri, 36 anni, senza email");
   // Nessun testo d'aiuto sotto i campi: la spiegazione e' nella guida.
   await expect(page.getByText("Come lo usa PCoach")).toHaveCount(0);
+  await openSection(page, "Vincoli e disponibilità");
   await page.getByLabel("Sessioni a settimana (obiettivo)").fill("4");
   await page.getByRole("button", { name: "Guida: Vincoli e disponibilità" }).click();
   const guide = page.getByRole("dialog", { name: "Vincoli e disponibilità" });
@@ -128,4 +130,18 @@ test("la versione in fondo alla barra laterale porta a Informazioni, con build, 
   await expect(info.locator("dd").nth(2)).toHaveText(/^\d+\.\d+\.\d+$/);
   await expect(info).toContainText("Novità della versione");
   await expect(info).not.toContainText("e2e-anon-key");
+});
+
+test("«Da fare» nella barra laterale riporta alla home; le sezioni del Profilo e delle Impostazioni partono tutte chiuse", async ({ page }) => {
+  await installMockBackend(page, createState());
+  await page.goto(`./#/atleta/${ATHLETE_ID}/profilo`);
+  const toggles = page.locator("#panel-profilo .section-toggle");
+  await expect(toggles.first()).toBeVisible();
+  for (const state of await toggles.evaluateAll((els) => els.map((e) => e.getAttribute("aria-expanded")))) expect(state).toBe("false");
+  const menu = page.getByRole("button", { name: "Apri la barra laterale" });
+  if (await menu.isVisible().catch(() => false)) await menu.click();
+  await page.getByRole("button", { name: /^Da fare/ }).click();
+  await expect(page.getByRole("heading", { name: "Da fare", level: 1 })).toBeVisible();
+  await page.goto("./#/impostazioni");
+  for (const state of await page.locator(".section-toggle").evaluateAll((els) => els.map((e) => e.getAttribute("aria-expanded")))) expect(state).toBe("false");
 });

@@ -59,6 +59,7 @@ test("con modifiche non salvate la generazione chiede se salvarle; Claude riceve
   await installMockBackend(page, state);
   const calls = await captureClaude(page);
   await page.goto(`./#/atleta/${ATHLETE_ID}/profilo`);
+  await openSection(page, "Vincoli e disponibilità");
   await page.getByLabel("Sessioni a settimana (obiettivo)").fill("3");
   await page.getByRole("tab", { name: "Piano" }).click();
   await page.getByRole("button", { name: /Prosegui il piano/ }).click();
@@ -77,6 +78,7 @@ test("«Salva e genera» salva la scheda prima di aprire la generazione", async 
   const state = createState();
   await installMockBackend(page, state);
   await page.goto(`./#/atleta/${ATHLETE_ID}/profilo`);
+  await openSection(page, "Vincoli e disponibilità");
   await page.getByLabel("Sessioni a settimana (obiettivo)").fill("4");
   await page.getByRole("tab", { name: "Piano" }).click();
   await page.getByRole("button", { name: /Prosegui il piano/ }).click();
@@ -177,6 +179,7 @@ test("le intensità del feedback si impostano per sistema di zone; il nuoto most
   expect(state.tables.app_settings[0].feedback_params).toMatchObject({ z3_low_max: 1, z3_moderate_max: 3, z7_low_max: 2, z7_moderate_max: 4 });
 
   await page.goto(`./#/atleta/${ATHLETE_ID}/profilo`);
+  await openSection(page, "Soglie e zone");
   await page.getByRole("button", { name: "Nuoto" }).click();
   const swim = page.getByRole("combobox", { name: "Sistema di zone" });
   await expect(swim).toBeDisabled();

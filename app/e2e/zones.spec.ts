@@ -86,6 +86,7 @@ test("cambiare il sistema di zone nel Profilo con un piano in corso: conferma, p
   state.icuSportSettings[1].pace_zones = [77.5, 87.7, 94.3, 100, 999];
   await installMockBackend(page, state);
   await page.goto(`./#/atleta/${ATHLETE_ID}/profilo`);
+  await openSection(page, "Soglie e zone");
   await page.getByRole("combobox", { name: "Sistema di zone" }).selectOption("5-zone");
   await page.getByRole("button", { name: "Salva", exact: true }).click();
   const dialog = page.getByRole("alertdialog");

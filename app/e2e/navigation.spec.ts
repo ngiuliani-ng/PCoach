@@ -86,6 +86,7 @@ test("dalle Impostazioni si torna all'atleta aperto; le Impostazioni modificate 
   await sidebar(page);
   await page.getByRole("button", { name: "Impostazioni" }).click();
   await expect(page.getByRole("heading", { name: "Impostazioni" })).toBeVisible();
+  await openSection(page, "Feedback settimanale");
   await page.getByLabel("Tono del feedback").fill("Tono asciutto.");
   await expect(page.getByRole("button", { name: "Salva impostazioni" })).toBeEnabled();
 
@@ -102,6 +103,7 @@ test("un nuovo atleta non salvato per un errore resta modificato e si salva al n
   await page.goto("./");
   await sidebar(page);
   await page.getByRole("button", { name: "Nuovo atleta" }).click();
+  await openSection(page, "Identità");
   await page.getByLabel("Nome", { exact: true }).fill("Luca");
   const save = page.getByRole("button", { name: "Salva", exact: true });
   await save.click();
