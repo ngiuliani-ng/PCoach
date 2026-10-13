@@ -41,6 +41,22 @@ describe("pagina «Da fare» (D-01)", () => {
     expect(a.items.find((i) => i.key === "review-r2")!.links[0].to).toEqual({ name: "athlete", params: { id: "A", tab: "panoramica" }, query: { feedback: "r2" } });
   });
 
+  it("chiave non valida, zone e soglie diverse dall'ultimo controllo su Intervals.icu (ADR 0037)", () => {
+    const checks = [
+      { athlete_id: "A", checked_at: "2026-10-10T08:20:00Z", key_status: "valid", zone_problems: ["Corsa (passo): 5 zone in PCoach, 7 su Intervals.icu"], threshold_problems: [] },
+      { athlete_id: "B", checked_at: "2026-10-10T08:20:00Z", key_status: "invalid", zone_problems: [], threshold_problems: [] }
+    ];
+    const todo = buildTodo(base({ checks }));
+    expect(todo.map((a) => [a.id, a.items.map((i) => [i.key, i.tone])])).toEqual([
+      ["A", [["icu-zones", "warn"]]],
+      ["B", [["icu-key", "err"]]]
+    ]);
+    expect(todo[0].items[0].detail).toBe("Corsa (passo): 5 zone in PCoach, 7 su Intervals.icu");
+    expect(todo[0].items[0].links[0].to).toEqual({ name: "athlete", params: { id: "A", tab: "anomalie" }, query: undefined });
+    // Intervals.icu non raggiungibile: nessuna anomalia aggiunta.
+    expect(buildTodo(base({ checks: [{ ...checks[0], key_status: "unreachable" }] }))).toEqual([]);
+  });
+
   it("email mancante solo con l'invio attivo; soglia mancante per uno sport praticato (D-05)", () => {
     expect(buildTodo(base({ emailEnabled: true })).map((a) => [a.id, a.items.map((i) => i.key)])).toEqual([["A", ["email"]]]);
     const noPace = base();

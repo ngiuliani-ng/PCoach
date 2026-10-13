@@ -5,7 +5,7 @@ import { defineStore } from "pinia";
 import { supabase } from "../services/supabase";
 import { addDaysISO, weekStartISO } from "@shared/workouts/calendar.ts";
 import { todayISO, fullName } from "../constants";
-import { buildTodo, TODO_FEEDBACK_WEEKS, type AthleteTodo, type TodoReview, type TodoWorkout } from "../domain/todo";
+import { buildTodo, TODO_FEEDBACK_WEEKS, type AthleteTodo, type TodoCheck, type TodoReview, type TodoWorkout } from "../domain/todo";
 import { useAthletesStore } from "./athletes";
 import { useSettingsStore } from "./settings";
 
@@ -14,6 +14,7 @@ export const useTodoStore = defineStore("todo", {
     workouts: [] as TodoWorkout[],
     syncErrors: new Set<string>(),
     reviews: [] as TodoReview[],
+    checks: [] as TodoCheck[],
     loaded: false,
     error: ""
   }),
@@ -26,21 +27,28 @@ export const useTodoStore = defineStore("todo", {
         workouts: state.workouts,
         syncErrors: state.syncErrors,
         reviews: state.reviews,
+        checks: state.checks,
         emailEnabled: settings.savedEmailEnabled,
         today: todayISO()
       });
     },
+    /** Ora dell'ultimo controllo su Intervals.icu, fra gli atleti con la chiave. */
+    lastCheckAt(state): string | null {
+      const times = state.checks.filter((c) => c.key_status !== "none").map((c) => c.checked_at).sort();
+      return times.at(-1) ?? null;
+    }
   },
   actions: {
     async refresh() {
       if (!supabase) return;
       const since = addDaysISO(weekStartISO(todayISO()), -7 * (TODO_FEEDBACK_WEEKS + 1));
-      const [w, s, r] = await Promise.all([
+      const [w, s, r, c] = await Promise.all([
         supabase.from("workouts").select("id, athlete_id, planned_date, title, status, needs_review").in("status", ["draft", "approved"]).is("completed_at", null),
         supabase.from("workout_sync").select("workout_id").eq("state", "error"),
-        supabase.from("weekly_reviews").select("id, athlete_id, period_start, revision, status, delivery_status, error, delivery_error").gte("period_start", since)
+        supabase.from("weekly_reviews").select("id, athlete_id, period_start, revision, status, delivery_status, error, delivery_error").gte("period_start", since),
+        supabase.from("athlete_checks").select("athlete_id, checked_at, key_status, zone_problems, threshold_problems")
       ]);
-      if (w.error || s.error || r.error) {
+      if (w.error || s.error || r.error || c.error) {
         this.error = "Non riesco a leggere cosa c'è da fare: controlla la connessione e riprova.";
         return;
       }
@@ -48,6 +56,7 @@ export const useTodoStore = defineStore("todo", {
       this.workouts = (w.data ?? []) as TodoWorkout[];
       this.syncErrors = new Set((s.data ?? []).map((x) => (x as { workout_id: string }).workout_id));
       this.reviews = (r.data ?? []) as TodoReview[];
+      this.checks = (c.data ?? []) as TodoCheck[];
       this.loaded = true;
     }
   }

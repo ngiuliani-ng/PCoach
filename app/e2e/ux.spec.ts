@@ -156,3 +156,22 @@ test("il contatore «Da fare» diventa giallo con almeno un'anomalia, in qualunq
   await expect(counter).toHaveClass(/attention/);
   await expect(page.getByRole("button", { name: /^Da fare, 3 in tutto, con anomalie da sistemare$/ })).toBeVisible();
 });
+
+test("la home mostra l'ultimo controllo su Intervals.icu: zone diverse e l'ora del controllo (ADR 0037)", async ({ page }) => {
+  const state = createState();
+  state.tables.athlete_checks = [{
+    athlete_id: ATHLETE_ID, checked_at: "2026-10-10T07:50:00Z", key_status: "valid",
+    zone_problems: ["Corsa (passo): 5 zone in PCoach, 7 su Intervals.icu"], threshold_problems: []
+  }];
+  await installMockBackend(page, state);
+  await page.goto("./");
+  const athlete = page.locator(".todo-athlete", { has: page.getByRole("heading", { name: "Giulia Ferri" }) });
+  await expect(athlete).toContainText("Zone diverse da Intervals.icu");
+  await expect(athlete).toContainText("Corsa (passo): 5 zone in PCoach, 7 su Intervals.icu");
+  await expect(page.getByText(/Chiave, zone e soglie controllate su Intervals\.icu oggi alle 09:50/)).toBeVisible();
+  await athlete.getByRole("link", { name: "Sistemale nelle Anomalie" }).click();
+  await expect(page.getByRole("tab", { name: /Anomalie/ })).toHaveAttribute("aria-selected", "true");
+  const menu = page.getByRole("button", { name: "Apri la barra laterale" });
+  if (await menu.isVisible().catch(() => false)) await menu.click();
+  await expect(page.locator(".todo-item .todo-count")).toHaveClass(/attention/);
+});

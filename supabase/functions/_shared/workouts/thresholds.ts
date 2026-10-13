@@ -27,7 +27,7 @@ interface ThresholdsLike {
   cycling?: { zone_system?: string | null; thresholds_log?: LogEntry[] | null } | null;
   swimming?: { thresholds_log?: LogEntry[] | null } | null;
 }
-interface ProfileLike {
+export interface ProfileLike {
   disciplines?: { sport?: string }[] | null;
   physiological_thresholds?: ThresholdsLike | null;
 }

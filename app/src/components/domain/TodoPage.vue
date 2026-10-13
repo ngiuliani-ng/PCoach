@@ -1,8 +1,8 @@
 <script setup lang="ts">
 // Pagina iniziale «Da fare» (decisione del coach D-01): per ogni atleta cio' che chiede un'azione, con
 // il link al punto esatto. Prima cio' che e' fallito, poi cio' che va sistemato, poi le approvazioni.
-// Zone e soglie diverse da Intervals.icu restano nella tab Anomalie della scheda (src/domain/todo.ts).
-import { onMounted } from "vue";
+import { computed, onMounted } from "vue";
+import { formatDate } from "../../constants";
 import { useAthletesStore } from "../../stores/athletes";
 import { useTodoStore } from "../../stores/todo";
 import { CircleAlert, CircleCheck, Clock, TriangleAlert } from "lucide-vue-next";
@@ -12,6 +12,15 @@ const todo = useTodoStore();
 onMounted(() => void todo.refresh());
 
 const ICONS = { err: CircleAlert, warn: TriangleAlert, info: Clock };
+
+// Chiave, zone e soglie si controllano su Intervals.icu ogni 30 minuti e all'apertura di una scheda (ADR 0037).
+const checkNote = computed(() => {
+  if (!todo.lastCheckAt) return "Chiave, zone e soglie si controllano su Intervals.icu ogni 30 minuti: il primo controllo non è ancora avvenuto.";
+  const at = new Date(todo.lastCheckAt);
+  const time = new Intl.DateTimeFormat("it-IT", { hour: "2-digit", minute: "2-digit" }).format(at);
+  const day = at.toDateString() === new Date().toDateString() ? "oggi" : formatDate(todo.lastCheckAt.slice(0, 10));
+  return `Chiave, zone e soglie controllate su Intervals.icu ${day} alle ${time}; il controllo si ripete ogni 30 minuti.`;
+});
 </script>
 
 <template>
@@ -51,7 +60,7 @@ const ICONS = { err: CircleAlert, warn: TriangleAlert, info: Clock };
         </ul>
       </section>
       </template>
-      <p v-if="todo.loaded && !todo.error" class="helper-text todo-note">Qui non compaiono zone e soglie diverse da Intervals.icu e la chiave Intervals.icu non valida: si vedono nella tab Anomalie quando apri la scheda dell'atleta.</p>
+      <p v-if="todo.loaded && !todo.error" class="helper-text todo-note">{{ checkNote }}</p>
     </template>
   </div>
 </template>

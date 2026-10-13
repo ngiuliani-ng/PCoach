@@ -1,7 +1,7 @@
 // Cosa richiede un'azione del coach, per tutti gli atleti (decisione del coach D-01): la pagina iniziale
-// «Da fare» e il numero accanto a ogni atleta nella barra laterale. Usa solo dati gia' nel database:
-// zone e soglie diverse da Intervals.icu si controllano all'apertura della scheda (tab Anomalie), perche'
-// richiedono una lettura da Intervals.icu per atleta. Funzione pura, testata in todo.test.ts.
+// «Da fare» e il contatore della barra laterale. Chiave, zone e soglie rispetto a Intervals.icu vengono
+// dall'ultimo controllo salvato in athlete_checks (ogni 30 minuti e all'apertura della scheda, ADR 0037).
+// Funzione pura, testata in todo.test.ts.
 import type { RouteLocationRaw } from "vue-router";
 import { addDaysISO } from "@shared/workouts/calendar.ts";
 import { missingThresholds } from "@shared/workouts/thresholds.ts";
@@ -25,6 +25,15 @@ export interface TodoReview {
   delivery_status: string;
   error: string | null;
   delivery_error: string | null;
+}
+
+/** Ultimo controllo di un atleta su Intervals.icu (tabella athlete_checks). */
+export interface TodoCheck {
+  athlete_id: string;
+  checked_at: string;
+  key_status: string;
+  zone_problems: string[];
+  threshold_problems: string[];
 }
 
 export interface TodoLink {
@@ -55,6 +64,7 @@ export interface TodoInput {
   /** Id delle sedute con l'ultimo invio a Intervals.icu non riuscito. */
   syncErrors: Set<string>;
   reviews: TodoReview[];
+  checks?: TodoCheck[];
   emailEnabled: boolean;
   today: string;
 }
@@ -90,6 +100,22 @@ export function buildTodo(input: TodoInput): AthleteTodo[] {
         items.push({ key: `review-${r.id}`, tone: "err", title: `Feedback della ${label} non preparato`, detail: r.error ?? undefined, links: [{ text: "Apri il feedback", to }] });
       } else if (r.status === "approved" && (r.delivery_status === "failed" || r.delivery_status === "skipped")) {
         items.push({ key: `delivery-${r.id}`, tone: "err", title: `Feedback della ${label} approvato ma non inviato`, detail: r.delivery_error ?? undefined, links: [{ text: "Apri il feedback", to }] });
+      }
+    }
+
+    // Intervals.icu: chiave, zone e soglie dall'ultimo controllo (ADR 0037).
+    const check = input.checks?.find((c) => c.athlete_id === a.id);
+    if (check?.key_status === "invalid") {
+      items.push({ key: "icu-key", tone: "err", title: "Chiave Intervals.icu non valida", detail: "PCoach non invia le sedute e non legge carico, zone e attività.",
+        links: [{ text: "Cambia la chiave nel Profilo", to: athleteRoute(a.id, "profilo", { sezione: "sec-intervals" }) }] });
+    } else if (check?.key_status === "valid") {
+      if (check.zone_problems.length) {
+        items.push({ key: "icu-zones", tone: "warn", title: "Zone diverse da Intervals.icu", detail: check.zone_problems.join("; "),
+          links: [{ text: "Sistemale nelle Anomalie", to: athleteRoute(a.id, "anomalie") }] });
+      }
+      if (check.threshold_problems.length) {
+        items.push({ key: "icu-thresholds", tone: "warn", title: "Soglie diverse da Intervals.icu", detail: check.threshold_problems.join("; "),
+          links: [{ text: "Sistemale nelle Anomalie", to: athleteRoute(a.id, "anomalie") }] });
       }
     }
 

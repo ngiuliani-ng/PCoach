@@ -27,6 +27,8 @@ import { type IcuSportSettings, icuZoneCount, icuZonesUpdate, resolveZoneModels,
 import type { ZoneCount, ZoneDiscipline } from "../_shared/workouts/zones.ts";
 import { alignmentProblems, paceContextOf, syncBlockReason, thresholdChecks } from "../_shared/workouts/thresholds.ts";
 import { PCOACH_VERSION } from "../_shared/version.ts";
+import { athleteCheck, pickZones } from "../_shared/workouts/athleteChecks.ts";
+import type { ProfileLike } from "../_shared/workouts/thresholds.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -312,19 +314,17 @@ async function apply(db: SupabaseClient, athleteId: string, workoutId: string, o
 }
 
 // ---------- zone ----------
-const ZONE_FIELDS = ["id", "types", "ftp", "lthr", "max_hr", "threshold_pace", "power_zones", "hr_zones", "pace_zones"] as const;
-
-function pickZones(raw: unknown): IcuSportSettings[] {
-  if (!Array.isArray(raw)) return [];
-  return raw.map((x) => Object.fromEntries(ZONE_FIELDS.map((k) => [k, (x as Record<string, unknown>)?.[k] ?? null])) as unknown as IcuSportSettings);
-}
-
 async function zonesRead(db: SupabaseClient, athleteId: string) {
-  const apiKey = await athleteKey(db, athleteId);
+  const { data } = await db.from("athletes").select("data").eq("id", athleteId).maybeSingle();
+  const profile = (data as { data?: ProfileLike & { integrations?: { intervals_icu_api_key?: string } } } | null)?.data;
+  const apiKey = profile?.integrations?.intervals_icu_api_key?.trim();
   if (!apiKey) return jsonResponse({ error: "Questo atleta non ha una chiave Intervals.icu." }, 400);
   const res = await icu(apiKey, "GET", "/sport-settings");
+  const sports = res.ok ? pickZones(res.data) : null;
+  // Lo stesso controllo del giro periodico (ADR 0037): la pagina «Da fare» si aggiorna appena si apre la scheda.
+  await db.from("athlete_checks").upsert(athleteCheck(athleteId, profile, true, sports, res.ok ? null : res.status ?? null, new Date()));
   if (!res.ok) return jsonResponse({ error: res.status === 401 || res.status === 403 ? "Chiave Intervals.icu non valida." : res.error }, 502);
-  return jsonResponse({ settings: pickZones(res.data) });
+  return jsonResponse({ settings: sports });
 }
 
 async function zonesApply(db: SupabaseClient, athleteId: string, discipline: ZoneDiscipline, key: ZoneModelKey, zones: ZoneCount) {
