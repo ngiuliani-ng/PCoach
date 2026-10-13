@@ -17,7 +17,7 @@ Ordine: più recente in cima. Versioni con [Semantic Versioning](https://semver.
 - La pagina «Da fare» non dice più a che ora sono state controllate chiave, zone e soglie — richiesta del coach — docs: design-ui, decisioni/0037.
 - Editor della struttura: etichette visibili sopra i campi (sul primo step di ogni gruppo, su ogni step da telefono) e zona singola, con «+ Intervallo» per un intervallo di zone — «fino a…» non si capiva (audit UX-25) — docs: design-ui, architettura.
 - Il numero sulla tab «Anomalie» ha la stessa forma quadrata del contatore «Da fare» — un solo aspetto per i numeri d'anomalia — docs: design-ui.
-- Sotto il nome dell'atleta, su telefono, solo il prossimo evento; «Aggiornata il» diventa «Scheda salvata il» con un'icona e sta accanto a «Salva» nel Profilo, su telefono come icona e data corta («1 set») — su telefono la riga occupava tre righe sopra le tab e la data si leggeva come aggiornamento del carico (audit UX-05) — docs: design-ui.
+- Sotto il nome dell'atleta, su telefono, solo il prossimo evento; accanto a «Salva», in ogni vista e anche su telefono, una nuvola dice se la scheda è salvata (con la data, al posto di «Aggiornata il»), ha modifiche non salvate o è una bozza mai salvata — su telefono la riga occupava tre righe sopra le tab e la data si leggeva come aggiornamento del carico (audit UX-05) — docs: design-ui.
 
 ### Rimosso
 - Novità della versione in Impostazioni › Informazioni: l'utente non le deve leggere — decisione del coach — docs: design-ui, architettura, sviluppo-deploy, decisioni/0036.

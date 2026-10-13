@@ -43,7 +43,7 @@ import ProfileTrainingStatus from "./ProfileTrainingStatus.vue";
 import ProfileGoals from "./ProfileGoals.vue";
 import ProfileConstraints from "./ProfileConstraints.vue";
 import ProfileMethodology from "./ProfileMethodology.vue";
-import { CloudCheck, Download, Trash2 } from "lucide-vue-next";
+import { CloudAlert, CloudCheck, CloudOff, Download, Trash2 } from "lucide-vue-next";
 
 const athletes = useAthletesStore();
 const workouts = useWorkoutsStore();
@@ -131,10 +131,17 @@ const openGuide = (key: GuideKey) => guideLayer.open(key);
 const disciplinesText = computed(() =>
   profile.value.disciplines.map((d) => disciplineLabel(d.sport)).filter(Boolean).join(", ")
 );
-// Data dell'ultimo salvataggio in forma corta per il telefono: senza l'anno, se e' quello in corso.
-const savedShort = computed(() => {
+// Stato del salvataggio accanto a «Salva» (audit UX-05, richiesta del coach: la nuvola sempre). Il testo
+// corto e' per il telefono: la data senza l'anno, se e' quello in corso; nessun testo per le modifiche,
+// che «Salva» attivo gia' segnala.
+const saveStatus = computed(() => {
+  if (athletes.isDirty) return { icon: CloudAlert, tone: "unsaved", long: "Modifiche non salvate", short: "" };
+  if (!athletes.currentId) return { icon: CloudOff, tone: "draft", long: "Bozza non ancora salvata", short: "" };
   const date = profile.value.meta.updated_at ?? "";
-  return formatDate(date, date.slice(0, 4) !== todayISO().slice(0, 4));
+  return {
+    icon: CloudCheck, tone: "saved", long: `Scheda salvata il ${formatDate(date)}`,
+    short: formatDate(date, date.slice(0, 4) !== todayISO().slice(0, 4))
+  };
 });
 const nextEvent = computed(() => {
   const today = todayISO();
@@ -280,13 +287,13 @@ watch(
     <header class="page-header">
       <h1>{{ fullName(profile.identity) || "Nuovo atleta" }}</h1>
       <div class="page-header-actions">
-        <span v-if="athletes.isDirty" class="unsaved-badge">Modifiche non salvate</span>
-        <!-- La data dell'ultimo salvataggio sta accanto a «Salva», dove si capisce che riguarda la scheda (audit UX-05). -->
-        <!-- Su telefono: icona e data corta («1 set»), il testo intero resta per i lettori di schermo. -->
-        <span v-else-if="tab === 'profilo' && athletes.currentId" class="saved-note">
-          <CloudCheck :size="16" class="saved-icon" aria-hidden="true" />
-          <span class="saved-long">Scheda salvata il {{ formatDate(profile.meta.updated_at) }}</span>
-          <span class="saved-short" aria-hidden="true">{{ savedShort }}</span>
+        <!-- Stato del salvataggio, sempre visibile con la nuvola (richiesta del coach): salvata con la data,
+             modifiche non salvate, bozza mai salvata. Su telefono icona e testo corto; il testo intero resta
+             per i lettori di schermo. -->
+        <span class="save-status" :class="saveStatus.tone">
+          <component :is="saveStatus.icon" :size="16" class="save-icon" aria-hidden="true" />
+          <span class="save-long">{{ saveStatus.long }}</span>
+          <span v-if="saveStatus.short" class="save-short" aria-hidden="true">{{ saveStatus.short }}</span>
         </span>
         <!-- Salva i dati del Profilo: fuori da quella vista compare solo se ci sono modifiche da salvare. -->
         <button v-if="tab === 'profilo' || athletes.isDirty" type="button" class="primary" :disabled="!athletes.isDirty" @click="onSave">{{ tab === "profilo" ? "Salva" : "Salva il profilo" }}</button>
@@ -297,10 +304,9 @@ watch(
       <button type="button" class="link-btn" @click="onReloadRemote">Ricarica i dati più recenti</button>
     </p>
     <!-- Su telefono solo il prossimo evento: le tab restano in alto (audit UX-05). -->
-    <p v-if="disciplinesText || nextEvent || !athletes.currentId" class="page-sub" :class="{ 'event-less': !nextEvent && athletes.currentId }">
+    <p v-if="disciplinesText || nextEvent" class="page-sub" :class="{ 'event-less': !nextEvent }">
       <span v-if="disciplinesText" class="wide-only">{{ disciplinesText }}</span>
       <span v-if="nextEvent">Prossimo evento: {{ nextEvent.name || "senza nome" }}, {{ formatDate(nextEvent.date) }}</span>
-      <span v-if="!athletes.currentId">Bozza non ancora salvata</span>
     </p>
 
     <div class="tabs" role="tablist" aria-label="Sezioni della scheda" @keydown="onTabKeydown">

@@ -229,34 +229,56 @@ test("rilevazioni delle soglie: nessun valore tagliato nei selettori, a 1440 e s
   expect(await clippedSelects(page, "#sec-soglie")).toEqual([]);
 });
 
-test("intestazione della scheda: su telefono solo il prossimo evento e le tab in alto; «Scheda salvata il» accanto a «Salva» nel Profilo, corta su telefono (UX-05)", async ({ page }, info) => {
+test("intestazione della scheda: su telefono solo il prossimo evento e le tab in alto; la nuvola del salvataggio sempre, in ogni tab e stato (UX-05)", async ({ page }, info) => {
   const state = createState();
   const profile = (state.tables.athletes[0] as { data: { goals: Record<string, unknown> } }).data;
   profile.goals.target_events = [{ name: "Mezza di Bergamo", date: "2026-11-15", discipline: "running", distance_or_duration: "21 km", priority: "A", target_result: "" }];
   await installMockBackend(page, state);
+  if (info.project.name === "mobile") await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`./#/atleta/${ATHLETE_ID}/panoramica`);
   const sub = page.locator(".page-sub");
   await expect(sub).toContainText("Prossimo evento: Mezza di Bergamo, 15 nov 2026");
-  await expect(page.getByText("Scheda salvata il")).toHaveCount(0);
   await expect(page.getByText(/^Aggiornata il/)).toHaveCount(0);
+  const status = page.locator(".page-header .save-status");
+  // Salvata: nuvola con la spunta in ogni tab, testo intero (su telefono «1 set», il resto per i lettori di schermo).
+  for (const tab of ["Panoramica", "Piano", "Profilo", "Anomalie"]) {
+    await page.getByRole("tab", { name: new RegExp(`^${tab}`) }).click();
+    await expect(status.locator(".save-icon")).toBeVisible();
+    await expect(status).toHaveClass(/saved/);
+    await expect(status).toContainText("Scheda salvata il 1 set 2026");
+  }
+  // Modifiche non salvate: la nuvola resta, con l'avviso.
+  await page.getByRole("tab", { name: "Profilo" }).click();
+  await openSection(page, "Vincoli e disponibilità");
+  await page.getByLabel("Sessioni a settimana (obiettivo)").fill("4");
+  await expect(status).toHaveClass(/unsaved/);
+  await expect(status.locator(".save-icon")).toBeVisible();
+  await expect(status).toContainText("Modifiche non salvate");
   if (info.project.name === "mobile") {
-    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(status.locator(".save-long")).not.toBeInViewport();
+    await page.getByRole("button", { name: "Salva", exact: true }).click();
+    await expect(status.locator(".save-short")).toBeVisible();
     await expect(sub.getByText("Corsa, Bici")).toBeHidden();
     const tabs = (await page.getByRole("tablist", { name: "Sezioni della scheda" }).boundingBox())!;
     expect(tabs.y).toBeLessThanOrEqual(200);
-    // Nel Profilo, accanto a «Salva»: icona e data corta, il testo intero per i lettori di schermo.
-    await page.getByRole("tab", { name: "Profilo" }).click();
-    const saved = page.locator(".page-header .saved-note");
-    await expect(saved.locator(".saved-short")).toHaveText("1 set");
-    await expect(saved.locator(".saved-icon")).toBeVisible();
-    await expect(saved).toContainText("Scheda salvata il 1 set 2026");
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(0);
   } else {
     await expect(sub.getByText("Corsa, Bici")).toBeVisible();
-    await page.getByRole("tab", { name: "Profilo" }).click();
-    await expect(page.locator(".page-header")).toContainText("Scheda salvata il 1 set 2026");
   }
+});
+
+test("una bozza mai salvata mostra la nuvola barrata", async ({ page }) => {
+  await installMockBackend(page, createState());
+  await page.goto("./#/atleta/nuovo");
+  const status = page.locator(".page-header .save-status");
+  await expect(status.locator(".save-icon")).toBeVisible();
+  await expect(status).toHaveClass(/draft/);
+  await expect(status).toContainText("Bozza non ancora salvata");
+  await openSection(page, "Identità");
+  await page.getByLabel("Nome", { exact: true }).fill("Luca");
+  await expect(status).toHaveClass(/unsaved/);
+  await expect(status.locator(".save-icon")).toBeVisible();
 });
 
 test("editor della struttura: etichette visibili dei campi e intervallo di zone solo su richiesta (UX-25)", async ({ page }, info) => {
