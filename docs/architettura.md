@@ -90,7 +90,7 @@ App.vue
   ├─ LoginView.vue              (form email+password, mostrato se non autenticato)
   └─ (autenticato)
      ├─ domain/AthleteSidebar.vue
-     │    ├─ "Nuovo atleta" + lista atleti (nome con il numero di cose da fare, discipline e ultimo TSB)
+     │    ├─ «Da fare» con il contatore globale, "Nuovo atleta" + lista atleti (nome, discipline e ultimo TSB)
      │    ├─ pallino di stato connessione (useConnectionStatus)
      │    └─ footer compatto: IconButton "Impostazioni" + IconButton "Esci" (auth.signOut)
      ├─ <RouterView> (router.ts): una delle tre pagine seguenti

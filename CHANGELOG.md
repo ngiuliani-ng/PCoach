@@ -35,6 +35,7 @@ Ordine: più recente in cima. Versioni con [Semantic Versioning](https://semver.
 
 ### Interno
 - Controllo automatico di accessibilità negli e2e con axe-core (`@axe-core/playwright` 4.13.0, dipendenza di sviluppo): regole WCAG A e AA su 14 schermate nei due temi; nessuna violazione oggi. Non è una prova di conformità WCAG — decisione del coach D-03 ([audit](docs/audit/2026-10-ux-ui-1-2-0/README.md#h-stato-delle-correzioni)) — docs: sviluppo-deploy, design-ui.
+- Documentazione allineata al codice: tre frasi di design-ui e architettura non più vere (numero delle anomalie, etichetta «Modifiche non salvate» su telefono, numeri accanto agli atleti); nuova [decisioni/0039](docs/decisioni/0039-correzioni-dell-audit-ui-ux-1-2-0.md) con le decisioni e le regole emerse dall'audit ([audit A-22](docs/audit/2026-10-ux-ui-1-2-0/README.md#a-22)) — docs: design-ui, architettura, decisioni/0039.
 
 ## [1.2.0] — 2026-10-13
 

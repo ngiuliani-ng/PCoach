@@ -116,7 +116,7 @@ Regole per chi modifica il layout:
   - **Anomalie** (solo per una scheda salvata): vedi [sotto](#tab-anomalie). L'etichetta della tab porta il numero di anomalie nello stesso quadrato giallo del contatore «Da fare» (22 px, `--warning` su `--warning-bg`, bordo `--warning`).
 
   Si apre sulla Panoramica; una bozza di nuovo atleta si apre sul Profilo e il suo primo salvataggio non cambia vista.
-- **Richiamo delle anomalie**: solo il numero nel tondo `--warning` accanto all'etichetta «Anomalie» ([decisioni/0033](decisioni/0033-zone-e-soglie-bloccano-l-invio.md)). In cima alla scheda resta solo l'avviso «Questa scheda è stata modificata altrove».
+- **Richiamo delle anomalie**: solo il numero nel quadrato `--warning` accanto all'etichetta «Anomalie» (vedi sopra) ([decisioni/0033](decisioni/0033-zone-e-soglie-bloccano-l-invio.md)). In cima alla scheda resta solo l'avviso «Questa scheda è stata modificata altrove».
 - **Sezioni** (`<section class="block">`, stile in `base.css`): piatte, separate da un filetto superiore in `--border`, titolo `h2`. Nelle pagine lunghe sono `PageSection` comprimibili. Le **unità** (`.unit`) sono l'unico livello di card: sfondo `--surface`, bordo, `--radius-md`, intestazione `.unit-head` con titolo e `IconButton` di rimozione.
 - **Soglie**: una sola sezione con un selettore a segmenti (`.segmented`, `aria-pressed`) Corsa / Bici / Nuoto.
 - **Campi**: `<label class="field">` che avvolge `<span class="field-label">` e il controllo, così ogni etichetta è associata al suo campo senza `id`. Le righe di campi (`.field-row`) sono una griglia `auto-fit` con colonne da almeno 150px; nelle rilevazioni delle soglie (`.metric-fields`) da almeno 190px, perché i valori dei selettori («Time trial in campo», «Intervals.icu (sync)») entrino interi.
@@ -238,7 +238,7 @@ L'hamburger è fisso in alto a sinistra e sta dentro la fascia dell'header di pa
 Altre compattazioni:
 - sotto `400px`: le tab si avvicinano (`--sp-3`), così quattro tab e il numero delle anomalie stanno in 320px;
 - sotto `720px`: titolo di pagina a `--fs-xl`; la disponibilità settimanale passa da quattro colonne a due (giorno e "Disponibile", poi durata e attività);
-- sotto `480px`: campi e checkbox su una colonna, pulsanti delle barre d'azione a tutta larghezza, l'etichetta "Modifiche non salvate" è nascosta (lo stato resta leggibile dal pulsante "Salva" attivo); nella barra del Piano «Prosegui il piano» e «Ripianifica da…» stanno affiancati e «Sincronizza settimana» occupa la riga sotto.
+- sotto `480px`: campi e checkbox su una colonna, pulsanti delle barre d'azione a tutta larghezza, «Salva impostazioni» e «Salva il profilo» dicono «Salva» (vedi [§ Layout](#layout)); nella barra del Piano «Prosegui il piano» e «Ripianifica da…» stanno affiancati e «Sincronizza settimana» occupa la riga sotto.
 
 **Dispositivi touch** (`@media (pointer: coarse)`, decisione in [decisioni/0026](decisioni/0026-touch-e-orientamento-pwa.md)):
 - i campi hanno il testo a 16px, perché sotto quella misura Safari su iOS ingrandisce la pagina al tocco;
