@@ -12,6 +12,10 @@ Ordine: più recente in cima. Versioni con [Semantic Versioning](https://semver.
 
 ## [Unreleased]
 
+## [1.4.0] — 2026-11-08
+
+Il feedback settimanale lo prepara solo il server, ogni lunedì: tolto «Prepara il feedback di un'altra settimana» ([decisioni/0040](docs/decisioni/0040-feedback-creato-solo-dal-server.md)). Le sedute proposte da Claude senza step si completano dal pannello.
+
 ### Rimosso
 - «Prepara il feedback di un'altra settimana» nella Panoramica e l'azione `create` della Edge Function `weekly-feedback`: il feedback lo prepara solo il server, ogni lunedì; senza feedback la sezione dice quando arriva — decisione del coach, il feedback dev'essere solo automatico ([decisioni/0040](docs/decisioni/0040-feedback-creato-solo-dal-server.md)) — docs: design-ui, architettura, backend, sviluppo-deploy, limiti-roadmap.
 
