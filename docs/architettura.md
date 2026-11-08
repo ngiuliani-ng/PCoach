@@ -98,7 +98,7 @@ App.vue
      │    ├─ Panoramica
      │    │    ├─ domain/LoadMetricsChart.vue   (grafico CTL/ATL/TSB, tooltip, legenda con valori attuali)
      │    │    ├─ questa settimana              (domain/WorkoutRow.vue in sola lettura, collegamento al Piano)
-     │    │    └─ domain/WeeklyReviews.vue   (feedback settimanale: elenco e «Prepara il feedback»)
+     │    │    └─ domain/WeeklyReviews.vue   (feedback settimanale: elenco delle settimane)
      │    │         └─ domain/FeedbackWeek.vue  (una settimana: esiti, limiti dei dati, testo salvato in automatico; chiusa se già conclusa)
      │    ├─ Piano: domain/PlanTab.vue          (settimana o storico filtrabile)
      │    │    ├─ domain/WorkoutRow.vue         (riga di una seduta: StructureBar mini + WorkoutBadges)
@@ -204,7 +204,7 @@ Coach (Panoramica, FeedbackWeek.vue) → rivede esiti e limitazioni, corregge il
   → il testo corretto si salva da solo in weekly_reviews.coach_text (RLS, solo in bozza)
   → «Approva» (weekly-feedback, action approve) → email all'atleta se attiva, con nuovi tentativi
     (se la settimana è già stata inviata, solo se il coach sceglie di inviare anche questa versione)
-  → oppure «Rigenera» (nuova revisione) / «Prepara il feedback» per un'altra settimana
+  → oppure «Rigenera» (nuova revisione); il coach non crea feedback: li crea solo pg_cron
 ```
 Dettagli in [backend.md](backend.md#weekly-feedback-edge-function) e [integrazioni.md](integrazioni.md#claude-feedback-settimanale). Motivazioni in [decisioni/0019](decisioni/0019-feedback-analisi-deterministica-approvazione.md).
 

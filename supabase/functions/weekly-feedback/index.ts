@@ -3,8 +3,8 @@
 // Due chiamanti:
 // - pg_cron, ogni ora, con la service-role key come bearer: nella finestra configurata crea le
 //   valutazioni della settimana appena conclusa, poi elabora la coda (analisi, testo, consegna);
-// - il coach, con il JWT di sessione (RLS attiva): crea la valutazione di una settimana,
-//   la rigenera, la riprova dopo un errore o la approva (solo allora parte l'email).
+// - il coach, con il JWT di sessione (RLS attiva): rigenera una valutazione esistente, la riprova
+//   dopo un errore o la approva (solo allora parte l'email). Non ne crea: le crea solo pg_cron.
 // Nessun feedback raggiunge l'atleta senza l'approvazione del coach.
 import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { ResendEmailSender } from "../_shared/resendEmailSender.ts";
@@ -12,10 +12,9 @@ import {
   approveReview, type Deps, type FeedbackSettings, type FeedbackStore, type LlmPort, MAX_ATTEMPTS, type IntervalsPort,
   processReview, type Profile, type Result, type ReviewRow, type ReviewStatus, runScheduled
 } from "../_shared/feedback/pipeline.ts";
-import { periodOf, safeTimeZone } from "../_shared/feedback/period.ts";
 import { type Completion, completionColumns } from "../_shared/feedback/completion.ts";
 import type { CoachChange, Period, PlannedWorkout, PlanWindow, RawActivity, RawWellness } from "../_shared/feedback/types.ts";
-import { addDaysISO, isISODate, todayISO, weekStartISO } from "../_shared/workouts/calendar.ts";
+import { addDaysISO } from "../_shared/workouts/calendar.ts";
 import type { IcuSportSettings } from "../_shared/workouts/zoneModels.ts";
 import { PCOACH_VERSION } from "../_shared/version.ts";
 
@@ -234,21 +233,7 @@ async function coachAction(db: SupabaseClient, body: Record<string, unknown>) {
   const store = deps.store;
   const reviewId = typeof body.review_id === "string" ? body.review_id : "";
 
-  if (body.action === "create") {
-    const athleteId = typeof body.athlete_id === "string" ? body.athlete_id : "";
-    const weekStart = body.week_start;
-    const settings = await store.settings();
-    const today = todayISO(safeTimeZone(settings?.weekly_feedback_timezone));
-    if (!athleteId || !isISODate(weekStart) || weekStartISO(weekStart) !== weekStart || weekStart > weekStartISO(today)) {
-      return jsonResponse({ error: "Settimana non valida: scegli un lunedì non futuro." }, 400);
-    }
-    const period = periodOf(weekStart);
-    const row = (await store.claim(athleteId, period)) ?? (await store.current(athleteId, period.start));
-    if (!row) return jsonResponse({ error: "Creazione della valutazione non riuscita." }, 500);
-    const after = await processReview(deps, row.id);
-    return jsonResponse({ id: row.id, status: after?.status ?? row.status });
-  }
-
+  // Le valutazioni le crea solo l'invocazione schedulata del lunedi': il coach agisce su quelle esistenti.
   if (!reviewId) return jsonResponse({ error: "Valutazione mancante." }, 400);
   const row = await store.get(reviewId);
   if (!row) return jsonResponse({ error: "Valutazione non trovata." }, 404);

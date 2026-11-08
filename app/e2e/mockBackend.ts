@@ -315,16 +315,6 @@ export async function installMockBackend(page: Page, state: MockState) {
         state.tables.weekly_reviews.unshift(next);
         return fulfillJson(route, { id: next.id, status: "draft" });
       }
-      // Come create: una settimana che ha gia' un feedback restituisce quello esistente.
-      if (body.action === "create") {
-        const start = String(body.week_start);
-        const existing = state.tables.weekly_reviews.find((r) => r.athlete_id === body.athlete_id && r.period_start === start && r.status !== "superseded");
-        if (existing) return fulfillJson(route, { id: existing.id, status: existing.status });
-        const end = new Date(Date.parse(`${start}T00:00:00Z`) + 6 * 86_400_000).toISOString().slice(0, 10);
-        const row = { id: uuid(), athlete_id: body.athlete_id, period_start: start, period_end: end, revision: 1, status: "skipped", output: null, output_text: null, input: null, coach_text: null, delivery_status: "not_requested", created_at: new Date().toISOString() };
-        state.tables.weekly_reviews.push(row);
-        return fulfillJson(route, { id: row.id, status: "skipped" });
-      }
       return fulfillJson(route, { error: "Azione non gestita dal backend finto." }, 400);
     }
     if (path === "/functions/v1/intervals-sync") {

@@ -1,6 +1,6 @@
-// Client della Edge Function "weekly-feedback" per le azioni del coach (ADR 0019): crea la
-// valutazione di una settimana, la rigenera, la riprova dopo un errore, la approva. Stesso
-// schema di autenticazione di intervalsSync.ts (token di sessione).
+// Client della Edge Function "weekly-feedback" per le azioni del coach (ADR 0019): rigenera la
+// valutazione di una settimana, la riprova dopo un errore, la approva. La crea solo il server,
+// ogni lunedi'. Stesso schema di autenticazione di intervalsSync.ts (token di sessione).
 import { supabase, supabaseUrl, supabaseAnonKey } from "./supabase";
 
 type Response<T> = { ok: true; data: T } | { ok: false; error: string };
@@ -23,7 +23,6 @@ async function call(body: Record<string, unknown>): Promise<Response<Outcome>> {
   }
 }
 
-export const createReview = (athleteId: string, weekStart: string) => call({ action: "create", athlete_id: athleteId, week_start: weekStart });
 export const regenerateReview = (reviewId: string) => call({ action: "regenerate", review_id: reviewId });
 export const retryReview = (reviewId: string) => call({ action: "retry", review_id: reviewId });
 export const approveReview = (reviewId: string, text: string, send = true) => call({ action: "approve", review_id: reviewId, text, send });

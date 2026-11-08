@@ -146,24 +146,13 @@ test("le settimane chiuse sono una riga che si apre con un clic; l'email non par
   await expect(draft).toContainText("Sintesi per te:");
 });
 
-test("«Prepara il feedback» propone solo le settimane senza feedback (FB-03)", async ({ page }) => {
+test("il feedback lo prepara solo il server: nessun comando per prepararlo a mano", async ({ page }) => {
   const state = withHistory();
   await installMockBackend(page, state);
   await page.goto(`./#/atleta/${ATHLETE_ID}/panoramica`);
   await expect(page.locator("#feedback-r-21set")).toBeVisible();
-  const select = page.locator(".review-create select");
-  const options = await select.locator("option").allTextContents();
-  for (const taken of ["5 ott – 11 ott 2026", "28 set – 4 ott 2026", "21 set – 27 set 2026", "14 set – 20 set 2026"]) expect(options).not.toContain(taken);
-  expect(options.length).toBeGreaterThan(0);
-  // Preparate tutte: al posto del selettore, la riga che lo dice.
-  for (const opt of options) {
-    await page.locator(".review-create select").selectOption({ label: opt });
-    await page.getByRole("button", { name: "Prepara il feedback" }).click();
-    await expect(page.getByText("Nessuna seduta approvata in quella settimana: niente da valutare.")).toBeVisible();
-    await expect(page.locator(".review-create option", { hasText: opt })).toHaveCount(0);
-  }
-  await expect(page.getByText("Le ultime sei settimane hanno già un feedback: per rifarne uno usa «Rigenera».")).toBeVisible();
-  await expect(page.locator(".review-create select")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Prepara il feedback" })).toHaveCount(0);
+  await expect(page.getByText("Prepara il feedback di un'altra settimana")).toHaveCount(0);
 });
 
 test("atleta senza email: la nota sta prima di «Approva» e porta al Profilo, sezione Identità (A-18)", async ({ page }) => {

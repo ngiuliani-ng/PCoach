@@ -1036,8 +1036,6 @@ button.ghost.danger-text { color: var(--danger); }
 .feedback-alert { margin: var(--sp-2) 0 0; }
 .feedback-alert .error-text { margin: 0 0 var(--sp-2); }
 .feedback-note { margin: 0; white-space: pre-wrap; max-width: 70ch; }
-.review-create { display: flex; flex-wrap: wrap; align-items: end; gap: var(--sp-3); margin: var(--sp-3) 0 var(--sp-4); }
-.review-create .field { min-width: 220px; }
 .review-counts { margin: 0 0 var(--sp-2); font-size: var(--fs-sm); color: var(--text-muted); max-width: 70ch; }
 .review-sessions { margin: 0 0 var(--sp-2); font-size: var(--fs-sm); }
 .review-sessions summary { cursor: pointer; color: var(--text-muted); }

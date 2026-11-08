@@ -49,6 +49,7 @@ Ogni scheda atleta è un unico blob `jsonb` (`athletes.data`). Il salvataggio sc
 ## Feedback settimanale
 
 Limiti noti dell'analisi ([decisioni/0019](decisioni/0019-feedback-analisi-deterministica-approvazione.md)), con le fasi successive della roadmap dell'audit ([06](audit/2026-10-feedback/06-target-architecture-and-roadmap.md)):
+- **Feedback solo automatico** ([decisioni/0040](decisioni/0040-feedback-creato-solo-dal-server.md)): una settimana che il server non valuta il lunedì (senza sedute approvate, senza chiave Intervals.icu, fuori dalla finestra oraria) resta senza feedback: dall'app non si può preparare.
 - **Abbinamenti non correggibili a mano**: un abbinamento sbagliato o ambiguo si vede negli esiti, ma il coach non può ancora confermarlo o correggerlo. Uno spostamento oltre la settimana non viene mai abbinato. Serve una tabella degli abbinamenti (fase 4).
 - **Ripetute non analizzate una per una**: per le sedute di qualità si confronta il tempo totale nelle zone alte, non le singole ripetute (fase 6).
 - **Dati soggettivi del benessere**: fatica, dolore, stress e umore inseriti su Intervals.icu non sono usati, perché la direzione delle loro scale non è stata verificata. Si usano RPE, HRV, frequenza a riposo e sonno.

@@ -52,7 +52,7 @@ export const useReviewsStore = defineStore("reviews", {
     athleteId: null as string | null,
     reviews: [] as ReviewRecord[],
     loading: false,
-    /** Id della valutazione su cui e' in corso un'azione (o "new" per la creazione). */
+    /** Id della valutazione su cui e' in corso un'azione. */
     busy: null as string | null,
     /** Testo mostrato nel campo di ogni bozza: quello del coach se l'ha corretto, altrimenti quello di Claude. */
     texts: {} as Record<string, string>,
@@ -168,7 +168,7 @@ export const useReviewsStore = defineStore("reviews", {
         .order("period_start", { ascending: false }).order("revision", { ascending: false }).limit(60);
       if (!error && this.athleteId === id) this.setRows((data ?? []) as ReviewRecord[]);
     },
-    async run(key: string, action: () => ReturnType<typeof api.createReview>, success: (status: string, delivery?: string) => string): Promise<ActionResult> {
+    async run(key: string, action: () => ReturnType<typeof api.regenerateReview>,success: (status: string, delivery?: string) => string): Promise<ActionResult> {
       this.busy = key;
       try {
         const res = await action();
@@ -188,10 +188,6 @@ export const useReviewsStore = defineStore("reviews", {
         .eq("athlete_id", athleteId).neq("status", "superseded").not("input", "is", null).lt("period_end", date)
         .order("period_start", { ascending: false }).limit(limit);
       return (data ?? []) as { period_start: string; period_end: string; input: FeedbackInput }[];
-    },
-    create(weekStart: string) {
-      const id = this.athleteId!;
-      return this.run("new", () => api.createReview(id, weekStart), statusMessage);
     },
     /** Il testo corretto dal coach si scarta solo se la rigenerazione riesce (audit FB-01). */
     async regenerate(reviewId: string) {

@@ -12,6 +12,9 @@ Ordine: più recente in cima. Versioni con [Semantic Versioning](https://semver.
 
 ## [Unreleased]
 
+### Rimosso
+- «Prepara il feedback di un'altra settimana» nella Panoramica e l'azione `create` della Edge Function `weekly-feedback`: il feedback lo prepara solo il server, ogni lunedì; senza feedback la sezione dice quando arriva — decisione del coach, il feedback dev'essere solo automatico ([decisioni/0040](docs/decisioni/0040-feedback-creato-solo-dal-server.md)) — docs: design-ui, architettura, backend, sviluppo-deploy, limiti-roadmap.
+
 ### Corretto
 - Una seduta di corsa, bici o nuoto proposta da Claude senza step («Struttura da completare: Aggiungi almeno uno step.») ora mostra nel pannello «Aggiungi step» e «Aggiungi ripetuta» — l'editor compariva solo con una struttura già presente, quindi la seduta non si poteva completare né approvare — docs: design-ui.
 
