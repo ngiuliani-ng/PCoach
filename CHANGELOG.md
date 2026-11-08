@@ -12,6 +12,9 @@ Ordine: più recente in cima. Versioni con [Semantic Versioning](https://semver.
 
 ## [Unreleased]
 
+### Corretto
+- Una seduta di corsa, bici o nuoto proposta da Claude senza step («Struttura da completare: Aggiungi almeno uno step.») ora mostra nel pannello «Aggiungi step» e «Aggiungi ripetuta» — l'editor compariva solo con una struttura già presente, quindi la seduta non si poteva completare né approvare — docs: design-ui.
+
 ## [1.3.0] — 2026-10-13
 
 Correzioni dell'audit UI/UX della 1.2.0 ([docs/audit/2026-10-ux-ui-1-2-0](docs/audit/2026-10-ux-ui-1-2-0/README.md), [decisioni/0039](docs/decisioni/0039-correzioni-dell-audit-ui-ux-1-2-0.md)): dialoghi di generazione affidabili dopo un ricaricamento, bozze che non si perdono con «Resta», errori che portano al campo, messaggi che restano il tempo di leggerli, tastiera e lettori di schermo su telefono e desktop, tema scuro leggibile. Tolto «Copia per una segnalazione».

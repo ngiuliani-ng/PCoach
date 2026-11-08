@@ -35,15 +35,23 @@ const root = ref<HTMLElement | null>(null);
 const titleInput = ref<HTMLInputElement | null>(null);
 useModalFocus(root, () => requestClose(), titleInput);
 
+// Contenuto su cui si lavora: una seduta non di palestra senza struttura (una proposta di Claude
+// senza step) ha una struttura vuota, cosi' l'editor offre «Aggiungi step». Aprirla non e' una modifica.
+function editableContent(w: WorkoutContent): WorkoutContent {
+  const c = clone(contentOf(w));
+  if (c.discipline !== "strength" && !c.structure) c.structure = { version: 2, steps: [] };
+  return c;
+}
+
 const original = computed(() => store.byId(props.workoutId)!);
-const draft = reactive<WorkoutContent & { locked: boolean }>({ ...clone(contentOf(original.value)), locked: original.value.locked });
+const draft = reactive<WorkoutContent & { locked: boolean }>({ ...editableContent(original.value), locked: original.value.locked });
 const saving = ref(false);
 
 const editable = computed(() => original.value.status === "draft" || original.value.status === "approved");
 const errors = computed(() => (editable.value ? validateWorkout(draft) : {}));
 const hasErrors = computed(() => Object.keys(errors.value).length > 0);
 const changed = computed(
-  () => JSON.stringify({ ...contentOf(draft), locked: draft.locked }) !== JSON.stringify({ ...contentOf(original.value), locked: original.value.locked })
+  () => JSON.stringify({ ...contentOf(draft), locked: draft.locked }) !== JSON.stringify({ ...editableContent(original.value), locked: original.value.locked })
 );
 const pace = computed(() => athletes.paceContexts[original.value.athlete_id] ?? null);
 const totals = computed(() => workoutTotals(draft, pace.value));
@@ -65,7 +73,7 @@ function onDisciplineChange(value: string) {
     draft.structure = null;
     draft.primary_target = "none";
   } else {
-    if (wasStrength || !draft.structure) {
+    if (wasStrength || !draft.structure?.steps.length) {
       draft.structure = { version: 2, steps: [{ kind: "step", role: "steady", duration: { type: "time", seconds: (draft.duration_min ?? 45) * 60 }, target: { zone: 2 } }] };
       draft.duration_min = null;
     }
@@ -155,7 +163,7 @@ async function onDeleteDraft() {
 async function onRestore() {
   const r = await store.restore(props.workoutId);
   showToast(r.ok ? "Seduta ripristinata come bozza." : r.message, r.ok ? "info" : "error");
-  if (r.ok) Object.assign(draft, clone(contentOf(r.value)), { locked: r.value.locked });
+  if (r.ok) Object.assign(draft, editableContent(r.value), { locked: r.value.locked });
 }
 
 async function onToggleDone() {
