@@ -129,7 +129,7 @@ Una sola fonte: `app/package.json` › `version`. `vite.config.ts` la passa all'
 |---|---|---|
 | Sviluppo | Ogni commit con codice e documenti di stato; la voce va in `## [Unreleased]` del CHANGELOG, nella categoria giusta | invariata |
 | Preparazione (dopo la conferma del coach) | `Unreleased` diventa `## [X.Y.Z] — AAAA-MM-GG`; la versione si aggiorna in `app/package.json`, `package-lock.json` e `supabase/functions/_shared/version.ts`; si lascia `## [Unreleased]` vuoto in cima | incrementata, con SemVer come in [CHANGELOG.md](../CHANGELOG.md) |
-| Pubblicazione | Nell'ordine: migrazioni, Edge Function (con `_shared/version.ts`), merge su `main`, tag `vX.Y.Z` e push del tag | — |
+| Pubblicazione | Nell'ordine: migrazioni, Edge Function (con `_shared/version.ts`), merge su `main`, tag annotato `vX.Y.Z` e push del tag. Messaggio del tag: «PCoach X.Y.Z», una riga vuota e il riepilogo della versione dal CHANGELOG, senza link | — |
 | Verifica | Il workflow controlla `version.json`; in Impostazioni › Informazioni la versione del server coincide con quella dell'app | — |
 
 La versione non si incrementa a ogni commit: solo alla preparazione di un rilascio.

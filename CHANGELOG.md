@@ -12,6 +12,9 @@ Ordine: più recente in cima. Versioni con [Semantic Versioning](https://semver.
 
 ## [Unreleased]
 
+### Interno
+- Messaggi dei tag di versione uniformi («PCoach X.Y.Z» e il riepilogo della versione dal CHANGELOG), anche per i tag dalla 1.0.0 alla 1.4.1 — erano diversi da un rilascio all'altro, alcuni con il solo numero — docs: sviluppo-deploy.
+
 ## [1.4.1] — 2026-11-23
 
 Una seduta svolta, spostata o modificata dopo l'invio, non resta più segnata «Da aggiornare su Intervals.icu».
