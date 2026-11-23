@@ -12,6 +12,10 @@ Ordine: più recente in cima. Versioni con [Semantic Versioning](https://semver.
 
 ## [Unreleased]
 
+## [1.4.1] — 2026-11-23
+
+Una seduta svolta, spostata o modificata dopo l'invio, non resta più segnata «Da aggiornare su Intervals.icu».
+
 ### Corretto
 - Una seduta svolta, modificata o spostata dopo l'invio, non mostra più «Da aggiornare su Intervals.icu» (né «Invio non riuscito»): «Sincronizza settimana» non tocca le sedute svolte, quindi il badge restava per sempre senza un'azione possibile — segnalato su due sedute scambiate di giorno e svolte prima della sincronizzazione — docs: modello-dati.
 
