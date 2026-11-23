@@ -68,7 +68,7 @@ Le sedute vivono in tabelle Postgres proprie, separate dalla scheda (definizione
   - svolta se `completed_at` è valorizzato: da un'attività Intervals.icu abbinata con certezza (`completion_source: intervals`), oppure a mano (`manual`). Per le prime si salvano anche `completion_outcome` (`completed`, `over`, `partial`, `short`: gli ultimi due si mostrano come «Svolta in parte»), `completion_ratio` (svolto/prescritto) e i dati dell'attività `activity_minutes`, `activity_meters`, `activity_load`, `activity_rpe`. Queste colonne non fanno parte del contenuto: non cambiano la revisione. L'abbinamento viene registrato all'apertura della scheda (ultimi 14 giorni), dall'anteprima di «Sincronizza settimana» e dall'analisi del feedback, con la regola in `_shared/feedback/completion.ts`;
   - non registrata se la data è passata senza esecuzione: PCoach sa solo che non c'è un'attività abbinata, non che l'allenamento non sia stato fatto;
   - altrimenti in programma.
-- **Sincronizzazione** (da `workout_sync`): non inviata, su Intervals.icu, da aggiornare (revisione o data cambiate dopo l'invio), invio non riuscito, da rimuovere, rimossa, scollegata. La logica è in `localSyncState` (`_shared/workouts/sync.ts`).
+- **Sincronizzazione** (da `workout_sync`): non inviata, su Intervals.icu, da aggiornare (revisione o data cambiate dopo l'invio; mai per una seduta svolta, che su Intervals.icu non si tocca), invio non riuscito, da rimuovere, rimossa, scollegata. La logica è in `localSyncState` (`_shared/workouts/sync.ts`).
 
 **Regole di aggiornamento e cancellazione**
 - Dall'interfaccia si elimina fisicamente solo una bozza mai approvata e mai inviata. Tutto il resto si annulla e resta nello storico.

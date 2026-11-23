@@ -249,6 +249,14 @@ describe("classificazione della sincronizzazione", () => {
   it("svolta: non si tocca", () => {
     expect(classifySyncOp(base({ revision: 3, completed_at: "2026-10-13T08:00:00Z" }), row(), remote)?.kind).toBe("same");
   });
+  it("svolta modificata o spostata dopo l'invio: non risulta da aggiornare, perché nessuna operazione partirebbe", () => {
+    const done = { completed_at: "2026-10-13T08:00:00Z" };
+    expect(localSyncState(base({ ...done, revision: 3 }), row())).toBe("synced");
+    expect(localSyncState(base({ ...done, planned_date: "2026-10-12" }), row())).toBe("synced");
+    expect(localSyncState(base(done), row({ state: "error" }))).toBe("synced");
+    // Mai inviata: resta «Non su Intervals.icu».
+    expect(localSyncState(base(done), row({ remote_event_id: null }))).toBe("none");
+  });
   it("struttura da verificare: bloccata", () => {
     expect(classifySyncOp(base({ needs_review: "Target non riconosciuto" }), null, remote)?.kind).toBe("blocked");
   });

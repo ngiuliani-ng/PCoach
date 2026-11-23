@@ -12,6 +12,9 @@ Ordine: più recente in cima. Versioni con [Semantic Versioning](https://semver.
 
 ## [Unreleased]
 
+### Corretto
+- Una seduta svolta, modificata o spostata dopo l'invio, non mostra più «Da aggiornare su Intervals.icu» (né «Invio non riuscito»): «Sincronizza settimana» non tocca le sedute svolte, quindi il badge restava per sempre senza un'azione possibile — segnalato su due sedute scambiate di giorno e svolte prima della sincronizzazione — docs: modello-dati.
+
 ## [1.4.0] — 2026-11-08
 
 Il feedback settimanale lo prepara solo il server, ogni lunedì: tolto «Prepara il feedback di un'altra settimana» ([decisioni/0040](docs/decisioni/0040-feedback-creato-solo-dal-server.md)). Le sedute proposte da Claude senza step si completano dal pannello.

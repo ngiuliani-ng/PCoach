@@ -86,6 +86,9 @@ export function localSyncState(w: SyncableWorkout, row: SyncRow | null | undefin
   if (row.pending_delete) return "pending_delete";
   if (row.state === "removed") return "removed";
   if (row.state === "unlinked") return active ? "unlinked" : null;
+  // Una seduta svolta gia' su Intervals.icu non si tocca piu' (classifySyncOp): spostata o modificata
+  // dopo l'invio non e' "da aggiornare" ne' da riprovare, perche' nessuna operazione partirebbe.
+  if (w.completed_at && w.status === "approved" && row.remote_event_id != null) return "synced";
   if (row.state === "error") return "error";
   if (!active) return null;
   if (row.remote_event_id == null) return "none";
