@@ -12,6 +12,10 @@ Ordine: più recente in cima. Versioni con [Semantic Versioning](https://semver.
 
 ## [Unreleased]
 
+## [1.7.0] — 2026-11-24
+
+Nella scheda del feedback la sintesi per il coach e il messaggio per l'atleta sono due card distinte, e l'aderenza in percentuale c'è sempre in entrambi.
+
 ### Modificato
 - Nella scheda del feedback la sintesi per il coach e il messaggio per l'atleta sono due card distinte (la sintesi su fondo grigio, il messaggio su fondo bianco con la barra d'accento); «Limiti dei dati» si apre e si chiude come «Sedute della settimana»; tolta la frase dei conteggi in alto, che diventa una riga di dati nella sintesi con l'aderenza sempre in % — decisione del coach: le due parti si confondevano e i conteggi in alto erano fuori posto ([decisioni/0045](docs/decisioni/0045-sintesi-e-messaggio-separati-aderenza-sempre.md)) — docs: design-ui.
 - Il messaggio per l'atleta riporta sempre fra i numeri la riga «- Aderenza: N%» calcolata da PCoach, oppure «non calcolabile» con il motivo; il server fa riscrivere un messaggio che non la contiene tale e quale — decisione del coach ([decisioni/0045](docs/decisioni/0045-sintesi-e-messaggio-separati-aderenza-sempre.md)) — docs: integrazioni.
