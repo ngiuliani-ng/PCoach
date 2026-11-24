@@ -12,6 +12,9 @@ Ordine: più recente in cima. Versioni con [Semantic Versioning](https://semver.
 
 ## [Unreleased]
 
+### Corretto
+- Il controllo che blocca una percentuale di aderenza non comunicabile riconosce anche le forme «Aderenza: 20%», «aderenza del 20%» e «20% delle sedute», non solo «20% di aderenza» — con la struttura a elenco del messaggio all'atleta la forma «Aderenza: 20%» è diventata la più frequente e passava il controllo — docs: integrazioni.
+
 ## [1.6.1] — 2026-11-24
 
 Il feedback settimanale non ipotizza più che una seduta sia stata spostata a un altro giorno ([decisioni/0043](docs/decisioni/0043-nessuno-spostamento-ipotizzato.md)).

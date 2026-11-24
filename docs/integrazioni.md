@@ -199,7 +199,7 @@ Nessuna domanda all'atleta: un dato mancante si dice come informazione. Lo schem
 - nessuna espressione vietata (sovrallenamento, rischio di infortunio, «hai saltato», giudizi su fatica o recupero);
 - giorni della settimana corretti accanto alle date;
 - limitazioni presenti quando i dati sono incompleti;
-- nessuna percentuale di aderenza quando non è comunicabile;
+- nessuna percentuale di aderenza quando non è comunicabile, in qualunque forma («20% di aderenza», «Aderenza: 20%», «aderenza del 20%», «20% delle sedute»);
 - messaggio all'atleta (`athleteMessageProblems`) entro 250 parole (controllo a 290), che inizia con «Ciao» e il primo nome dell'atleta e finisce con la sola riga «Coach», senza punti interrogativi e senza termini interni (software, contratto, identificatori con il trattino basso come `not_recorded`).
 
 ## Resend (email)

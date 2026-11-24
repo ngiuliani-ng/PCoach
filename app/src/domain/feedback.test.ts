@@ -389,6 +389,18 @@ describe("output del modello", () => {
     expect(validateFeedbackOutput({ ...valid, athlete_message: msg("Giovedì 1 gennaio.") }, newYear).join()).toContain("Giorno sbagliato");
   });
 
+  it("percentuale di aderenza non comunicabile: rifiutata in ogni forma, il resto passa", () => {
+    const hidden = { ...contract, metrics: { ...contract.metrics, completion_rate: { ...contract.metrics.completion_rate, reportable: false } } };
+    const check = (body: string) => validateFeedbackOutput({ ...valid, athlete_message: msg(body) }, hidden).join(" ");
+    for (const body of ["20% di aderenza.", "- Aderenza: 20%", "Aderenza del 20 %.", "Completamento al 20,5%.", "Hai svolto il 20% delle sedute."]) {
+      expect(check(body), body).toContain("Percentuale di aderenza citata ma non comunicabile.");
+    }
+    for (const body of ["Aderenza buona, volume +5%.", "Sonno +14% sulla media.", "- Aderenza: 1 seduta su 2"]) {
+      expect(check(body), body).not.toContain("Percentuale di aderenza");
+    }
+    expect(validateFeedbackOutput({ ...valid, athlete_message: msg("- Aderenza: 20%") }, contract).join(" ")).not.toContain("Percentuale di aderenza");
+  });
+
   it("niente giudizi su fatica o recupero dai dati di benessere", () => {
     expect(validateFeedbackOutput({ ...valid, athlete_message: msg("Nessun segnale di affaticamento particolare.") }, contract).join()).toContain("Affermazione vietata");
     expect(validateFeedbackOutput({ ...valid, athlete_message: msg("Sei ben recuperato.") }, contract).join()).toContain("Affermazione vietata");

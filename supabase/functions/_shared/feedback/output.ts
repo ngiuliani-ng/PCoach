@@ -138,6 +138,15 @@ function wrongWeekdays(text: string, input: FeedbackInput): string[] {
 
 const words = (s: string) => s.trim().split(/\s+/).filter(Boolean).length;
 
+/** Percentuale di aderenza scritta in una delle forme comuni: "20% di aderenza", "aderenza: 20%",
+ * "aderenza del 20%", "completamento al 20%", "20% delle sedute". Fra la parola e il numero non
+ * passa una virgola o un punto, cosi' "aderenza buona, volume +5%" non conta. */
+const ADHERENCE_PCT: RegExp[] = [
+  /\b\d{1,3}(?:[.,]\d+)?\s?%\s*(?:di\s+)?(?:aderenza|completament)/i,
+  /(?:aderenza|completament\w*)[^.,;\n\d%]{0,20}\b\d{1,3}(?:[.,]\d+)?\s?%/i,
+  /\b\d{1,3}(?:[.,]\d+)?\s?%\s+(?:delle|della)\s+sedut/i,
+];
+
 /** Termini interni che non devono arrivare all'atleta: il software, il contratto, i nomi dei
  * campi e dei codici (identificatori con il trattino basso, come not_recorded). */
 const INTERNAL_TERMS: RegExp[] = [/\bsoftware\b/i, /\bcontratto\b/i, /\b[a-z]+_[a-z_]+\b/];
@@ -191,7 +200,7 @@ export function validateFeedbackOutput(raw: unknown, input: FeedbackInput): stri
   for (const re of FORBIDDEN_PATTERNS) if (re.test(allText)) errors.push(`Affermazione vietata: ${re.source}.`);
   errors.push(...wrongWeekdays(allText, input));
   if (input.data_quality.level !== "complete" && !o.limitations!.length) errors.push("Mancano le limitazioni con dati incompleti.");
-  if (!input.metrics.completion_rate.reportable && /\b\d{1,3}\s?%\s*(di\s+)?(aderenza|completament)/i.test(allText)) {
+  if (!input.metrics.completion_rate.reportable && ADHERENCE_PCT.some((re) => re.test(allText))) {
     errors.push("Percentuale di aderenza citata ma non comunicabile.");
   }
   return errors;
