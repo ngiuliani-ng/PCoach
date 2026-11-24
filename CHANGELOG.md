@@ -12,6 +12,10 @@ Ordine: più recente in cima. Versioni con [Semantic Versioning](https://semver.
 
 ## [Unreleased]
 
+## [1.5.0] — 2026-11-24
+
+Claude Sonnet 5.5 sostituisce Claude Sonnet 4.5, che Anthropic ritira il 30 novembre 2026, per la generazione delle sedute e il feedback settimanale ([decisioni/0041](docs/decisioni/0041-migrazione-a-claude-sonnet-5-5.md)).
+
 ### Modificato
 - Claude Sonnet 5.5 (`claude-sonnet-5-5`) sostituisce Claude Sonnet 4.5 per la generazione delle sedute e il feedback settimanale. Il feedback riceve il JSON come output strutturato invece che con lo strumento forzato; le due chiamate rispondono senza ragionamento esteso (`between_tools`); `max_tokens` più alti (piano: 5200 per settimana + 2600, tetto 26 000; feedback: 4000); un rifiuto di Claude ha un messaggio dedicato. Migrazione `0015` per il modello salvato — Sonnet 4.5 viene ritirato da Anthropic il 30/11/2026, e Sonnet 5.5 rifiuta lo strumento forzato e usa un tokenizer che conta circa il 30% di token in più ([decisioni/0041](docs/decisioni/0041-migrazione-a-claude-sonnet-5-5.md)) — docs: integrazioni, backend, architettura, sviluppo-deploy.
 
