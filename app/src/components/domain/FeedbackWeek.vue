@@ -10,7 +10,7 @@ import { confirmDialog } from "../../composables/useConfirmDialog";
 import { disciplineLabel, formatDate } from "../../constants";
 import { addDaysISO } from "@shared/workouts/calendar.ts";
 import type { SessionOutcome } from "@shared/feedback/types.ts";
-import { countsSentence } from "../../domain/feedbackText";
+import { coachFacts } from "../../domain/feedbackText";
 import { ChevronRight, CircleCheck, CircleDashed, LoaderCircle, Mail, PencilLine, RefreshCw, TriangleAlert } from "lucide-vue-next";
 
 const props = defineProps<{
@@ -76,7 +76,7 @@ function minutes(n: number | null | undefined): string {
   if (n == null) return "";
   return n >= 60 ? `${Math.floor(n / 60)} h ${String(n % 60).padStart(2, "0")} min` : `${n} min`;
 }
-const counts = computed(() => countsSentence(r.value.input?.metrics));
+const facts = computed(() => coachFacts(r.value.input?.metrics));
 const limitations = computed(() => (r.value.output?.limitations?.length ? r.value.output.limitations : r.value.input?.limitations ?? []));
 
 // ---------- Bozza: testo salvato in automatico (ADR 0038) ----------
@@ -167,8 +167,6 @@ async function onRetry() {
     </p>
 
     <div v-if="review.status !== 'skipped' && !isPreparing" v-show="showBody" :id="`feedback-${review.id}-body`" class="feedback-body">
-      <p v-if="counts" class="review-counts">{{ counts }}</p>
-
       <details v-if="review.input?.sessions.length" class="review-sessions">
         <summary>Sedute della settimana</summary>
         <ul>
@@ -182,18 +180,26 @@ async function onRetry() {
         </ul>
       </details>
 
-      <div v-if="limitations.length" class="review-limits">
-        <p class="review-limits-title">Limiti dei dati:</p>
+      <details v-if="limitations.length" class="review-sessions review-limits">
+        <summary>Limiti dei dati</summary>
         <ul><li v-for="l in limitations" :key="l">{{ l }}</li></ul>
-      </div>
+      </details>
 
-      <p v-if="review.output?.summary" class="review-summary"><strong>Sintesi per te:</strong> {{ review.output.summary }}</p>
+      <!-- Due oggetti distinti (ADR 0045): la sintesi resta al coach, il messaggio va all'atleta. -->
+      <section v-if="facts || review.output?.summary" class="review-card review-card-coach" :aria-labelledby="`feedback-${review.id}-coach`">
+        <p :id="`feedback-${review.id}-coach`" class="review-card-title">Sintesi per te</p>
+        <p v-if="facts" class="review-facts"><strong>{{ facts.adherence }}</strong> · {{ facts.counts }}</p>
+        <p v-if="review.output?.summary" class="review-summary">{{ review.output.summary }}</p>
+      </section>
 
-      <template v-if="isDraft">
+      <section v-if="isDraft" class="review-card review-card-athlete">
         <label class="field review-text">
-          <span class="field-label">Testo per l'atleta (modificabile)</span>
+          <span class="review-card-title">Messaggio per l'atleta (modificabile)</span>
           <textarea ref="textarea" v-model="text" rows="4" @blur="reviews.flushText(review.id)"></textarea>
         </label>
+      </section>
+
+      <template v-if="isDraft">
         <!-- Decide se «Approva» invia: sta prima del pulsante (audit FB-06). -->
         <label v-if="emailOn && hasEmail && sentBefore" class="checkbox-line">
           <input type="checkbox" v-model="resend[review.id]" />
@@ -213,7 +219,10 @@ async function onRetry() {
       </template>
 
       <template v-else-if="review.status === 'approved'">
-        <p class="feedback-note">{{ review.output_text }}</p>
+        <section class="review-card review-card-athlete" :aria-labelledby="`feedback-${review.id}-athlete`">
+          <p :id="`feedback-${review.id}-athlete`" class="review-card-title">Messaggio per l'atleta</p>
+          <p class="feedback-note">{{ review.output_text }}</p>
+        </section>
         <div class="review-actions">
           <button type="button" class="secondary" :disabled="reviews.busy !== null" @click="onRegenerate"><RefreshCw :size="16" aria-hidden="true" />Rigenera</button>
         </div>

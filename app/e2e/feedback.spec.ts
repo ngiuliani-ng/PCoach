@@ -12,12 +12,12 @@ test("rivede una bozza di feedback, modifica il testo e la approva", async ({ pa
   await page.getByRole("button", { name: /Giulia Ferri/ }).first().click();
 
   await expect(page.getByText("Da approvare", { exact: true })).toBeVisible();
-  await expect(page.getByText("completamento 75%")).toBeVisible();
+  await expect(page.getByText("Aderenza 75%")).toBeVisible();
   await expect(page.getByText("1 senza attività registrata")).toBeVisible();
   await page.getByText("Sedute della settimana").click();
   await expect(page.getByText("Nessuna attività registrata")).toBeVisible();
 
-  const text = page.getByLabel("Testo per l'atleta (modificabile)");
+  const text = page.getByLabel("Messaggio per l'atleta (modificabile)");
   await text.fill("Ciao Giulia, tre sedute su quattro: com'è andata giovedì?");
   await page.getByRole("button", { name: "Approva", exact: true }).click();
 

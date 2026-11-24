@@ -6,6 +6,7 @@ import { buildFeedbackInput, type AnalysisInput } from "@shared/feedback/contrac
 import { normalizeActivities } from "@shared/feedback/normalize.ts";
 import { completionColumns, recentCompletions, snapshotRefreshes } from "@shared/feedback/completion.ts";
 import { athleteMessageProblems, buildFeedbackSchema, validateFeedbackOutput, buildFeedbackPrompt } from "@shared/feedback/output.ts";
+import { adherenceOf, athleteAdherenceLine } from "@shared/feedback/adherence.ts";
 import { DEFAULT_FEEDBACK_PARAMS, loadProgressionOf, resolveFeedbackParams, validateFeedbackParams } from "@shared/feedback/params.ts";
 import { zoneCountsOf } from "@shared/workouts/zones.ts";
 import { inScheduleWindow, isValidTimeZone, localDayHour, reviewPeriod, safeTimeZone } from "@shared/feedback/period.ts";
@@ -350,10 +351,10 @@ describe("output del modello", () => {
     interpretations: [],
     limitations: ["Mancano dati su RPE e benessere."],
     recommendations: [],
-    athlete_message: "Ciao Elia,\n\nmartedì hai svolto la corsa prevista. Per giovedì non vedo un'attività registrata.\n\nI numeri della settimana:\n- corsa: 44 minuti su 90 pianificati\n\nCoach"
+    athlete_message: `Ciao Elia,\n\nmartedì hai svolto la corsa prevista. Per giovedì non vedo un'attività registrata.\n\nI numeri della settimana:\n- corsa: 44 minuti su 90 pianificati\n${athleteAdherenceLine(adherenceOf(contract.metrics))}\n\nCoach`
   };
-  /** Messaggio all'atleta con saluto e firma attorno al testo da controllare. */
-  const msg = (body: string) => `Ciao Elia,\n\n${body}\n\nCoach`;
+  /** Messaggio all'atleta con saluto, riga dell'aderenza del contratto e firma attorno al testo da controllare. */
+  const msg = (body: string, c = contract) => `Ciao Elia,\n\n${body}\n\nI numeri della settimana:\n${athleteAdherenceLine(adherenceOf(c.metrics))}\n\nCoach`;
 
   it("accetta un output con riferimenti esistenti", () => {
     expect(validateFeedbackOutput(valid, contract)).toEqual([]);
@@ -362,7 +363,7 @@ describe("output del modello", () => {
   it("accetta riferimenti al plurale e ai percorsi del contratto, non quelli inventati", () => {
     const early = buildFeedbackInput(input([wk("w1", "2026-10-13", "running", 45)], [act("a1", "2026-10-13T18:00:00", "running", 44)], { today: "2026-10-16" }));
     const refs = ["sessions:w1", "period", "plan", "anomalies:early_evaluation", "metrics.by_discipline.running"];
-    expect(validateFeedbackOutput({ ...valid, observations: [{ text: "x", refs }], deviations: [] }, early)).toEqual([]);
+    expect(validateFeedbackOutput({ ...valid, observations: [{ text: "x", refs }], deviations: [], athlete_message: msg("Corsa svolta.", early) }, early)).toEqual([]);
     expect(validateFeedbackOutput({ ...valid, observations: [{ text: "x", refs: ["metrics.nope", "untrusted_text", "foo:bar"] }] }, contract))
       .toEqual(["Riferimento inesistente: metrics.nope.", "Riferimento inesistente: untrusted_text.", "Riferimento inesistente: foo:bar."]);
   });
@@ -391,7 +392,7 @@ describe("output del modello", () => {
 
   it("percentuale di aderenza non comunicabile: rifiutata in ogni forma, il resto passa", () => {
     const hidden = { ...contract, metrics: { ...contract.metrics, completion_rate: { ...contract.metrics.completion_rate, reportable: false } } };
-    const check = (body: string) => validateFeedbackOutput({ ...valid, athlete_message: msg(body) }, hidden).join(" ");
+    const check = (body: string) => validateFeedbackOutput({ ...valid, athlete_message: msg(body, hidden) }, hidden).join(" ");
     for (const body of ["20% di aderenza.", "- Aderenza: 20%", "Aderenza del 20 %.", "Completamento al 20,5%.", "Hai svolto il 20% delle sedute."]) {
       expect(check(body), body).toContain("Percentuale di aderenza citata ma non comunicabile.");
     }
@@ -416,6 +417,16 @@ describe("output del modello", () => {
     expect(check(msg("Esito not_recorded per giovedì."))).toContain('termine interno: "not_recorded"');
     expect(check(msg("parola ".repeat(300)))).toContain("supera 250 parole");
     expect(athleteMessageProblems("ciao elia, tutto bene.\nCoach", "Elia Muratore")).toEqual([]);
+  });
+
+  it("messaggio all'atleta: la riga dell'aderenza c'è sempre, tale e quale (ADR 0045)", () => {
+    const line = athleteAdherenceLine(adherenceOf(contract.metrics));
+    expect(line).toMatch(/^- Aderenza: \d+%$/);
+    expect(buildFeedbackPrompt(contract, "").user).toContain(`Riga dell'aderenza da copiare tale e quale fra i numeri della settimana: ${line}`);
+    const without = validateFeedbackOutput({ ...valid, athlete_message: "Ciao Elia,\n\nSettimana regolare.\n\nCoach" }, contract).join(" ");
+    expect(without).toContain(`la riga "${line}"`);
+    const changed = validateFeedbackOutput({ ...valid, athlete_message: `Ciao Elia,\n\nI numeri della settimana:\n- Aderenza al piano: 50 %\n\nCoach` }, contract).join(" ");
+    expect(changed).toContain(`la riga "${line}"`);
   });
 
   it("messaggio all'atleta: nessuna richiesta e nessun invito a recuperare sedute (ADR 0044)", () => {

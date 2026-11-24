@@ -109,7 +109,7 @@ test("pagina «Da fare»: feedback e bozze di tutti gli atleti, con il numero in
   // Con un feedback da approvare, il feedback viene prima del grafico del carico.
   const headings = await page.locator("#panel-panoramica h2").allTextContents();
   expect(headings[0]).toBe("Feedback settimanale");
-  await expect(page.getByLabel("Testo per l'atleta (modificabile)")).toBeInViewport();
+  await expect(page.getByLabel("Messaggio per l'atleta (modificabile)")).toBeInViewport();
   await page.getByRole("button", { name: "Approva", exact: true }).click();
   await page.goBack();
   await expect(page.locator(".todo-athlete")).not.toContainText("Feedback della settimana del 5 ott da approvare");

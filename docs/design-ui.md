@@ -259,13 +259,14 @@ Sezione della Panoramica (`WeeklyReviews.vue`, una settimana per `FeedbackWeek.v
 
   Una settimana senza sedute ha solo l'intestazione. Un link `?feedback=<id>` apre la settimana indicata e la porta in vista, aprendo «Mostra tutti» se serve.
 - **Contenuto di una settimana** (aperto per la bozza, a richiesta per le altre):
-  - i conteggi in una frase: «4 sedute assegnate: 3 svolte, 1 senza attività registrata; completamento 75%» (`domain/feedbackText.ts`; il completamento solo se comunicabile);
   - «Sedute della settimana» (`<details>`): data, titolo ed esito di ogni seduta. Gli esiti che chiedono attenzione («Nessuna attività registrata», «Dato non disponibile», «Non attribuibile con certezza», «Al suo posto un'altra disciplina», «Molto più breve del previsto») sono in `--warning`;
-  - «Limiti dei dati:» con l'elenco, in testo secondario;
-  - «Sintesi per te:» con la sintesi di Claude per il coach;
-  - per una settimana approvata, il testo inviato e «Rigenera».
+  - «Limiti dei dati» (`<details>`, chiuso come le sedute): l'elenco, in testo secondario;
+  - due oggetti distinti ([decisioni/0045](decisioni/0045-sintesi-e-messaggio-separati-aderenza-sempre.md)):
+    - la card «Sintesi per te» (`.review-card-coach`, fondo `--surface-2`): una riga di dati calcolata da PCoach (`domain/feedbackText.ts`), con l'aderenza in grassetto, sempre presente («Aderenza 71%», oppure «Aderenza non calcolabile (nessuna seduta passata)» / «(troppe sedute non valutabili)»), e i conteggi («4 sedute: 3 svolte, 1 senza attività registrata · 1 attività extra»); sotto, la sintesi di Claude;
+    - la card «Messaggio per l'atleta» (`.review-card-athlete`, fondo `--surface` con bordo e barra `--accent` a sinistra): il campo modificabile nella bozza, il testo inviato in una settimana approvata;
+  - per una settimana approvata, «Rigenera».
 - **Bozza**:
-  - il testo per l'atleta in un campo che cresce con il contenuto, senza scorrimento interno;
+  - il messaggio per l'atleta in un campo che cresce con il contenuto, senza scorrimento interno, dentro la sua card;
   - il testo corretto si salva da solo un secondo dopo l'ultima battuta e all'uscita dal campo, senza scritte: lo stato è la nuvola dell'intestazione, rossa finché non è salvato. Un salvataggio non riuscito mostra un messaggio d'errore una volta;
   - sopra i pulsanti, se una versione precedente è già stata inviata, la casella «Invia anche questa versione», e la nota su cosa succede approvando se l'email è disattivata o l'atleta non ha un indirizzo (in `--danger`, con il link «Aggiungi l'indirizzo nel Profilo»);
   - poi «Approva e invia» (o «Approva» nei due casi della nota) e «Rigenera». Con il testo corretto, «Rigenera» chiede conferma («perdi le tue correzioni»); se non riesce, le correzioni restano.

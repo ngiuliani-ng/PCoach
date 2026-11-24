@@ -137,13 +137,25 @@ test("le settimane chiuse sono una riga che si apre con un clic; l'email non par
   // Settimana senza sedute: solo lo stato, una volta.
   const skipped = page.locator("#feedback-r-14set");
   await expect(skipped).toContainText("Nessuna seduta da valutare");
-  await expect(skipped).not.toContainText("sedute assegnate");
+  await expect(skipped).not.toContainText("Aderenza");
   await expect(skipped).not.toContainText("non c'erano sedute");
   // La bozza resta aperta, con le etichette chiare.
   const draft = page.locator("#feedback-review-1");
-  await expect(draft).toContainText("4 sedute assegnate: 3 svolte, 1 senza attività registrata; completamento 75%");
-  await expect(draft).toContainText("Limiti dei dati:");
-  await expect(draft).toContainText("Sintesi per te:");
+  // Nessuna frase dei conteggi in alto: aderenza e conteggi stanno nella sintesi per il coach (ADR 0045).
+  await expect(draft).not.toContainText("sedute assegnate");
+  const coach = draft.locator(".review-card-coach");
+  await expect(coach).toContainText("Sintesi per te");
+  await expect(coach).toContainText("Aderenza 75% · 4 sedute: 3 svolte, 1 senza attività registrata");
+  // Messaggio per l'atleta in un oggetto separato dalla sintesi.
+  await expect(draft.locator(".review-card-athlete").getByLabel("Messaggio per l'atleta (modificabile)")).toBeVisible();
+  await expect(coach.getByLabel("Messaggio per l'atleta (modificabile)")).toHaveCount(0);
+  // Limiti dei dati richiudibili come le sedute della settimana.
+  const limits = draft.locator("details.review-limits");
+  await expect(limits.locator("summary")).toHaveText("Limiti dei dati");
+  await expect(limits).not.toHaveAttribute("open", "");
+  await limits.locator("summary").click();
+  await expect(limits).toHaveAttribute("open", "");
+  await expect(limits.locator("li").first()).toBeVisible();
 });
 
 test("il feedback lo prepara solo il server: nessun comando per prepararlo a mano", async ({ page }) => {

@@ -1036,7 +1036,6 @@ button.ghost.danger-text { color: var(--danger); }
 .feedback-alert { margin: var(--sp-2) 0 0; }
 .feedback-alert .error-text { margin: 0 0 var(--sp-2); }
 .feedback-note { margin: 0; white-space: pre-wrap; max-width: 70ch; }
-.review-counts { margin: 0 0 var(--sp-2); font-size: var(--fs-sm); color: var(--text-muted); max-width: 70ch; }
 .review-sessions { margin: 0 0 var(--sp-2); font-size: var(--fs-sm); }
 .review-sessions summary { cursor: pointer; color: var(--text-muted); }
 .review-sessions ul { list-style: none; padding: 0; margin: var(--sp-2) 0 0; }
@@ -1050,11 +1049,19 @@ button.ghost.danger-text { color: var(--danger); }
 .review-session-date { min-width: 52px; color: var(--text-muted); }
 .review-caution { color: var(--warning); }
 .review-muted { color: var(--text-muted); }
-.review-limits { margin: 0 0 var(--sp-2); font-size: var(--fs-sm); color: var(--text-muted); max-width: 70ch; }
-.review-limits-title { margin: 0; }
-.review-limits ul { margin: 0; padding-left: var(--sp-5); }
-.review-summary { margin: 0 0 var(--sp-3); font-size: var(--fs-sm); max-width: 70ch; }
-.review-text { max-width: 70ch; }
+.review-limits { max-width: 70ch; color: var(--text-muted); }
+.review-limits ul { list-style: disc; padding-left: var(--sp-5); }
+.review-limits li { display: list-item; padding: 0; border-top: 0; }
+/* Sintesi per il coach e messaggio per l'atleta: due oggetti diversi (ADR 0045). La sintesi e' una
+   nota interna su fondo grigio; il messaggio e' un foglio bianco con il bordo e la barra d'accento. */
+.review-card { max-width: 70ch; margin: 0 0 var(--sp-3); padding: var(--sp-3) var(--sp-4); border-radius: var(--radius-md); }
+.review-card-coach { background: var(--surface-2); }
+.review-card-athlete { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--accent); }
+.review-card-title { display: block; margin: 0 0 var(--sp-2); font-size: var(--fs-sm); font-weight: 600; color: var(--text-muted); }
+.review-facts { margin: 0 0 var(--sp-2); font-size: var(--fs-sm); }
+.review-summary { margin: 0; font-size: var(--fs-sm); }
+.review-card-athlete .feedback-note { margin: 0; }
+.review-text { margin: 0; }
 .review-text textarea { width: 100%; overflow: hidden; resize: none; }
 .review-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-2); }
 

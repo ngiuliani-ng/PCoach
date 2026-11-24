@@ -187,7 +187,7 @@ Chiamata lato server dentro `weekly-feedback` (contratto in [backend.md](backend
 **Messaggio all'atleta** (`athlete_message`, decisione in [decisioni/0042](decisioni/0042-messaggio-all-atleta-struttura-e-nessuna-domanda.md)): al massimo 250 parole, email semplice senza markdown. Le parti, in quest'ordine:
 1. `Ciao <nome>,`;
 2. uno o due paragrafi a parole semplici: cosa è andato bene, cosa non risulta, su cosa concentrarsi;
-3. «I numeri della settimana:» con un elenco dei dati per chi vuole il dettaglio;
+3. «I numeri della settimana:» con un elenco dei dati per chi vuole il dettaglio, sempre con la riga dell'aderenza calcolata da PCoach (`_shared/feedback/adherence.ts`) e passata nel messaggio a Claude da copiare tale e quale: «- Aderenza: 71%», oppure «- Aderenza: non calcolabile, nessuna seduta passata da valutare» / «…, troppi dati mancanti» ([decisioni/0045](decisioni/0045-sintesi-e-messaggio-separati-aderenza-sempre.md));
 4. la firma «Coach» sull'ultima riga.
 
 Il messaggio informa e non chiede nulla: nessuna domanda e nessuna richiesta di risposta o di dati («fammi sapere», «scrivimi»); un dato mancante si dice come informazione. Le indicazioni per la prossima settimana seguono il piano così com'è: nessun invito a recuperare, rimettere in calendario o spostare sedute non svolte ([decisioni/0044](decisioni/0044-messaggio-informativo-senza-recuperi.md)). Lo schema non ha più `questions_for_athlete`, che resta solo nelle valutazioni scritte prima della 1.6.0.
@@ -200,6 +200,7 @@ Il messaggio informa e non chiede nulla: nessuna domanda e nessuna richiesta di 
 - giorni della settimana corretti accanto alle date;
 - limitazioni presenti quando i dati sono incompleti;
 - nessuna percentuale di aderenza quando non è comunicabile, in qualunque forma («20% di aderenza», «Aderenza: 20%», «aderenza del 20%», «20% delle sedute»);
+- la riga dell'aderenza presente nel messaggio all'atleta, identica a quella calcolata;
 - messaggio all'atleta (`athleteMessageProblems`) entro 250 parole (controllo a 290), che inizia con «Ciao» e il primo nome dell'atleta e finisce con la sola riga «Coach», senza punti interrogativi, senza richieste all'atleta («fammi sapere», «scrivimi», «mandami», «dimmi»…), senza inviti a recuperare sedute («rimettere in calendario», «recuperare la seduta»; «senza recuperare» e «non recuperare» sono ammessi) e senza termini interni (software, contratto, identificatori con il trattino basso come `not_recorded`).
 
 ## Resend (email)
