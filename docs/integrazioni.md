@@ -163,7 +163,7 @@ Chiamata lato server dentro `weekly-feedback` (contratto in [backend.md](backend
   - **R2** stesso giorno e stessa disciplina, coppia unica, `high`;
   - **R3** più sedute e attività nello stesso giorno, abbinate per ordine se le durate sono compatibili, `medium`, altrimenti «ambiguo»;
   - **R4** seduta frazionata in più attività, `medium`;
-  - **R5** spostamento entro 2 giorni nella stessa settimana, `low`;
+  - **R5** (spostamento a un altro giorno) non si applica ([decisioni/0043](decisioni/0043-nessuno-spostamento-ipotizzato.md)): un'attività in un giorno senza una seduta della sua disciplina è «extra» e la seduta resta «non registrata»; una seduta davvero spostata si sposta di data e vale R1 o R2;
   - **R6** sostituzione con un'altra disciplina nello stesso giorno, che non conta come svolta;
   - **R7** senza attività: «in programma», «dato non disponibile» o «non registrata», mai «non svolta».
 - **Esito per seduta**: dal rapporto fra svolto e prescritto, con le soglie di `feedback_params`.

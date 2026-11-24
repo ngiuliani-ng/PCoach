@@ -11,8 +11,6 @@ import type {
   ActivityResult, Confidence, MatchMethod, NormalizedActivity, PlannedWorkout, SessionOutcome, SessionResult
 } from "./types.ts";
 
-/** Giorni di distanza entro cui una seduta puo' essere stata spostata (nella stessa settimana). */
-const MOVE_WINDOW_DAYS = 2;
 /** Rapporto di durata compatibile con un abbinamento non confermato da Intervals.icu. */
 const COMPATIBLE: [number, number] = [0.5, 1.5];
 
@@ -172,19 +170,9 @@ export function matchWeek(input: MatchInput): MatchResult {
     acts.forEach((a) => { freeActs.delete(a.id); ambiguousActs.add(a.id); });
   }
 
-  // R5: spostamento entro la settimana, solo per sedute gia' passate.
-  for (const w of workouts.filter((x) => isFree(x) && x.planned_date < today)) {
-    const candidates = usable
-      .filter((a) => freeActs.has(a.id) && a.discipline === w.discipline && a.date !== w.planned_date)
-      .filter((a) => Math.abs(daysBetween(w.planned_date, a.date)) <= MOVE_WINDOW_DAYS)
-      .filter((a) => !workouts.some((o) => o.id !== w.id && isFree(o) && o.planned_date === a.date && o.discipline === a.discipline))
-      .filter((a) => compatible(ratioOf(w, [a], pace).ratio))
-      .sort((a, b) =>
-        Math.abs(daysBetween(w.planned_date, a.date)) - Math.abs(daysBetween(w.planned_date, b.date)) ||
-        Math.abs(1 - (ratioOf(w, [a], pace).ratio ?? 1)) - Math.abs(1 - (ratioOf(w, [b], pace).ratio ?? 1))
-      );
-    if (candidates.length) assign(w, [candidates[0]], "moved", "low", "moved");
-  }
+  // R5 (spostamento a un altro giorno) non si applica (ADR 0043): un'attivita' in un giorno senza
+  // seduta della sua disciplina resta "extra", e la seduta senza attivita' "non registrata". Una
+  // seduta davvero spostata si sposta di data in PCoach o su Intervals.icu e vale R1 o R2.
 
   // R6: sostituzione con un'altra disciplina nello stesso giorno (non conta come completata).
   for (const w of workouts.filter((x) => isFree(x) && x.planned_date < today)) {

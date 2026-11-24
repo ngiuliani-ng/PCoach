@@ -126,6 +126,7 @@ export type SessionOutcome =
   | "over"
   | "partial"
   | "short"
+  /** Solo nelle valutazioni salvate prima della 1.6.1: l'abbinamento non ipotizza spostamenti (ADR 0043). */
   | "moved"
   | "substituted"
   | "not_recorded"

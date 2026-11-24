@@ -227,11 +227,13 @@ describe("abbinamento e metriche", () => {
     expect(r.limitations.length).toBeGreaterThan(0);
   });
 
-  it("seduta spostata nella stessa settimana (ipotesi a bassa confidenza)", () => {
+  it("nessuno spostamento ipotizzato: l'attività di un altro giorno resta extra (ADR 0043)", () => {
     const ws = [wk("w1", "2026-10-13", "running", 50), wk("w2", "2026-10-14", "cycling", 90)];
     const r = buildFeedbackInput(input(ws, [act("a1", "2026-10-14T07:00:00", "running", 48), act("a2", "2026-10-14T18:00:00", "cycling", 92)]));
-    expect(outcome(r, "w1")).toMatchObject({ outcome: "moved", confidence: "low", activity_ids: ["a1"] });
+    expect(outcome(r, "w1")).toMatchObject({ outcome: "not_recorded", activity_ids: [] });
     expect(outcome(r, "w2")).toMatchObject({ outcome: "completed", confidence: "high" });
+    expect(r.activities.find((a) => a.activity_id === "a1")?.classification).toBe("extra");
+    expect(r.metrics.sessions.moved).toBe(0);
   });
 
   it("seduta di qualita': tempo osservato nelle zone alte della stessa metrica", () => {
