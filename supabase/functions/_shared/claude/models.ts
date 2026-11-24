@@ -1,7 +1,8 @@
-// Modelli Claude ammessi da PCoach (decisione del coach D-06, ADR 0020): solo modelli verificati
-// con entrambi i flussi. Il feedback usa uno strumento con tool_choice forzato, che i modelli piu'
-// recenti (Claude Opus 5.5, Claude Sonnet 5.5, Claude Fable 5.1) rifiutano: prima di aggiungerli
-// qui va adattata la chiamata in weekly-feedback e verificato il piano su atleti di prova.
+// Modelli Claude ammessi da PCoach (decisione del coach D-06, ADR 0020 e 0041): solo modelli verificati
+// con entrambi i flussi. La generazione del piano chiede testo, il feedback un output strutturato
+// (output_config.format); entrambi spengono il thinking con `between_tools`, che esiste solo su
+// Claude Sonnet 5.5: prima di aggiungere un altro modello vanno adattate le due chiamate
+// (_shared/claude/request.ts) e verificato il piano su atleti di prova.
 // Modulo puro condiviso tra app, claude-proxy e weekly-feedback.
 
 export interface SupportedModel {
@@ -10,7 +11,7 @@ export interface SupportedModel {
 }
 
 export const SUPPORTED_MODELS: readonly SupportedModel[] = [
-  { id: "claude-sonnet-4-5", label: "Claude Sonnet 4.5" }
+  { id: "claude-sonnet-5-5", label: "Claude Sonnet 5.5" }
 ];
 
 export const DEFAULT_MODEL = SUPPORTED_MODELS[0].id;

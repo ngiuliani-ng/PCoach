@@ -133,11 +133,17 @@ Le preferenze uguali al predefinito si salvano vuote, così un miglioramento del
 
 **Durata massima**: una generazione copre al massimo 4 settimane (`MAX_PLAN_WEEKS`), in una sola chiamata. Una chiamata a `claude-proxy` non può durare più di 150 secondi (limite delle Edge Function; oltre, Supabase interrompe la funzione e risponde 546, mostrato al coach come superamento del tempo massimo), e Claude impiega circa 25-30 secondi per settimana di sedute per un atleta con circa 8 sedute a settimana. Le settimane successive si aggiungono con «Prosegui il piano»: parte dal giorno dopo la fine del piano attivo o dell'ultima seduta attiva, ma mai prima di domani (`continueFromDate`), non sostituisce nulla e il ciclo prosegue dall'ancora del piano. «Ripianifica da…» resta per sostituire le sedute da una data quando qualcosa cambia.
 
-**`max_tokens`**: `min(64000, settimane × 4000 + 2000)` (`planMaxTokens`), quindi al massimo 18 000 con 4 settimane; `claude-proxy` applica comunque un tetto di 20 000.
+**`max_tokens`**: `min(64000, settimane × 5200 + 2600)` (`planMaxTokens`), quindi al massimo 23 400 con 4 settimane; `claude-proxy` applica comunque un tetto di 26 000. I valori sono dimensionati sul tokenizer di Claude Sonnet 5.5.
 
-**Modello**: solo quelli dell'elenco chiuso `SUPPORTED_MODELS` (`_shared/claude/models.ts`), scelto in Impostazioni; un valore non ammesso torna al predefinito, sia in `claude-proxy` sia in `weekly-feedback`.
+**Modello**: solo quelli dell'elenco chiuso `SUPPORTED_MODELS` (`_shared/claude/models.ts`), oggi solo Claude Sonnet 5.5 (`claude-sonnet-5-5`), scelto in Impostazioni; un valore non ammesso torna al predefinito, sia in `claude-proxy` sia in `weekly-feedback`.
 
-**`stop_reason`**: propagato da `claude-proxy` fino al client (`callClaudeProxy` imposta `truncated: true` quando `stop_reason === "max_tokens"`), per distinguere un piano troncato per limite di token da un JSON malformato restituito da Claude — mostrato al coach con un toast persistente invece di un errore generico silenzioso.
+**Parametri comuni delle chiamate** (`_shared/claude/request.ts`, decisione in [decisioni/0041](decisioni/0041-migrazione-a-claude-sonnet-5-5.md)), uguali per la generazione e per il feedback:
+- `thinking: { type: "between_tools" }`: Claude risponde senza ragionamento esteso, così durata e token restano prevedibili (limite di 150 s di `claude-proxy`);
+- `output_config.effort` `high`, il livello più alto ammesso con `between_tools`;
+- fallback lato server sui rifiuti (`fallbacks: "default"`, intestazione `anthropic-beta: server-side-fallback-2026-07-01`): un rifiuto che il server sa ripetere viene ripetuto su un altro modello, e il modello effettivo resta quello salvato dalla risposta;
+- della risposta si leggono solo i blocchi di tipo `text`.
+
+**`stop_reason`**: propagato da `claude-proxy` fino al client (`callClaudeProxy` imposta `truncated: true` quando `stop_reason === "max_tokens"`), per distinguere un piano troncato per limite di token da un JSON malformato restituito da Claude — mostrato al coach con un toast persistente invece di un errore generico silenzioso. Con `stop_reason === "refusal"` (rifiuto dei filtri di sicurezza di Claude) la generazione fallisce con il messaggio «Claude ha rifiutato la richiesta».
 
 **Fallback senza chiave configurata**: se la chiave di Claude non è salvata (`claude_key_configured`), istruzioni e messaggio vengono copiati negli appunti come testo unico (`promptAsText`) invece di essere inviati. Il dialogo mostra il prompt e un campo in cui incollare la risposta di Claude, che segue poi lo stesso percorso (salvataggio della proposta, anteprima, applicazione).
 
@@ -175,11 +181,11 @@ Chiamata lato server dentro `weekly-feedback` (contratto in [backend.md](backend
 **Chiamata**:
 - prompt di sistema con le regole fisse (`FEEDBACK_RULES`) più il tono scelto dal coach (`weekly_feedback_prompt_template`, segnaposto `{{nome_atleta}}`; se la colonna è vuota vale `DEFAULT_FEEDBACK_STYLE`);
 - messaggio con il contratto;
-- strumento obbligatorio `submit_weekly_feedback`;
-- `max_tokens` 3000.
+- output strutturato: `output_config.format` con il JSON Schema di `buildFeedbackSchema` (argomenti limitati a quelli consentiti nella settimana), più i [parametri comuni](#claude-generazione-delle-sedute);
+- `max_tokens` 4000.
 
 **Validazione** (`validateFeedbackOutput`):
-- schema dello strumento rispettato e `stop_reason` uguale a `tool_use`;
+- `stop_reason` uguale a `end_turn` e JSON leggibile che rispetta lo schema (un rifiuto, `refusal`, porta subito a `generation_failed` senza secondo tentativo);
 - ogni affermazione con riferimenti esistenti nel contratto;
 - argomenti di interpretazioni e raccomandazioni dentro quelli consentiti;
 - nessuna espressione vietata (sovrallenamento, rischio di infortunio, «hai saltato», giudizi su fatica o recupero);

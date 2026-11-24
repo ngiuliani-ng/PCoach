@@ -42,6 +42,10 @@ export async function callClaudeProxy(
     if (!res.ok || !data || data.error) {
       return { ok: false, error: (data && data.error) || `Errore proxy (${res.status})` };
     }
+    // Rifiuto dei filtri di sicurezza di Claude: risposta 200 senza un piano da leggere.
+    if (data.stop_reason === "refusal") {
+      return { ok: false, error: "Claude ha rifiutato la richiesta: riprova, o riformula il motivo della generazione." };
+    }
     return {
       ok: true,
       text: data.text || "",

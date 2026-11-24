@@ -10,11 +10,13 @@ import type { LoadProgression } from "@shared/feedback/params.ts";
 /** Settimane massime per generazione: un ciclo 3:1 intero. Claude scrive circa 25-30 s per
  * settimana di sedute e una chiamata a claude-proxy non puo' superare 150 s. */
 export const MAX_PLAN_WEEKS = 4;
-/** Token di risposta concessi per settimana (piu' 2000 per apertura e chiusura del JSON). */
-export const TOKENS_PER_WEEK = 4000;
+/** Token di risposta concessi per settimana (piu' PLAN_TOKENS_BASE per apertura e chiusura del JSON).
+ * Valori per il tokenizer di Claude Sonnet 5.5, che conta circa il 30% di token in piu' di Sonnet 4.5. */
+export const TOKENS_PER_WEEK = 5200;
+const PLAN_TOKENS_BASE = 2600;
 
 export function planMaxTokens(weeks: number): number {
-  return Math.min(64000, weeks * TOKENS_PER_WEEK + 2000);
+  return Math.min(64000, weeks * TOKENS_PER_WEEK + PLAN_TOKENS_BASE);
 }
 
 export interface LoadPattern {

@@ -84,7 +84,7 @@ export function createState(): MockState {
   return {
     tables: {
       athletes: [{ id: ATHLETE_ID, data: profile, updated_at: "2026-10-01T10:00:00Z" }],
-      app_settings: [{ id: 1, claude_api_key: "e2e", claude_model: "claude-sonnet-4-5", plan_generation_prompt_template: null, weekly_feedback_prompt_template: null, weekly_feedback_day: "domenica", weekly_feedback_time: "08:00", weekly_feedback_timezone: "Europe/Rome", weekly_feedback_email_enabled: false }],
+      app_settings: [{ id: 1, claude_api_key: "e2e", claude_model: "claude-sonnet-5-5", plan_generation_prompt_template: null, weekly_feedback_prompt_template: null, weekly_feedback_day: "domenica", weekly_feedback_time: "08:00", weekly_feedback_timezone: "Europe/Rome", weekly_feedback_email_enabled: false }],
       training_plans: [{ id: "plan-1", athlete_id: ATHLETE_ID, name: "Base autunnale", status: "active", start_date: "2026-09-28", end_date: "2026-11-08", ended_at: null, end_reason: null, weeks_meta: [{ week_start: "2026-10-12", label: "Carico", is_deload: false }], created_at: "2026-09-27T10:00:00Z" }],
       plan_generations: [],
       workouts: [runApproved, bikeDraft, runSynced, strengthCancelled, longRun],

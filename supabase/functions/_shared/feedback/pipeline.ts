@@ -13,7 +13,7 @@ import { addDaysISO } from "../workouts/calendar.ts";
 import { resolveModel } from "../claude/models.ts";
 import { type Completion, completionsFrom } from "./completion.ts";
 import { buildFeedbackInput, type FeedbackInput } from "./contract.ts";
-import { buildFeedbackPrompt, buildFeedbackTool, DEFAULT_FEEDBACK_STYLE, type FeedbackOutput, type FeedbackTool, validateFeedbackOutput } from "./output.ts";
+import { buildFeedbackPrompt, buildFeedbackSchema, DEFAULT_FEEDBACK_STYLE, type FeedbackOutput, type FeedbackSchema, validateFeedbackOutput } from "./output.ts";
 import { loadProgressionOf, resolveFeedbackParams } from "./params.ts";
 import { zoneCountsOf } from "../workouts/zones.ts";
 import { type IcuSportSettings, resolveZoneModels } from "../workouts/zoneModels.ts";
@@ -103,12 +103,13 @@ export interface IntervalsPort {
   sportSettings(apiKey: string): Promise<Result<IcuSportSettings[]>>;
 }
 
+/** `output`: il JSON della risposta (output strutturato), null se assente o non leggibile. */
 export type LlmResult =
-  | { ok: true; toolInput: unknown; stopReason: string; model: string }
+  | { ok: true; output: unknown; stopReason: string; model: string }
   | { ok: false; error: string; transient: boolean };
 
 export interface LlmPort {
-  generate(req: { apiKey: string; model: string; system: string; user: string; tool: FeedbackTool; maxTokens: number }): Promise<LlmResult>;
+  generate(req: { apiKey: string; model: string; system: string; user: string; schema: FeedbackSchema; maxTokens: number }): Promise<LlmResult>;
 }
 
 export interface MailPort {
@@ -124,7 +125,8 @@ export interface Deps {
   now: () => Date;
 }
 
-const MAX_TOKENS = 3000;
+/** Token di risposta per il feedback (tokenizer di Claude Sonnet 5.5). */
+const MAX_TOKENS = 4000;
 
 async function sha256(text: string): Promise<string> {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
@@ -238,27 +240,32 @@ export async function generate(deps: Deps, row: ReviewRow, settings: FeedbackSet
   // Solo modelli ammessi (D-06): un valore sconosciuto torna al predefinito invece di far fallire la chiamata.
   const model = resolveModel(settings.claude_model);
   const prompt = buildFeedbackPrompt(input, template);
-  const tool = buildFeedbackTool(input.allowed_topics);
+  const schema = buildFeedbackSchema(input.allowed_topics);
   let user = prompt.user;
   let lastErrors: string[] = [];
   for (let attempt = 0; attempt < 2; attempt++) {
-    const res = await deps.llm.generate({ apiKey: settings.claude_api_key, model, system: prompt.system, user, tool, maxTokens: MAX_TOKENS });
+    const res = await deps.llm.generate({ apiKey: settings.claude_api_key, model, system: prompt.system, user, schema, maxTokens: MAX_TOKENS });
     if (!res.ok) {
       const attempts = row.attempts + 1;
       const status: ReviewStatus = !res.transient || attempts >= MAX_ATTEMPTS ? "generation_failed" : "analyzed";
       await store.update(row.id, "analyzed", { status, attempts, error: `Claude: ${res.error}` });
       return status;
     }
-    lastErrors = res.stopReason !== "tool_use" ? [`Risposta interrotta (${res.stopReason}).`] : validateFeedbackOutput(res.toolInput, input);
+    // Rifiuto dei filtri di sicurezza: ripetere la stessa richiesta non serve, decide il coach.
+    if (res.stopReason === "refusal") {
+      await store.update(row.id, "analyzed", { status: "generation_failed", attempts: row.attempts + 1, error: "Claude ha rifiutato la richiesta." });
+      return "generation_failed";
+    }
+    lastErrors = res.stopReason !== "end_turn" ? [`Risposta interrotta (${res.stopReason}).`] : validateFeedbackOutput(res.output, input);
     if (!lastErrors.length) {
-      const output = res.toolInput as FeedbackOutput;
+      const output = res.output as FeedbackOutput;
       await store.update(row.id, "analyzed", {
         status: "draft", output, output_text: output.athlete_message.trim(), model: res.model,
         prompt_template_hash: await sha256(template), generated_at: deps.now().toISOString(), attempts: 0, error: null
       });
       return "draft";
     }
-    user = `${prompt.user}\n\nL'output precedente non era valido: ${lastErrors.join(" ")} Correggi e usa di nuovo lo strumento.`;
+    user = `${prompt.user}\n\nL'output precedente non era valido: ${lastErrors.join(" ")} Correggi e rispondi di nuovo.`;
   }
   await store.update(row.id, "analyzed", { status: "generation_failed", attempts: row.attempts + 1, error: `Output non valido: ${lastErrors.join(" ")}` });
   return "generation_failed";

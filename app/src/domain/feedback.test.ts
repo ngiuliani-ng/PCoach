@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { buildFeedbackInput, type AnalysisInput } from "@shared/feedback/contract.ts";
 import { normalizeActivities } from "@shared/feedback/normalize.ts";
 import { completionColumns, recentCompletions, snapshotRefreshes } from "@shared/feedback/completion.ts";
-import { buildFeedbackTool, validateFeedbackOutput, buildFeedbackPrompt } from "@shared/feedback/output.ts";
+import { buildFeedbackSchema, validateFeedbackOutput, buildFeedbackPrompt } from "@shared/feedback/output.ts";
 import { DEFAULT_FEEDBACK_PARAMS, loadProgressionOf, resolveFeedbackParams, validateFeedbackParams } from "@shared/feedback/params.ts";
 import { zoneCountsOf } from "@shared/workouts/zones.ts";
 import { inScheduleWindow, isValidTimeZone, localDayHour, reviewPeriod, safeTimeZone } from "@shared/feedback/period.ts";
@@ -391,9 +391,9 @@ describe("output del modello", () => {
     expect(validateFeedbackOutput({ ...valid, athlete_message: "Sei ben recuperato." }, contract).join()).toContain("Affermazione vietata");
   });
 
-  it("lo strumento accetta solo gli argomenti consentiti nella settimana", () => {
-    const tool = buildFeedbackTool(contract.allowed_topics);
-    const props = (tool.input_schema as { properties: Record<string, { items: { properties: { topic: { enum: string[] } } } }> }).properties;
+  it("lo schema dell'output accetta solo gli argomenti consentiti nella settimana", () => {
+    const schema = buildFeedbackSchema(contract.allowed_topics);
+    const props = (schema as { properties: Record<string, { items: { properties: { topic: { enum: string[] } } } }> }).properties;
     expect(props.interpretations.items.properties.topic.enum).toEqual(contract.allowed_topics);
     expect(props.interpretations.items.properties.topic.enum).not.toContain("key_sessions");
     expect(buildFeedbackPrompt(contract, "").user).toContain(`Argomenti consentiti per interpretazioni e raccomandazioni in questa settimana: ${contract.allowed_topics.join(", ")}.`);

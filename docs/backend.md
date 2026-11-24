@@ -95,8 +95,9 @@ Proxy verso `api.anthropic.com` per la generazione delle sedute, necessario perc
 - **Autenticazione del chiamante**: JWT di sessione valido, verificato con `auth.getUser()`, e lettura di `app_settings` con quel JWT: solo il coach ottiene la riga (RLS), altrimenti 403. La sola anon key non basta.
 - **Richiesta**: `POST { prompt, system?, max_tokens?, model? }`: `prompt` è il messaggio, `system` le istruzioni.
 - **Risposta**: `{ text, stop_reason, model, usage, id }` in caso di successo; `{ error }` (stringa) con status 4xx/5xx in ogni caso di fallimento (JSON non valido, prompt mancante, non autenticato o non coach, chiave Claude non configurata, errore Anthropic, rete).
-- `max_tokens`: quello del client (generazione: vedi [integrazioni.md](integrazioni.md#claude-generazione-delle-sedute)), 4096 se assente, mai oltre 20 000.
+- `max_tokens`: quello del client (generazione: vedi [integrazioni.md](integrazioni.md#claude-generazione-delle-sedute)), 4096 se assente, mai oltre 26 000.
 - `model`: il primo modello ammesso (`_shared/claude/models.ts`) fra quello della richiesta e quello di `app_settings`, altrimenti il predefinito.
+- Parametri della chiamata e lettura della risposta: [integrazioni.md](integrazioni.md#claude-generazione-delle-sedute).
 
 ## `intervals-sync` (Edge Function)
 
@@ -147,8 +148,8 @@ Adattatore della pipeline in `supabase/functions/_shared/feedback/pipeline.ts`, 
    - senza sedute approvate la valutazione diventa `skipped`;
    - un errore di Intervals.icu lascia la riga `pending` con il tentativo contato, e dopo 3 tentativi la porta in `analysis_failed`.
 2. **Testo** (`analyzed` → `draft`):
-   - chiamata a Claude con lo strumento `submit_weekly_feedback` e `max_tokens` 3000;
-   - un output non valido viene ritentato una volta con l'elenco degli errori, poi diventa `generation_failed`;
+   - chiamata a Claude con output strutturato e `max_tokens` 4000 ([integrazioni.md](integrazioni.md#claude-feedback-settimanale));
+   - un output non valido viene ritentato una volta con l'elenco degli errori, poi diventa `generation_failed`; un rifiuto di Claude (`refusal`) diventa subito `generation_failed`;
    - un errore transitorio (rete, 429, 5xx, nessuna risposta in 100 s) lascia la riga `analyzed` per il giro successivo.
 3. **Consegna** (solo da `approved`): email all'indirizzo della scheda. Il fallimento è salvato in `delivery_status = failed` con l'errore e ritentato fino a 3 volte; la valutazione resta valida. Senza provider o senza indirizzo, `delivery_status = skipped`.
 

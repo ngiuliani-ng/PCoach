@@ -2,15 +2,17 @@
 // browser (CORS) e la chiave di Claude, in app_settings, non deve raggiungere il client.
 // - Chiamante: il token di sessione del coach, non la sola anon key pubblica; l'utente deve poter
 //   leggere app_settings con la propria RLS, cioe' essere il coach (stesso controllo di weekly-feedback).
-// - Modello: solo quelli ammessi (_shared/claude/models.ts, ADR 0020); max_tokens con un tetto.
-// - Risposta: testo, stop_reason, modello effettivo, consumo di token e id, salvati dal client
+// - Modello: solo quelli ammessi (_shared/claude/models.ts, ADR 0020 e 0041); max_tokens con un tetto;
+//   parametri comuni con weekly-feedback in _shared/claude/request.ts.
+// - Risposta: solo i blocchi di testo, stop_reason (anche "refusal"), modello effettivo, consumo di token e id, salvati dal client
 //   con la generazione per poterla ricostruire.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { resolveModel } from "../_shared/claude/models.ts";
+import { ANTHROPIC_MESSAGES_URL, anthropicHeaders, COMMON_BODY, EFFORT, responseText } from "../_shared/claude/request.ts";
 import { PCOACH_VERSION } from "../_shared/version.ts";
 
-/** Tetto ai token di risposta: la generazione ne chiede al massimo 18 000 (4 settimane). */
-const MAX_TOKENS_CAP = 20_000;
+/** Tetto ai token di risposta: la generazione ne chiede al massimo 23 400 (4 settimane, planMaxTokens). */
+const MAX_TOKENS_CAP = 26_000;
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -98,18 +100,16 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
+    const anthropicRes = await fetch(ANTHROPIC_MESSAGES_URL, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": claudeApiKey,
-        "anthropic-version": "2023-06-01",
-      },
+      headers: anthropicHeaders(claudeApiKey),
       body: JSON.stringify({
         model: resolveModel(model, configuredModel),
         max_tokens: Math.min(MAX_TOKENS_CAP, maxTokens && maxTokens > 0 ? maxTokens : 4096),
         ...(system ? { system } : {}),
         messages: [{ role: "user", content: prompt }],
+        ...COMMON_BODY,
+        output_config: { effort: EFFORT },
       }),
     });
 
@@ -118,9 +118,7 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ error: data?.error?.message || "Errore dall'API Claude." }, anthropicRes.status);
     }
 
-    const text = (data.content || [])
-      .map((block: { type: string; text?: string }) => block.text || "")
-      .join("\n");
+    const text = responseText(data.content);
     return jsonResponse({ text, stop_reason: data.stop_reason, model: data.model ?? null, usage: data.usage ?? null, id: data.id ?? null });
   } catch {
     return jsonResponse({ error: "Impossibile contattare l'API Claude." }, 502);

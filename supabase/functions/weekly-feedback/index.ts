@@ -17,6 +17,7 @@ import type { CoachChange, Period, PlannedWorkout, PlanWindow, RawActivity, RawW
 import { addDaysISO } from "../_shared/workouts/calendar.ts";
 import type { IcuSportSettings } from "../_shared/workouts/zoneModels.ts";
 import { PCOACH_VERSION } from "../_shared/version.ts";
+import { ANTHROPIC_MESSAGES_URL, anthropicHeaders, COMMON_BODY, EFFORT, responseText } from "../_shared/claude/request.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -186,17 +187,18 @@ const intervals: IntervalsPort = {
 
 // ---------- Claude ----------
 const llm: LlmPort = {
-  async generate({ apiKey, model, system, user, tool, maxTokens }) {
+  async generate({ apiKey, model, system, user, schema, maxTokens }) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 100_000);
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch(ANTHROPIC_MESSAGES_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+        headers: anthropicHeaders(apiKey),
         body: JSON.stringify({
           model, max_tokens: maxTokens, system,
           messages: [{ role: "user", content: user }],
-          tools: [tool], tool_choice: { type: "tool", name: tool.name },
+          ...COMMON_BODY,
+          output_config: { effort: EFFORT, format: { type: "json_schema", schema } },
         }),
         signal: controller.signal,
       });
@@ -205,8 +207,11 @@ const llm: LlmPort = {
       if (!res.ok) {
         return { ok: false, error: data?.error?.message || `risposta ${res.status}`, transient: res.status === 429 || res.status >= 500 };
       }
-      const block = (data?.content ?? []).find((b: { type: string }) => b.type === "tool_use");
-      return { ok: true, toolInput: block?.input ?? null, stopReason: data?.stop_reason ?? "", model: data?.model ?? model };
+      // Output strutturato: il JSON arriva come testo. Se non si legge, output null e la
+      // validazione della pipeline lo rifiuta.
+      let output: unknown = null;
+      try { output = JSON.parse(responseText(data?.content)); } catch { output = null; }
+      return { ok: true, output, stopReason: data?.stop_reason ?? "", model: data?.model ?? model };
     } catch (err) {
       clearTimeout(timer);
       const timeout = err instanceof DOMException && err.name === "AbortError";

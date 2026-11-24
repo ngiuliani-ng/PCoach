@@ -1,40 +1,30 @@
-// Output del modello (feedback_output, ADR 0019): schema dello strumento che Claude deve usare,
-// prompt e validazione lato server. Un output che non supera la validazione non diventa mai
-// un feedback pubblicabile.
+// Output del modello (feedback_output, ADR 0019 e 0041): JSON Schema dell'output strutturato che
+// Claude deve rispettare (output_config.format), prompt e validazione lato server. Un output che
+// non supera la validazione non diventa mai un feedback pubblicabile.
 import type { FeedbackInput } from "./contract.ts";
-
-export const FEEDBACK_TOOL_NAME = "submit_weekly_feedback";
 
 const ref = { type: "array", items: { type: "string" }, description: "Riferimenti ai dati del contratto che sostengono l'affermazione." };
 const ALL_TOPICS = ["adherence", "volume", "intensity", "key_sessions", "trend", "load_status", "response"];
 
-export interface FeedbackTool {
-  name: string;
-  description: string;
-  input_schema: Record<string, unknown>;
-}
+export type FeedbackSchema = Record<string, unknown>;
 
-/** Strumento di output. Il campo topic accetta solo gli argomenti consentiti per quella
+/** Schema dell'output. Il campo topic accetta solo gli argomenti consentiti per quella
  * settimana, cosi' Claude non puo' sceglierne altri. */
-export function buildFeedbackTool(allowedTopics: readonly string[] = ALL_TOPICS): FeedbackTool {
+export function buildFeedbackSchema(allowedTopics: readonly string[] = ALL_TOPICS): FeedbackSchema {
   const topicEnum = allowedTopics.length ? [...allowedTopics] : ALL_TOPICS;
   return {
-    name: FEEDBACK_TOOL_NAME,
-    description: "Consegna il feedback settimanale strutturato.",
-    input_schema: {
-      type: "object",
-      additionalProperties: false,
-      required: ["summary", "observations", "deviations", "interpretations", "limitations", "recommendations", "questions_for_athlete", "athlete_message"],
-      properties: {
-        summary: { type: "string", description: "Sintesi per il coach, al massimo 60 parole." },
-        observations: { type: "array", items: { type: "object", additionalProperties: false, required: ["text", "refs"], properties: { text: { type: "string" }, refs: ref } } },
-        deviations: { type: "array", items: { type: "object", additionalProperties: false, required: ["text", "severity", "refs"], properties: { text: { type: "string" }, severity: { type: "string", enum: ["info", "notable"] }, refs: ref } } },
-        interpretations: { type: "array", items: { type: "object", additionalProperties: false, required: ["text", "certainty", "topic", "refs"], properties: { text: { type: "string" }, certainty: { type: "string", enum: ["low", "medium", "high"] }, topic: { type: "string", enum: topicEnum }, refs: ref } } },
-        limitations: { type: "array", items: { type: "string" } },
-        recommendations: { type: "array", items: { type: "object", additionalProperties: false, required: ["text", "topic", "refs"], properties: { text: { type: "string" }, topic: { type: "string", enum: topicEnum }, refs: ref } } },
-        questions_for_athlete: { type: "array", items: { type: "string" } },
-        athlete_message: { type: "string", description: "Testo finale per l'atleta, in italiano, al massimo 200 parole." }
-      }
+    type: "object",
+    additionalProperties: false,
+    required: ["summary", "observations", "deviations", "interpretations", "limitations", "recommendations", "questions_for_athlete", "athlete_message"],
+    properties: {
+      summary: { type: "string", description: "Sintesi per il coach, al massimo 60 parole." },
+      observations: { type: "array", items: { type: "object", additionalProperties: false, required: ["text", "refs"], properties: { text: { type: "string" }, refs: ref } } },
+      deviations: { type: "array", items: { type: "object", additionalProperties: false, required: ["text", "severity", "refs"], properties: { text: { type: "string" }, severity: { type: "string", enum: ["info", "notable"] }, refs: ref } } },
+      interpretations: { type: "array", items: { type: "object", additionalProperties: false, required: ["text", "certainty", "topic", "refs"], properties: { text: { type: "string" }, certainty: { type: "string", enum: ["low", "medium", "high"] }, topic: { type: "string", enum: topicEnum }, refs: ref } } },
+      limitations: { type: "array", items: { type: "string" } },
+      recommendations: { type: "array", items: { type: "object", additionalProperties: false, required: ["text", "topic", "refs"], properties: { text: { type: "string" }, topic: { type: "string", enum: topicEnum }, refs: ref } } },
+      questions_for_athlete: { type: "array", items: { type: "string" } },
+      athlete_message: { type: "string", description: "Testo finale per l'atleta, in italiano, al massimo 200 parole." }
     }
   };
 }
@@ -51,7 +41,7 @@ export interface FeedbackOutput {
 }
 
 /** Regole fisse (non modificabili dal coach): cosa il modello puo' e non puo' fare. */
-export const FEEDBACK_RULES = `Ricevi il contratto JSON di una settimana di allenamento, calcolato dal software di PCoach. Scrivi un feedback per l'atleta e una sintesi per il coach, usando lo strumento ${FEEDBACK_TOOL_NAME}.
+export const FEEDBACK_RULES = `Ricevi il contratto JSON di una settimana di allenamento, calcolato dal software di PCoach. Scrivi un feedback per l'atleta e una sintesi per il coach, rispondendo solo con il JSON nello schema richiesto.
 
 Regole:
 - Usa solo fatti e numeri presenti nel contratto. Non ricalcolare, non stimare, non inventare dati. Per il giorno della settimana di una data usa sempre il campo "weekday" del contratto, non dedurlo. Ogni osservazione, scostamento, interpretazione e raccomandazione cita i riferimenti che la sostengono.

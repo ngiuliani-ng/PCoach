@@ -12,7 +12,11 @@ Ordine: più recente in cima. Versioni con [Semantic Versioning](https://semver.
 
 ## [Unreleased]
 
+### Modificato
+- Claude Sonnet 5.5 (`claude-sonnet-5-5`) sostituisce Claude Sonnet 4.5 per la generazione delle sedute e il feedback settimanale. Il feedback riceve il JSON come output strutturato invece che con lo strumento forzato; le due chiamate rispondono senza ragionamento esteso (`between_tools`); `max_tokens` più alti (piano: 5200 per settimana + 2600, tetto 26 000; feedback: 4000); un rifiuto di Claude ha un messaggio dedicato. Migrazione `0015` per il modello salvato — Sonnet 4.5 viene ritirato da Anthropic il 30/11/2026, e Sonnet 5.5 rifiuta lo strumento forzato e usa un tokenizer che conta circa il 30% di token in più ([decisioni/0041](docs/decisioni/0041-migrazione-a-claude-sonnet-5-5.md)) — docs: integrazioni, backend, architettura, sviluppo-deploy.
+
 ### Interno
+- Parametri e lettura della risposta di Claude in un solo modulo condiviso (`_shared/claude/request.ts`) per `claude-proxy` e `weekly-feedback`; un nuovo test unitario per il rifiuto nel feedback — docs: architettura, sviluppo-deploy.
 - Messaggi dei tag di versione uniformi («PCoach X.Y.Z» e il riepilogo della versione dal CHANGELOG), anche per i tag dalla 1.0.0 alla 1.4.1 — erano diversi da un rilascio all'altro, alcuni con il solo numero — docs: sviluppo-deploy.
 
 ## [1.4.1] — 2026-11-23

@@ -90,7 +90,7 @@ function deps(store: MemoryStore, opts: { intervalsFails?: boolean; llm?: LlmRes
       wellness: async () => (opts.intervalsFails ? { ok: false, error: "503" } : { ok: true, data: [] }),
       sportSettings: async () => ({ ok: true as const, data: store.icuSports })
     },
-    llm: { generate: async () => llmQueue.shift() ?? { ok: true, toolInput: VALID, stopReason: "tool_use", model: "m" } },
+    llm: { generate: async () => llmQueue.shift() ?? { ok: true, output: VALID, stopReason: "end_turn", model: "m" } },
     mail: opts.mail === false ? null : { send: async (m) => { sent.push(m.to); return opts.mailOk === false ? { ok: false, error: "500" } : { ok: true }; } },
     now: () => MONDAY_0805
   };
@@ -186,7 +186,7 @@ describe("pipeline del feedback", () => {
 
   it("17b. risposta troncata due volte: generation_failed, nessun testo", async () => {
     const store = new MemoryStore();
-    const truncated: LlmResult = { ok: true, toolInput: {}, stopReason: "max_tokens", model: "m" };
+    const truncated: LlmResult = { ok: true, output: null, stopReason: "max_tokens", model: "m" };
     const { d } = deps(store, { llm: [truncated, truncated] });
     await runScheduled(d);
     expect(store.rows[0]).toMatchObject({ status: "generation_failed", output_text: null });
@@ -195,10 +195,19 @@ describe("pipeline del feedback", () => {
 
   it("17c. output non valido corretto al secondo tentativo", async () => {
     const store = new MemoryStore();
-    const bad: LlmResult = { ok: true, toolInput: { ...VALID, observations: [{ text: "x", refs: ["session:zzz"] }] }, stopReason: "tool_use", model: "m" };
+    const bad: LlmResult = { ok: true, output: { ...VALID, observations: [{ text: "x", refs: ["session:zzz"] }] }, stopReason: "end_turn", model: "m" };
     const { d } = deps(store, { llm: [bad] });
     await runScheduled(d);
     expect(store.rows[0].status).toBe("draft");
+  });
+
+  it("17d. rifiuto di Claude: generation_failed subito, senza secondo tentativo", async () => {
+    const store = new MemoryStore();
+    const refusal: LlmResult = { ok: true, output: null, stopReason: "refusal", model: "m" };
+    const { d } = deps(store, { llm: [refusal] });
+    await runScheduled(d);
+    expect(store.rows[0]).toMatchObject({ status: "generation_failed", output_text: null });
+    expect(String(store.rows[0].error)).toContain("rifiutato");
   });
 
   it("nessuna seduta approvata: skipped, senza chiamare Claude", async () => {

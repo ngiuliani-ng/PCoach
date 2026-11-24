@@ -63,7 +63,7 @@ supabase/
   functions/_shared/          EmailSender astratto + implementazione Resend
   functions/_shared/workouts/ Moduli puri condivisi con l'app (alias @shared): calendario, struttura della seduta, conversione per Intervals.icu, classificazione della sincronizzazione
   functions/_shared/feedback/ Moduli puri del feedback: parametri, periodo, normalizzazione, abbinamento, contratto, output di Claude, pipeline a stati
-  functions/_shared/claude/   Elenco dei modelli Claude ammessi (app, claude-proxy, weekly-feedback)
+  functions/_shared/claude/   Modelli Claude ammessi e parametri comuni delle chiamate (app, claude-proxy, weekly-feedback)
   migrations/0001_enable_rls.sql  is_coach() + policy RLS su athletes/app_settings
   migrations/0002_move_is_coach_private.sql  sposta is_coach() nello schema private (non esposto)
   migrations/0003_baseline_tables.sql  definizione versionata di athletes e app_settings
@@ -199,7 +199,7 @@ pg_cron (ogni ora, service-role da Vault) → Edge Function weekly-feedback
   → il lunedì dall'ora configurata: una valutazione «pending» per atleta (settimana appena conclusa),
     al posto di quella anticipata non ancora approvata e non corretta dal coach
   → coda: analisi deterministica (_shared/feedback: abbinamento, metriche, qualità dei dati)
-  → Claude scrive il testo con uno strumento a schema fisso → validazione → «draft»
+  → Claude scrive il testo come output strutturato a schema fisso → validazione → «draft»
 Coach (Panoramica, FeedbackWeek.vue) → rivede esiti e limitazioni, corregge il testo
   → il testo corretto si salva da solo in weekly_reviews.coach_text (RLS, solo in bozza)
   → «Approva» (weekly-feedback, action approve) → email all'atleta se attiva, con nuovi tentativi
