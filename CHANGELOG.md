@@ -12,6 +12,10 @@ Ordine: più recente in cima. Versioni con [Semantic Versioning](https://semver.
 
 ## [Unreleased]
 
+## [1.6.1] — 2026-11-24
+
+Il feedback settimanale non ipotizza più che una seduta sia stata spostata a un altro giorno ([decisioni/0043](docs/decisioni/0043-nessuno-spostamento-ipotizzato.md)).
+
 ### Corretto
 - Il feedback settimanale non ipotizza più che una seduta sia stata spostata a un altro giorno: un'attività in un giorno senza seduta prevista resta «attività in più» e la seduta resta «nessuna attività registrata» (tolta la regola R5 dell'abbinamento). Una seduta davvero spostata si sposta di data e la valutazione si rigenera — un'uscita libera di Elia del sabato era stata presa per la soglia del venerdì, raccontata all'atleta e contata nell'aderenza ([decisioni/0043](docs/decisioni/0043-nessuno-spostamento-ipotizzato.md)) — docs: integrazioni, limiti-roadmap.
 
