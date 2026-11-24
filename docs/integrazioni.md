@@ -190,7 +190,7 @@ Chiamata lato server dentro `weekly-feedback` (contratto in [backend.md](backend
 3. «I numeri della settimana:» con un elenco dei dati per chi vuole il dettaglio;
 4. la firma «Coach» sull'ultima riga.
 
-Nessuna domanda all'atleta: un dato mancante si dice come informazione. Lo schema non ha più `questions_for_athlete`, che resta solo nelle valutazioni scritte prima della 1.6.0.
+Il messaggio informa e non chiede nulla: nessuna domanda e nessuna richiesta di risposta o di dati («fammi sapere», «scrivimi»); un dato mancante si dice come informazione. Le indicazioni per la prossima settimana seguono il piano così com'è: nessun invito a recuperare, rimettere in calendario o spostare sedute non svolte ([decisioni/0044](decisioni/0044-messaggio-informativo-senza-recuperi.md)). Lo schema non ha più `questions_for_athlete`, che resta solo nelle valutazioni scritte prima della 1.6.0.
 
 **Validazione** (`validateFeedbackOutput`):
 - `stop_reason` uguale a `end_turn` e JSON leggibile che rispetta lo schema (un rifiuto, `refusal`, porta subito a `generation_failed` senza secondo tentativo);
@@ -200,7 +200,7 @@ Nessuna domanda all'atleta: un dato mancante si dice come informazione. Lo schem
 - giorni della settimana corretti accanto alle date;
 - limitazioni presenti quando i dati sono incompleti;
 - nessuna percentuale di aderenza quando non è comunicabile, in qualunque forma («20% di aderenza», «Aderenza: 20%», «aderenza del 20%», «20% delle sedute»);
-- messaggio all'atleta (`athleteMessageProblems`) entro 250 parole (controllo a 290), che inizia con «Ciao» e il primo nome dell'atleta e finisce con la sola riga «Coach», senza punti interrogativi e senza termini interni (software, contratto, identificatori con il trattino basso come `not_recorded`).
+- messaggio all'atleta (`athleteMessageProblems`) entro 250 parole (controllo a 290), che inizia con «Ciao» e il primo nome dell'atleta e finisce con la sola riga «Coach», senza punti interrogativi, senza richieste all'atleta («fammi sapere», «scrivimi», «mandami», «dimmi»…), senza inviti a recuperare sedute («rimettere in calendario», «recuperare la seduta»; «senza recuperare» e «non recuperare» sono ammessi) e senza termini interni (software, contratto, identificatori con il trattino basso come `not_recorded`).
 
 ## Resend (email)
 

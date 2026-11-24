@@ -418,6 +418,19 @@ describe("output del modello", () => {
     expect(athleteMessageProblems("ciao elia, tutto bene.\nCoach", "Elia Muratore")).toEqual([]);
   });
 
+  it("messaggio all'atleta: nessuna richiesta e nessun invito a recuperare sedute (ADR 0044)", () => {
+    const check = (body: string) => athleteMessageProblems(msg(body), "Elia").join(" ");
+    for (const body of ["Se hai fatto altro, fammelo sapere con una nota.", "Fammi sapere come va.", "Scrivimi due righe.", "Mandami il file."]) {
+      expect(check(body), body).toContain("chiede qualcosa all'atleta");
+    }
+    for (const body of ["L'obiettivo è rimettere in calendario le sedute chiave.", "Recupera la seduta di mercoledì.", "Prova a recuperare i minuti persi."]) {
+      expect(check(body), body).toContain("recuperare o ripianificare");
+    }
+    for (const body of ["Segui il piano, senza recuperare i minuti persi.", "Non recuperare le sedute saltate.", "Lunedì c'è il recupero attivo.", "Fai sapere al tuo medico se serve."]) {
+      expect(check(body), body).toBe("");
+    }
+  });
+
   it("lo schema dell'output accetta solo gli argomenti consentiti nella settimana", () => {
     const schema = buildFeedbackSchema(contract.allowed_topics);
     const props = (schema as { properties: Record<string, { items: { properties: { topic: { enum: string[] } } } }> }).properties;

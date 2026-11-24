@@ -59,7 +59,8 @@ Regole:
   2. uno o due paragrafi brevi, con parole semplici e senza numeri tecnici: cosa è andato bene, cosa non risulta dai dati, su cosa concentrarsi la prossima settimana;
   3. la riga "I numeri della settimana:" seguita da un elenco con il trattino, per chi vuole il dettaglio: minuti svolti e pianificati, lavoro in zona delle sedute chiave, variazione di volume (solo se confrontabile), benessere e RPE con la variazione rispetto alla media, aderenza solo se comunicabile;
   4. l'ultima riga è solo "Coach", la firma.
-- Nessuna domanda all'atleta, in nessuna parte del messaggio e senza punti interrogativi: se un dato manca, dillo come informazione.
+- Il messaggio informa e non chiede nulla all'atleta: nessuna domanda (nessun punto interrogativo) e nessuna richiesta di risposta o di dati ("fammi sapere", "scrivimi", "mandami una nota"). Se un dato manca, dillo come informazione.
+- Le indicazioni per la prossima settimana seguono il piano così com'è: non suggerire di recuperare, rimettere in calendario, spostare o aggiungere sedute non svolte.
 - Nel messaggio all'atleta non nominare mai il software, il contratto, i nomi dei campi o i codici degli esiti (come not_recorded o completion_rate): parla di sedute, attività e dati.`;
 
 /** Tono predefinito, usato quando il coach non ne ha salvato uno (colonna vuota). */
@@ -151,8 +152,18 @@ const ADHERENCE_PCT: RegExp[] = [
  * campi e dei codici (identificatori con il trattino basso, come not_recorded). */
 const INTERNAL_TERMS: RegExp[] = [/\bsoftware\b/i, /\bcontratto\b/i, /\b[a-z]+_[a-z_]+\b/];
 
-/** Forma del messaggio all'atleta (ADR 0042): saluto con il nome, nessuna domanda, nessun termine
- * interno, firma "Coach" sull'ultima riga. */
+/** Richieste all'atleta di rispondere o mandare dati (ADR 0044): il messaggio informa soltanto. */
+const REPLY_REQUEST = /\b(?:famm(?:i|elo|ela|eli|ele)\s+(?:sapere|avere)|scrivimi|mandami|inviami|rispondimi|dimmi|avvisami|aggiornami)\b/i;
+
+/** Inviti a recuperare o ripianificare sedute non svolte (ADR 0044): il piano non cambia. "Senza
+ * recuperare" e "non recuperare" restano ammessi. */
+const RESCHEDULE: RegExp[] = [
+  /\brimett\w*\s+in\s+calendario\b/i,
+  /(?<!senza\s)(?<!non\s)\brecuper(?:a|are|ale|ali|arle|arli)\s+(?:l[ae]\s+|i\s+|il\s+|gli\s+)?(?:sedut|allenament|minut)/i,
+];
+
+/** Forma del messaggio all'atleta (ADR 0042 e 0044): saluto con il nome, nessuna domanda o richiesta,
+ * nessun invito a recuperare sedute, nessun termine interno, firma "Coach" sull'ultima riga. */
 export function athleteMessageProblems(text: string, displayName: string): string[] {
   const errors: string[] = [];
   const lines = text.trim().split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
@@ -162,6 +173,12 @@ export function athleteMessageProblems(text: string, displayName: string): strin
   }
   if (lines[lines.length - 1] !== "Coach") errors.push(`athlete_message deve finire con la sola firma "Coach" sull'ultima riga.`);
   if (text.includes("?")) errors.push("athlete_message contiene domande: niente domande all'atleta.");
+  const request = text.match(REPLY_REQUEST);
+  if (request) errors.push(`athlete_message chiede qualcosa all'atleta ("${request[0]}"): il messaggio informa soltanto.`);
+  for (const re of RESCHEDULE) {
+    const m = text.match(re);
+    if (m) errors.push(`athlete_message invita a recuperare o ripianificare sedute ("${m[0]}"): le indicazioni seguono il piano così com'è.`);
+  }
   for (const re of INTERNAL_TERMS) {
     const m = text.match(re);
     if (m) errors.push(`athlete_message contiene un termine interno: "${m[0]}".`);

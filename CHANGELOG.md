@@ -12,6 +12,9 @@ Ordine: più recente in cima. Versioni con [Semantic Versioning](https://semver.
 
 ## [Unreleased]
 
+### Modificato
+- Il feedback per l'atleta informa soltanto: nessuna richiesta di risposta o di dati («fammelo sapere con una nota») e nessun invito a recuperare o rimettere in calendario sedute non svolte; il server fa riscrivere un messaggio che li contiene — nel feedback di Elia comparivano entrambe le frasi; decisione del coach ([decisioni/0044](docs/decisioni/0044-messaggio-informativo-senza-recuperi.md)) — docs: integrazioni.
+
 ## [1.6.3] — 2026-11-24
 
 Il tono predefinito del feedback chiede di non sminuire le sedute non chiave.
