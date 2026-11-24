@@ -77,7 +77,7 @@ class MemoryStore implements FeedbackStore {
 
 const VALID = {
   summary: "Seduta svolta.", observations: [{ text: "Corsa svolta.", refs: ["session:w1"] }], deviations: [], interpretations: [],
-  limitations: ["Mancano dati su RPE e benessere."], recommendations: [], questions_for_athlete: [], athlete_message: "Ciao Elia, corsa svolta come previsto."
+  limitations: ["Mancano dati su RPE e benessere."], recommendations: [], athlete_message: "Ciao Elia,\n\ncorsa svolta come previsto.\n\nI numeri della settimana:\n- corsa: 44 minuti su 45\n\nCoach"
 };
 
 function deps(store: MemoryStore, opts: { intervalsFails?: boolean; llm?: LlmResult[]; mailOk?: boolean; mail?: boolean } = {}) {

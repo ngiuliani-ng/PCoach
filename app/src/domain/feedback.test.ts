@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { buildFeedbackInput, type AnalysisInput } from "@shared/feedback/contract.ts";
 import { normalizeActivities } from "@shared/feedback/normalize.ts";
 import { completionColumns, recentCompletions, snapshotRefreshes } from "@shared/feedback/completion.ts";
-import { buildFeedbackSchema, validateFeedbackOutput, buildFeedbackPrompt } from "@shared/feedback/output.ts";
+import { athleteMessageProblems, buildFeedbackSchema, validateFeedbackOutput, buildFeedbackPrompt } from "@shared/feedback/output.ts";
 import { DEFAULT_FEEDBACK_PARAMS, loadProgressionOf, resolveFeedbackParams, validateFeedbackParams } from "@shared/feedback/params.ts";
 import { zoneCountsOf } from "@shared/workouts/zones.ts";
 import { inScheduleWindow, isValidTimeZone, localDayHour, reviewPeriod, safeTimeZone } from "@shared/feedback/period.ts";
@@ -348,9 +348,10 @@ describe("output del modello", () => {
     interpretations: [],
     limitations: ["Mancano dati su RPE e benessere."],
     recommendations: [],
-    questions_for_athlete: ["Com'è andata giovedì?"],
-    athlete_message: "Ciao Elia, martedì hai svolto la corsa prevista. Per giovedì non vedo un'attività registrata: com'è andata?"
+    athlete_message: "Ciao Elia,\n\nmartedì hai svolto la corsa prevista. Per giovedì non vedo un'attività registrata.\n\nI numeri della settimana:\n- corsa: 44 minuti su 90 pianificati\n\nCoach"
   };
+  /** Messaggio all'atleta con saluto e firma attorno al testo da controllare. */
+  const msg = (body: string) => `Ciao Elia,\n\n${body}\n\nCoach`;
 
   it("accetta un output con riferimenti esistenti", () => {
     expect(validateFeedbackOutput(valid, contract)).toEqual([]);
@@ -366,7 +367,7 @@ describe("output del modello", () => {
 
   it("rifiuta riferimenti inesistenti, affermazioni vietate, argomenti non consentiti e limitazioni mancanti", () => {
     expect(validateFeedbackOutput({ ...valid, observations: [{ text: "x", refs: ["session:nope"] }] }, contract)).toContain("Riferimento inesistente: session:nope.");
-    expect(validateFeedbackOutput({ ...valid, athlete_message: "Giovedì hai saltato la corsa." }, contract).join()).toContain("Affermazione vietata");
+    expect(validateFeedbackOutput({ ...valid, athlete_message: msg("Giovedì hai saltato la corsa.") }, contract).join()).toContain("Affermazione vietata");
     expect(validateFeedbackOutput({ ...valid, interpretations: [{ text: "x", certainty: "low", topic: "response", refs: ["response"] }] }, contract)).toContain("Argomento non consentito: response.");
     const partial = buildFeedbackInput(input([wk("w1", "2026-10-18", "running", 45)], [], { today: "2026-10-18" }));
     expect(validateFeedbackOutput({ ...valid, observations: [], deviations: [], limitations: [] }, partial)).toContain("Mancano le limitazioni con dati incompleti.");
@@ -376,19 +377,31 @@ describe("output del modello", () => {
   it("giorni della settimana calcolati da PCoach e controllati nel testo", () => {
     expect(contract.sessions[0].weekday).toBe("martedì");
     expect(contract.period.end_weekday).toBe("domenica");
-    expect(validateFeedbackOutput({ ...valid, athlete_message: "Sabato 18 ottobre hai il lungo." }, contract).join()).toContain("Giorno sbagliato");
-    expect(validateFeedbackOutput({ ...valid, athlete_message: "Domenica 18 ottobre e sabato 17/10 sono a posto." }, contract)).toEqual([]);
+    expect(validateFeedbackOutput({ ...valid, athlete_message: msg("Sabato 18 ottobre hai il lungo.") }, contract).join()).toContain("Giorno sbagliato");
+    expect(validateFeedbackOutput({ ...valid, athlete_message: msg("Domenica 18 ottobre e sabato 17/10 sono a posto.") }, contract)).toEqual([]);
   });
 
   it("a cavallo d'anno il giorno si controlla sull'anno giusto", () => {
     const newYear = { ...contract, period: { ...contract.period, start: "2026-12-28", end: "2027-01-03" } };
-    expect(validateFeedbackOutput({ ...valid, athlete_message: "Venerdì 1 gennaio e lunedì 28 dicembre." }, newYear)).toEqual([]);
-    expect(validateFeedbackOutput({ ...valid, athlete_message: "Giovedì 1 gennaio." }, newYear).join()).toContain("Giorno sbagliato");
+    expect(validateFeedbackOutput({ ...valid, athlete_message: msg("Venerdì 1 gennaio e lunedì 28 dicembre.") }, newYear)).toEqual([]);
+    expect(validateFeedbackOutput({ ...valid, athlete_message: msg("Giovedì 1 gennaio.") }, newYear).join()).toContain("Giorno sbagliato");
   });
 
   it("niente giudizi su fatica o recupero dai dati di benessere", () => {
-    expect(validateFeedbackOutput({ ...valid, athlete_message: "Nessun segnale di affaticamento particolare." }, contract).join()).toContain("Affermazione vietata");
-    expect(validateFeedbackOutput({ ...valid, athlete_message: "Sei ben recuperato." }, contract).join()).toContain("Affermazione vietata");
+    expect(validateFeedbackOutput({ ...valid, athlete_message: msg("Nessun segnale di affaticamento particolare.") }, contract).join()).toContain("Affermazione vietata");
+    expect(validateFeedbackOutput({ ...valid, athlete_message: msg("Sei ben recuperato.") }, contract).join()).toContain("Affermazione vietata");
+  });
+
+  it("messaggio all'atleta: saluto con il nome, firma Coach, nessuna domanda, nessun termine interno (ADR 0042)", () => {
+    const check = (text: string) => validateFeedbackOutput({ ...valid, athlete_message: text }, contract).join(" ");
+    expect(check(msg("Per giovedì non vedo un'attività: com'è andata?"))).toContain("niente domande");
+    expect(check("Buongiorno,\n\nSettimana regolare.\n\nCoach")).toContain('iniziare con "Ciao Elia,"');
+    expect(check("Ciao Marco,\n\nSettimana regolare.\n\nCoach")).toContain('iniziare con "Ciao Elia,"');
+    expect(check("Ciao Elia,\n\nSettimana regolare.\n\nA presto!")).toContain('firma "Coach"');
+    expect(check(msg("Il software ha spostato la seduta."))).toContain('termine interno: "software"');
+    expect(check(msg("Esito not_recorded per giovedì."))).toContain('termine interno: "not_recorded"');
+    expect(check(msg("parola ".repeat(300)))).toContain("supera 250 parole");
+    expect(athleteMessageProblems("ciao elia, tutto bene.\nCoach", "Elia Muratore")).toEqual([]);
   });
 
   it("lo schema dell'output accetta solo gli argomenti consentiti nella settimana", () => {
@@ -396,6 +409,7 @@ describe("output del modello", () => {
     const props = (schema as { properties: Record<string, { items: { properties: { topic: { enum: string[] } } } }> }).properties;
     expect(props.interpretations.items.properties.topic.enum).toEqual(contract.allowed_topics);
     expect(props.interpretations.items.properties.topic.enum).not.toContain("key_sessions");
+    expect(props).not.toHaveProperty("questions_for_athlete");
     expect(buildFeedbackPrompt(contract, "").user).toContain(`Argomenti consentiti per interpretazioni e raccomandazioni in questa settimana: ${contract.allowed_topics.join(", ")}.`);
   });
 

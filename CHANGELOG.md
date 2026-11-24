@@ -12,6 +12,9 @@ Ordine: più recente in cima. Versioni con [Semantic Versioning](https://semver.
 
 ## [Unreleased]
 
+### Modificato
+- Il feedback per l'atleta ha una struttura fissa: `Ciao <nome>,`, una spiegazione a parole semplici, «I numeri della settimana:» con i dati, e la firma «Coach»; nessuna domanda all'atleta e nessun termine interno (software, contratto, codici); limite di 250 parole. Il server fa riscrivere un messaggio che non rispetta queste regole — con Sonnet 5.5 il feedback era diventato un resoconto senza saluto né firma, con frasi come «(è un'ipotesi del software)», e ogni settimana faceva circa tre domande; decisione del coach ([decisioni/0042](docs/decisioni/0042-messaggio-all-atleta-struttura-e-nessuna-domanda.md)) — docs: integrazioni.
+
 ## [1.5.0] — 2026-11-24
 
 Claude Sonnet 5.5 sostituisce Claude Sonnet 4.5, che Anthropic ritira il 30 novembre 2026, per la generazione delle sedute e il feedback settimanale ([decisioni/0041](docs/decisioni/0041-migrazione-a-claude-sonnet-5-5.md)).

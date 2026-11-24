@@ -184,6 +184,14 @@ Chiamata lato server dentro `weekly-feedback` (contratto in [backend.md](backend
 - output strutturato: `output_config.format` con il JSON Schema di `buildFeedbackSchema` (argomenti limitati a quelli consentiti nella settimana), più i [parametri comuni](#claude-generazione-delle-sedute);
 - `max_tokens` 4000.
 
+**Messaggio all'atleta** (`athlete_message`, decisione in [decisioni/0042](decisioni/0042-messaggio-all-atleta-struttura-e-nessuna-domanda.md)): al massimo 250 parole, email semplice senza markdown. Le parti, in quest'ordine:
+1. `Ciao <nome>,`;
+2. uno o due paragrafi a parole semplici: cosa è andato bene, cosa non risulta, su cosa concentrarsi;
+3. «I numeri della settimana:» con un elenco dei dati per chi vuole il dettaglio;
+4. la firma «Coach» sull'ultima riga.
+
+Nessuna domanda all'atleta: un dato mancante si dice come informazione. Lo schema non ha più `questions_for_athlete`, che resta solo nelle valutazioni scritte prima della 1.6.0.
+
 **Validazione** (`validateFeedbackOutput`):
 - `stop_reason` uguale a `end_turn` e JSON leggibile che rispetta lo schema (un rifiuto, `refusal`, porta subito a `generation_failed` senza secondo tentativo);
 - ogni affermazione con riferimenti esistenti nel contratto;
@@ -191,7 +199,8 @@ Chiamata lato server dentro `weekly-feedback` (contratto in [backend.md](backend
 - nessuna espressione vietata (sovrallenamento, rischio di infortunio, «hai saltato», giudizi su fatica o recupero);
 - giorni della settimana corretti accanto alle date;
 - limitazioni presenti quando i dati sono incompleti;
-- nessuna percentuale di aderenza quando non è comunicabile.
+- nessuna percentuale di aderenza quando non è comunicabile;
+- messaggio all'atleta (`athleteMessageProblems`) entro 250 parole (controllo a 290), che inizia con «Ciao» e il primo nome dell'atleta e finisce con la sola riga «Coach», senza punti interrogativi e senza termini interni (software, contratto, identificatori con il trattino basso come `not_recorded`).
 
 ## Resend (email)
 
