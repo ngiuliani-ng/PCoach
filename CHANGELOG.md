@@ -12,6 +12,10 @@ Ordine: più recente in cima. Versioni con [Semantic Versioning](https://semver.
 
 ## [Unreleased]
 
+## [1.6.0] — 2026-11-24
+
+Il feedback per l'atleta ha una struttura fissa (saluto, spiegazione semplice, numeri della settimana, firma «Coach») e non fa più domande ([decisioni/0042](docs/decisioni/0042-messaggio-all-atleta-struttura-e-nessuna-domanda.md)).
+
 ### Modificato
 - Il feedback per l'atleta ha una struttura fissa: `Ciao <nome>,`, una spiegazione a parole semplici, «I numeri della settimana:» con i dati, e la firma «Coach»; nessuna domanda all'atleta e nessun termine interno (software, contratto, codici); limite di 250 parole. Il server fa riscrivere un messaggio che non rispetta queste regole — con Sonnet 5.5 il feedback era diventato un resoconto senza saluto né firma, con frasi come «(è un'ipotesi del software)», e ogni settimana faceva circa tre domande; decisione del coach ([decisioni/0042](docs/decisioni/0042-messaggio-all-atleta-struttura-e-nessuna-domanda.md)) — docs: integrazioni.
 
