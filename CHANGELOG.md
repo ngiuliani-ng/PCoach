@@ -12,6 +12,13 @@ Ordine: più recente in cima. Versioni con [Semantic Versioning](https://semver.
 
 ## [Unreleased]
 
+## [1.6.3] — 2026-11-24
+
+Il tono predefinito del feedback chiede di non sminuire le sedute non chiave.
+
+### Modificato
+- Il tono predefinito del feedback settimanale aggiunge «Anche le sedute non chiave fanno parte del piano: non sminuirle.» — nel feedback di Elia frasi come «il resto viene dopo» davano l'idea che le altre sedute contassero poco; decisione del coach — docs: nessuno (il testo è in `DEFAULT_FEEDBACK_STYLE`).
+
 ## [1.6.2] — 2026-11-24
 
 Il controllo sull'aderenza non comunicabile riconosce anche la forma «Aderenza: 20%».

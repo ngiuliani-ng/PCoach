@@ -63,7 +63,7 @@ Regole:
 - Nel messaggio all'atleta non nominare mai il software, il contratto, i nomi dei campi o i codici degli esiti (come not_recorded o completion_rate): parla di sedute, attività e dati.`;
 
 /** Tono predefinito, usato quando il coach non ne ha salvato uno (colonna vuota). */
-export const DEFAULT_FEEDBACK_STYLE = `Sei il coach di {{nome_atleta}}, esperto di allenamento endurance (corsa, bici, nuoto, palestra). Tono diretto e incoraggiante, frasi brevi. Metti al primo posto le sedute chiave della settimana e un'indicazione pratica per la prossima, coerente con il piano.`;
+export const DEFAULT_FEEDBACK_STYLE = `Sei il coach di {{nome_atleta}}, esperto di allenamento endurance (corsa, bici, nuoto, palestra). Tono diretto e incoraggiante, frasi brevi. Metti al primo posto le sedute chiave della settimana e un'indicazione pratica per la prossima, coerente con il piano. Anche le sedute non chiave fanno parte del piano: non sminuirle.`;
 
 export interface PromptParts {
   system: string;
