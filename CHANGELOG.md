@@ -12,6 +12,10 @@ Ordine: più recente in cima. Versioni con [Semantic Versioning](https://semver.
 
 ## [Unreleased]
 
+## [1.8.0] — 2026-11-25
+
+Il feedback ha una tab propria, ordinata: andamento dell'aderenza, sintesi con i numeri chiave e messaggio sempre visibili, dettagli richiudibili. La Panoramica mostra le sedute di oggi ([decisioni/0046](docs/decisioni/0046-tab-feedback-e-panoramica-di-oggi.md)).
+
 ### Modificato
 - Il feedback ha una tab propria, nell'ordine Panoramica, Piano, Feedback, Profilo, Anomalie, con il numero dei feedback da approvare, non riusciti o non inviati; «Da fare», le anomalie e i link salvati prima (`…/panoramica?feedback=…`) portano lì; su un telefono la barra delle tab scorre in orizzontale al suo interno, senza allargare la pagina — decisione del coach: il feedback in fondo o in cima alla Panoramica la affollava ([decisioni/0046](docs/decisioni/0046-tab-feedback-e-panoramica-di-oggi.md)) — docs: design-ui, architettura.
 - La Panoramica mostra il carico e le sole sedute di oggi; la settimana intera resta nel Piano — decisione del coach ([decisioni/0046](docs/decisioni/0046-tab-feedback-e-panoramica-di-oggi.md)) — docs: design-ui, architettura.
