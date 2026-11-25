@@ -10,7 +10,8 @@ import { confirmDialog } from "../../composables/useConfirmDialog";
 import { disciplineLabel, formatDate } from "../../constants";
 import { addDaysISO } from "@shared/workouts/calendar.ts";
 import type { SessionOutcome } from "@shared/feedback/types.ts";
-import { coachFacts } from "../../domain/feedbackText";
+import { coachFacts, coachKpis, reviewStatusLabel, volumeSummary, wellnessSummary } from "../../domain/feedbackText";
+import FeedbackWeekData from "./FeedbackWeekData.vue";
 import { ChevronRight, CircleCheck, CircleDashed, LoaderCircle, Mail, PencilLine, RefreshCw, TriangleAlert } from "lucide-vue-next";
 
 const props = defineProps<{
@@ -28,15 +29,16 @@ const r = computed(() => props.review);
 type Tone = "warn" | "err" | "neutral" | "plain";
 const badge = computed((): { text: string; tone: Tone; icon: unknown } => {
   const x = r.value;
-  if (x.status === "draft") return { text: "Da approvare", tone: "warn", icon: PencilLine };
+  const text = reviewStatusLabel(x);
+  if (x.status === "draft") return { text, tone: "warn", icon: PencilLine };
   if (x.status === "approved") {
-    if (x.delivery_status === "sent") return { text: "Inviato all'atleta", tone: "neutral", icon: Mail };
-    if (x.delivery_status === "failed" || x.delivery_status === "skipped") return { text: "Approvato, email non inviata", tone: "err", icon: TriangleAlert };
-    return { text: "Approvato", tone: "neutral", icon: CircleCheck };
+    if (x.delivery_status === "sent") return { text, tone: "neutral", icon: Mail };
+    if (x.delivery_status === "failed" || x.delivery_status === "skipped") return { text, tone: "err", icon: TriangleAlert };
+    return { text, tone: "neutral", icon: CircleCheck };
   }
-  if (x.status === "pending" || x.status === "analyzed") return { text: "In preparazione", tone: "plain", icon: LoaderCircle };
-  if (x.status === "skipped") return { text: "Nessuna seduta da valutare", tone: "plain", icon: CircleDashed };
-  return { text: "Non riuscito", tone: "err", icon: TriangleAlert };
+  if (x.status === "pending" || x.status === "analyzed") return { text, tone: "plain", icon: LoaderCircle };
+  if (x.status === "skipped") return { text, tone: "plain", icon: CircleDashed };
+  return { text, tone: "err", icon: TriangleAlert };
 });
 
 // Dove si aggiunge l'email dell'atleta: Profilo, sezione Identita' aperta (come «Aggiungila nel Profilo» nelle anomalie).
@@ -72,11 +74,29 @@ const OUTCOME_LABELS: Record<SessionOutcome, string> = {
   ambiguous: "Non attribuibile con certezza"
 };
 const CAUTION = new Set<SessionOutcome>(["not_recorded", "data_unavailable", "ambiguous", "substituted", "short"]);
-function minutes(n: number | null | undefined): string {
-  if (n == null) return "";
-  return n >= 60 ? `${Math.floor(n / 60)} h ${String(n % 60).padStart(2, "0")} min` : `${n} min`;
+/** Tabella delle sedute: minuti in forma compatta, «62 / 60 min» (svolti / previsti). */
+function doneText(done: number | null | undefined, planned: number | null | undefined): string {
+  if (done == null) return planned ? `— / ${planned} min` : "";
+  return `${done} / ${planned ?? "—"} min`;
+}
+/** «lun 6 ott»: giorno abbreviato, per tenere la tabella su una riga. */
+function dayText(weekday: string | undefined, date: string): string {
+  return `${weekday ? `${weekday.slice(0, 3)} ` : ""}${formatDate(date, false)}`;
 }
 const facts = computed(() => coachFacts(r.value.input?.metrics));
+const kpis = computed(() => coachKpis(r.value.input));
+const volSum = computed(() => volumeSummary(r.value.input, disciplineLabel));
+const wellSum = computed(() => wellnessSummary(r.value.input));
+/** Voci dei «Dettagli» con qualcosa da mostrare, nell'ordine in cui compaiono. */
+const details = computed(() => {
+  const i = r.value.input;
+  const out: ("volume" | "wellness" | "sessions" | "limits")[] = [];
+  if (i && (Object.keys(i.metrics?.by_discipline ?? {}).length || Object.keys(i.metrics?.intensity ?? {}).length)) out.push("volume");
+  if (i && (i.response?.wellness || i.metrics?.load_status || i.metrics?.trend?.endurance_minutes)) out.push("wellness");
+  if (i?.sessions?.length) out.push("sessions");
+  if (limitations.value.length) out.push("limits");
+  return out;
+});
 const limitations = computed(() => (r.value.output?.limitations?.length ? r.value.output.limitations : r.value.input?.limitations ?? []));
 
 // ---------- Bozza: testo salvato in automatico (ADR 0038) ----------
@@ -95,7 +115,9 @@ function autosize() {
 // Una larghezza diversa (finestra, telefono ruotato) cambia gli a capo: si ricalcola l'altezza.
 let lastWidth = 0;
 const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(([entry]) => {
-  if (entry.contentRect.width !== lastWidth) { lastWidth = entry.contentRect.width; autosize(); }
+  // Al fotogramma dopo: cambiare l'altezza puo' cambiare la larghezza (barra di scorrimento, colonne
+  // della tab Feedback) e rianimare l'osservatore nello stesso fotogramma («ResizeObserver loop»).
+  if (entry.contentRect.width !== lastWidth) { lastWidth = entry.contentRect.width; requestAnimationFrame(autosize); }
 });
 // Il campo compare anche dopo il montaggio (una bozza appena preparata).
 watch(textarea, (el, old) => {
@@ -167,66 +189,97 @@ async function onRetry() {
     </p>
 
     <div v-if="review.status !== 'skipped' && !isPreparing" v-show="showBody" :id="`feedback-${review.id}-body`" class="feedback-body">
-      <details v-if="review.input?.sessions.length" class="review-sessions">
-        <summary>Sedute della settimana</summary>
-        <ul>
-          <li v-for="s in review.input.sessions" :key="s.workout_id">
-            <span class="review-session-date">{{ formatDate(s.date, false) }}</span>
-            <span>{{ s.title || disciplineLabel(s.discipline) }}</span>
-            <span :class="{ 'review-caution': CAUTION.has(s.outcome) }">{{ OUTCOME_LABELS[s.outcome] }}</span>
-            <span v-if="s.done_minutes != null" class="review-muted">{{ minutes(s.done_minutes) }} su {{ minutes(s.planned_minutes) }}</span>
-            <span v-else-if="s.planned_minutes" class="review-muted">previsti {{ minutes(s.planned_minutes) }}</span>
-          </li>
-        </ul>
-      </details>
-
-      <details v-if="limitations.length" class="review-sessions review-limits">
-        <summary>Limiti dei dati</summary>
-        <ul><li v-for="l in limitations" :key="l">{{ l }}</li></ul>
-      </details>
-
-      <!-- Due oggetti distinti (ADR 0045): la sintesi resta al coach, il messaggio va all'atleta. -->
-      <section v-if="facts || review.output?.summary" class="review-card review-card-coach" :aria-labelledby="`feedback-${review.id}-coach`">
-        <p :id="`feedback-${review.id}-coach`" class="review-card-title">Sintesi per te</p>
-        <p v-if="facts" class="review-facts"><strong>{{ facts.adherence }}</strong> · {{ facts.counts }}</p>
-        <p v-if="review.output?.summary" class="review-summary">{{ review.output.summary }}</p>
-      </section>
-
-      <section v-if="isDraft" class="review-card review-card-athlete">
-        <label class="field review-text">
-          <span class="review-card-title">Messaggio per l'atleta (modificabile)</span>
-          <textarea ref="textarea" v-model="text" rows="4" @blur="reviews.flushText(review.id)"></textarea>
-        </label>
-      </section>
-
-      <template v-if="isDraft">
-        <!-- Decide se «Approva» invia: sta prima del pulsante (audit FB-06). -->
-        <label v-if="emailOn && hasEmail && sentBefore" class="checkbox-line">
-          <input type="checkbox" v-model="resend[review.id]" />
-          Invia anche questa versione: l'atleta ha già ricevuto la versione {{ sentBefore.revision }}{{ sentBefore.delivered_at ? ` il ${formatDate(sentBefore.delivered_at.slice(0, 10))}` : "" }}
-        </label>
-        <!-- Cosa succede approvando: prima dei pulsanti, come la casella del reinvio (audit A-18). -->
-        <p v-if="!emailOn" class="helper-text">L'invio via email è disattivato in Impostazioni: approvando, il feedback resta solo qui.</p>
-        <p v-else-if="!hasEmail" class="helper-text error-text">L'atleta non ha un indirizzo email: approvando, il feedback non gli arriva e resta fra le anomalie. <RouterLink :to="identityLink">Aggiungi l'indirizzo nel Profilo</RouterLink>, poi «Riprova l'invio».</p>
-        <div class="review-actions">
-          <button type="button" class="primary" :disabled="reviews.busy !== null || !text.trim()" @click="onApprove">
-            <LoaderCircle v-if="busy" :size="16" class="spin" aria-hidden="true" />{{ willSend ? "Approva e invia" : "Approva" }}
-          </button>
-          <button type="button" class="secondary" :disabled="reviews.busy !== null" @click="onRegenerate">
-            <RefreshCw :size="16" aria-hidden="true" />Rigenera
-          </button>
-        </div>
-      </template>
-
-      <template v-else-if="review.status === 'approved'">
-        <section class="review-card review-card-athlete" :aria-labelledby="`feedback-${review.id}-athlete`">
-          <p :id="`feedback-${review.id}-athlete`" class="review-card-title">Messaggio per l'atleta</p>
-          <p class="feedback-note">{{ review.output_text }}</p>
+      <!-- Ordine (ADR 0046): sempre visibili la sintesi con i numeri chiave e il messaggio per l'atleta;
+           sotto, i dettagli richiudibili, chiusi all'arrivo. Su uno schermo largo il messaggio sta a destra,
+           accanto a sintesi e dettagli; su telefono segue la sintesi. -->
+      <div class="feedback-cols" :class="{ 'has-athlete': isDraft || review.status === 'approved' }">
+        <!-- Due oggetti distinti (ADR 0045): la sintesi resta al coach, il messaggio va all'atleta. -->
+        <section v-if="kpis.length || review.output?.summary" class="fw-sintesi review-card review-card-coach" :aria-labelledby="`feedback-${review.id}-coach`">
+          <p :id="`feedback-${review.id}-coach`" class="review-card-title">Sintesi per te</p>
+          <dl v-if="kpis.length" class="kpi-row">
+            <div v-for="k in kpis" :key="k.label" class="kpi">
+              <dt>{{ k.label }}</dt>
+              <dd class="kpi-value">{{ k.value }}</dd>
+              <dd class="kpi-detail">{{ k.detail }}</dd>
+            </div>
+          </dl>
+          <p v-if="review.output?.summary" class="review-summary">{{ review.output.summary }}</p>
         </section>
-        <div class="review-actions">
-          <button type="button" class="secondary" :disabled="reviews.busy !== null" @click="onRegenerate"><RefreshCw :size="16" aria-hidden="true" />Rigenera</button>
+
+        <div v-if="isDraft || review.status === 'approved'" class="fw-message">
+          <template v-if="isDraft">
+            <section class="review-card review-card-athlete">
+              <label class="field review-text">
+                <span class="review-card-title">Messaggio per l'atleta (modificabile)</span>
+                <textarea ref="textarea" v-model="text" rows="4" @blur="reviews.flushText(review.id)"></textarea>
+              </label>
+            </section>
+            <!-- Decide se «Approva» invia: sta prima del pulsante (audit FB-06). -->
+            <label v-if="emailOn && hasEmail && sentBefore" class="checkbox-line">
+              <input type="checkbox" v-model="resend[review.id]" />
+              Invia anche questa versione: l'atleta ha già ricevuto la versione {{ sentBefore.revision }}{{ sentBefore.delivered_at ? ` il ${formatDate(sentBefore.delivered_at.slice(0, 10))}` : "" }}
+            </label>
+            <!-- Cosa succede approvando: prima dei pulsanti, come la casella del reinvio (audit A-18). -->
+            <p v-if="!emailOn" class="helper-text">L'invio via email è disattivato in Impostazioni: approvando, il feedback resta solo qui.</p>
+            <p v-else-if="!hasEmail" class="helper-text error-text">L'atleta non ha un indirizzo email: approvando, il feedback non gli arriva e resta fra le anomalie. <RouterLink :to="identityLink">Aggiungi l'indirizzo nel Profilo</RouterLink>, poi «Riprova l'invio».</p>
+            <div class="review-actions">
+              <button type="button" class="primary" :disabled="reviews.busy !== null || !text.trim()" @click="onApprove">
+                <LoaderCircle v-if="busy" :size="16" class="spin" aria-hidden="true" />{{ willSend ? "Approva e invia" : "Approva" }}
+              </button>
+              <button type="button" class="secondary" :disabled="reviews.busy !== null" @click="onRegenerate">
+                <RefreshCw :size="16" aria-hidden="true" />Rigenera
+              </button>
+            </div>
+          </template>
+
+          <template v-else>
+            <section class="review-card review-card-athlete" :aria-labelledby="`feedback-${review.id}-athlete`">
+              <p :id="`feedback-${review.id}-athlete`" class="review-card-title">Messaggio per l'atleta</p>
+              <p class="feedback-note">{{ review.output_text }}</p>
+            </section>
+            <div class="review-actions">
+              <button type="button" class="secondary" :disabled="reviews.busy !== null" @click="onRegenerate"><RefreshCw :size="16" aria-hidden="true" />Rigenera</button>
+            </div>
+          </template>
         </div>
-      </template>
+
+        <div v-if="details.length" class="fw-details">
+          <p class="fw-details-title">Dettagli</p>
+          <div class="detail-group">
+            <details v-if="details.includes('volume')" class="detail">
+              <summary><ChevronRight :size="16" class="detail-caret" aria-hidden="true" /><span class="detail-title">Volume e intensità</span><span class="detail-sum">{{ volSum }}</span></summary>
+              <div class="detail-body"><FeedbackWeekData :input="review.input!" part="volume" /></div>
+            </details>
+            <details v-if="details.includes('wellness')" class="detail">
+              <summary><ChevronRight :size="16" class="detail-caret" aria-hidden="true" /><span class="detail-title">Benessere e carico</span><span class="detail-sum">{{ wellSum }}</span></summary>
+              <div class="detail-body"><FeedbackWeekData :input="review.input!" part="wellness" /></div>
+            </details>
+            <details v-if="details.includes('sessions')" class="detail">
+              <summary><ChevronRight :size="16" class="detail-caret" aria-hidden="true" /><span class="detail-title">Sedute della settimana</span><span class="detail-sum">{{ facts?.counts }}</span></summary>
+              <div class="detail-body">
+                <table class="sessions-table">
+                  <thead>
+                    <tr><th scope="col">Giorno</th><th scope="col">Seduta</th><th scope="col">Esito</th><th scope="col">Svolto</th><th scope="col">In zona</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="s in review.input!.sessions" :key="s.workout_id">
+                      <td data-label="Giorno" class="review-session-date">{{ dayText(s.weekday, s.date) }}</td>
+                      <td data-label="Seduta">{{ s.title || disciplineLabel(s.discipline) }}<span v-if="s.key_session" class="review-muted"> · chiave</span></td>
+                      <td data-label="Esito" :class="{ 'review-caution': CAUTION.has(s.outcome) }">{{ OUTCOME_LABELS[s.outcome] }}</td>
+                      <td data-label="Svolto" class="num" :class="{ 'review-muted': s.done_minutes == null }">{{ doneText(s.done_minutes, s.planned_minutes) }}</td>
+                      <td data-label="In zona" class="num"><template v-if="s.quality && s.quality.done_min != null">{{ s.quality.done_min }} / {{ s.quality.planned_min }} min Z{{ s.quality.from_zone }}+</template><span v-else class="review-muted">—</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </details>
+            <details v-if="details.includes('limits')" class="detail review-limits">
+              <summary><ChevronRight :size="16" class="detail-caret" aria-hidden="true" /><span class="detail-title">Limiti dei dati</span><span class="detail-sum">{{ limitations.length === 1 ? "1 limite" : `${limitations.length} limiti` }}</span></summary>
+              <div class="detail-body"><ul><li v-for="l in limitations" :key="l">{{ l }}</li></ul></div>
+            </details>
+          </div>
+        </div>
+      </div>
     </div>
   </li>
 </template>

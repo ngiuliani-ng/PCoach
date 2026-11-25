@@ -38,7 +38,7 @@ describe("pagina «Da fare» (D-01)", () => {
     expect(a.items.map((i) => i.key)).toEqual(["delivery-r0", "needs-review", "review-r2", "drafts"]);
     expect(a.items.find((i) => i.key === "drafts")!.title).toBe("Una seduta in bozza da approvare");
     expect(a.count).toBe(5);
-    expect(a.items.find((i) => i.key === "review-r2")!.links[0].to).toEqual({ name: "athlete", params: { id: "A", tab: "panoramica" }, query: { feedback: "r2" } });
+    expect(a.items.find((i) => i.key === "review-r2")!.links[0].to).toEqual({ name: "athlete", params: { id: "A", tab: "feedback" }, query: { feedback: "r2" } });
   });
 
   it("chiave non valida, zone e soglie diverse dall'ultimo controllo su Intervals.icu (ADR 0037)", () => {

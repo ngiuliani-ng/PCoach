@@ -1,7 +1,7 @@
 // Audit UI/UX completo di ottobre 2026 (docs/audit/2026-10-ux-ui-completo): comportamenti verificati
 // dopo le correzioni.
 import { expect, test } from "@playwright/test";
-import { ATHLETE_ID, createState, installMockBackend } from "./mockBackend";
+import { ATHLETE_ID, TODAY, createState, installMockBackend } from "./mockBackend";
 import { openSection } from "./helpers";
 
 test("a 320 px la scheda non scorre in orizzontale, anche con il numero delle anomalie (UX-03)", async ({ page }) => {
@@ -16,9 +16,10 @@ test("a 320 px la scheda non scorre in orizzontale, anche con il numero delle an
   expect(overflow).toBeLessThanOrEqual(0);
 });
 
-test("una seduta della settimana in Panoramica apre il suo pannello, e «indietro» torna alla Panoramica (UX-12)", async ({ page }) => {
+test("una seduta di oggi in Panoramica apre il suo pannello, e «indietro» torna alla Panoramica (UX-12, ADR 0046)", async ({ page }) => {
   const state = createState();
-  (state.tables.workouts[0] as Record<string, unknown>).planned_date = "2026-10-09";
+  // La Panoramica mostra solo le sedute di oggi (TODAY nel backend finto).
+  (state.tables.workouts[0] as Record<string, unknown>).planned_date = TODAY;
   await installMockBackend(page, state);
   await page.goto(`./#/atleta/${ATHLETE_ID}/panoramica`);
   await page.getByRole("button", { name: /^Apri Corsa rigenerativa/ }).click();
@@ -105,10 +106,9 @@ test("pagina «Da fare»: feedback e bozze di tutti gli atleti, con il numero in
   await expect(page.locator(".athlete-list .name .todo-count")).toHaveCount(0);
   if (await page.locator(".sidebar.open").count()) await page.keyboard.press("Escape");
   await athlete.getByRole("link", { name: "Apri il feedback" }).click();
-  await expect(page).toHaveURL(/panoramica\?feedback=review-1/);
-  // Con un feedback da approvare, il feedback viene prima del grafico del carico.
-  const headings = await page.locator("#panel-panoramica h2").allTextContents();
-  expect(headings[0]).toBe("Feedback settimanale");
+  // Il link porta alla tab Feedback, sulla settimana da approvare (ADR 0046).
+  await expect(page).toHaveURL(/feedback\?feedback=review-1/);
+  await expect(page.getByRole("tab", { name: /^Feedback/ })).toHaveAttribute("aria-selected", "true");
   await expect(page.getByLabel("Messaggio per l'atleta (modificabile)")).toBeInViewport();
   await page.getByRole("button", { name: "Approva", exact: true }).click();
   await page.goBack();

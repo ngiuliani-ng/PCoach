@@ -55,7 +55,7 @@ watch(
 
 // Titolo del documento (scheda del browser, cronologia, annuncio del cambio pagina): dice dove si è
 // (audit A-11). Formato «Pagina – Atleta – PCoach».
-const TAB_TITLES: Record<string, string> = { panoramica: "Panoramica", piano: "Piano", profilo: "Profilo", anomalie: "Anomalie" };
+const TAB_TITLES: Record<string, string> = { panoramica: "Panoramica", piano: "Piano", feedback: "Feedback", profilo: "Profilo", anomalie: "Anomalie" };
 watchEffect(() => {
   const parts: string[] = [];
   if (!auth.loading && !auth.isAuthenticated) parts.push("Accesso");

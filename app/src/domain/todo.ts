@@ -94,7 +94,7 @@ export function buildTodo(input: TodoInput): AthleteTodo[] {
     for (const week of weeks) {
       const r = latest.get(week)!;
       const label = `settimana del ${formatDate(week, false)}`;
-      const to = athleteRoute(a.id, "panoramica", { feedback: r.id });
+      const to = athleteRoute(a.id, "feedback", { feedback: r.id });
       if (r.status === "draft") items.push({ key: `review-${r.id}`, tone: "info", title: `Feedback della ${label} da approvare`, links: [{ text: "Apri il feedback", to }] });
       else if (r.status === "analysis_failed" || r.status === "generation_failed") {
         items.push({ key: `review-${r.id}`, tone: "err", title: `Feedback della ${label} non preparato`, detail: r.error ?? undefined, links: [{ text: "Apri il feedback", to }] });

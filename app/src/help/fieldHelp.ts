@@ -104,7 +104,7 @@ export const FIELD_HELP = {
   },
   "settings.weekly_feedback_schedule": {
     text: "Ogni lunedì, dall'ora indicata, il server prepara il feedback della settimana appena conclusa (da lunedì a domenica).",
-    more: "Lo trovi da approvare nella pagina iniziale e nella Panoramica dell'atleta: niente parte senza la tua approvazione. Il fuso orario decide quando inizia il lunedì; un fuso non riconosciuto blocca il salvataggio."
+    more: "Lo trovi da approvare nella pagina iniziale e nella tab Feedback dell'atleta: niente parte senza la tua approvazione. Il fuso orario decide quando inizia il lunedì; un fuso non riconosciuto blocca il salvataggio."
   },
   "settings.weekly_feedback_email_enabled": {
     text: "Con l'invio attivo, il feedback che approvi arriva all'atleta per email.",

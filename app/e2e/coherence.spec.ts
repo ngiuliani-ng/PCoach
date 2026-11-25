@@ -91,7 +91,7 @@ test("con l'email attiva un atleta senza indirizzo è un'anomalia; approvando, i
   const state = createState();
   state.tables.app_settings[0].weekly_feedback_email_enabled = true;
   await installMockBackend(page, state);
-  await page.goto(`./#/atleta/${ATHLETE_ID}/panoramica`);
+  await page.goto(`./#/atleta/${ATHLETE_ID}/feedback`);
   await expect(page.getByText("L'atleta non ha un indirizzo email: approvando, il feedback non gli arriva")).toBeVisible();
   await expect(page.getByRole("button", { name: "Approva e invia" })).toHaveCount(0);
   await page.getByRole("button", { name: "Approva", exact: true }).click();
@@ -127,7 +127,7 @@ test("una valutazione in preparazione si aggiorna senza ricaricare la pagina", a
   const state = createState();
   Object.assign(state.tables.weekly_reviews[0], { status: "pending", output_text: null, output: null });
   await installMockBackend(page, state);
-  await page.goto(`./#/atleta/${ATHLETE_ID}/panoramica`);
+  await page.goto(`./#/atleta/${ATHLETE_ID}/feedback`);
   await expect(page.getByText("In preparazione")).toBeVisible();
   Object.assign(state.tables.weekly_reviews[0], { status: "draft", output_text: "Testo pronto.", output: { summary: "Pronto.", limitations: [] } });
   await page.getByRole("button", { name: "Aggiorna ora" }).click();

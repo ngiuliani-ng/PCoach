@@ -12,6 +12,14 @@ Ordine: più recente in cima. Versioni con [Semantic Versioning](https://semver.
 
 ## [Unreleased]
 
+### Modificato
+- Il feedback ha una tab propria, nell'ordine Panoramica, Piano, Feedback, Profilo, Anomalie, con il numero dei feedback da approvare, non riusciti o non inviati; «Da fare», le anomalie e i link salvati prima (`…/panoramica?feedback=…`) portano lì; su un telefono la barra delle tab scorre in orizzontale al suo interno, senza allargare la pagina — decisione del coach: il feedback in fondo o in cima alla Panoramica la affollava ([decisioni/0046](docs/decisioni/0046-tab-feedback-e-panoramica-di-oggi.md)) — docs: design-ui, architettura.
+- La Panoramica mostra il carico e le sole sedute di oggi; la settimana intera resta nel Piano — decisione del coach ([decisioni/0046](docs/decisioni/0046-tab-feedback-e-panoramica-di-oggi.md)) — docs: design-ui, architettura.
+- Pagina Feedback ordinata: in cima l'aderenza delle ultime 8 settimane in una card compatta (un clic apre la settimana); per ogni settimana, sempre visibili la sintesi con tre numeri chiave (aderenza, sedute svolte, volume sulla settimana prima) e il messaggio per l'atleta, a destra su schermo largo; sotto, «Dettagli» richiudibili e chiusi con un riepilogo di una riga: volume e intensità (grafici), benessere e carico, sedute in tabella, limiti dei dati — il coach voleva una pagina leggibile, non un agglomerato di dati, e i dati calcolati dal server (volume, intensità, benessere, carico) non erano mostrati ([decisioni/0046](docs/decisioni/0046-tab-feedback-e-panoramica-di-oggi.md)) — docs: design-ui.
+
+### Interno
+- Feedback di prova degli e2e con le metriche complete, schermata «Feedback» nel controllo di accessibilità, test unitari per widget e riepiloghi; i feedback li legge la scheda, non più la loro sezione — docs: sviluppo-deploy.
+
 ## [1.7.0] — 2026-11-24
 
 Nella scheda del feedback la sintesi per il coach e il messaggio per l'atleta sono due card distinte, e l'aderenza in percentuale c'è sempre in entrambi.

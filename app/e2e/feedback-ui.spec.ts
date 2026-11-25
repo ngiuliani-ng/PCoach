@@ -28,7 +28,7 @@ const draftText = (page: Page) => page.locator("#feedback-review-1 textarea");
 test("il testo corretto si salva da solo: nuvola rossa mentre scrivi, verde quando è salvato, e resta dopo un ricaricamento", async ({ page }) => {
   const state = createState();
   await installMockBackend(page, state);
-  await page.goto(`./#/atleta/${ATHLETE_ID}/panoramica`);
+  await page.goto(`./#/atleta/${ATHLETE_ID}/feedback`);
   await expect(cloud(page)).toHaveClass(/\bsaved\b/);
   await draftText(page).fill("Ciao Giulia, testo corretto dal coach.");
   await expect(cloud(page)).toHaveClass(/unsaved/);
@@ -54,7 +54,7 @@ test("un salvataggio non riuscito: errore, nuvola rossa e domanda uscendo dalla 
     }
     return route.fallback();
   });
-  await page.goto(`./#/atleta/${ATHLETE_ID}/panoramica`);
+  await page.goto(`./#/atleta/${ATHLETE_ID}/feedback`);
   await draftText(page).fill("Correzione che non si salva.");
   await expect(page.getByRole("alert")).toHaveText("Testo del feedback non salvato: riprovo alla prossima modifica. Se il problema resta, controlla la connessione.");
   // Nessun dettaglio tecnico del server nel messaggio (audit A-19).
@@ -81,7 +81,7 @@ test("«Rigenera» con il testo corretto chiede conferma e, se non riesce, le co
   const state = createState();
   state.regenerateError = "La valutazione è in elaborazione: riprova tra poco.";
   await installMockBackend(page, state);
-  await page.goto(`./#/atleta/${ATHLETE_ID}/panoramica`);
+  await page.goto(`./#/atleta/${ATHLETE_ID}/feedback`);
   await draftText(page).fill("Le mie correzioni.");
   const item = page.locator("#feedback-review-1");
   await item.getByRole("button", { name: "Rigenera" }).click();
@@ -106,7 +106,7 @@ test("il campo del testo cresce con il contenuto e la casella del reinvio viene 
   Object.assign(state.tables.weekly_reviews[0], { revision: 2, output_text: LONG });
   state.tables.weekly_reviews.push(approved({ id: "r-5ott-1", period_start: "2026-10-05", period_end: "2026-10-11", status: "superseded" }));
   await installMockBackend(page, state);
-  await page.goto(`./#/atleta/${ATHLETE_ID}/panoramica`);
+  await page.goto(`./#/atleta/${ATHLETE_ID}/feedback`);
   const ta = draftText(page);
   await expect(ta).toHaveValue(LONG);
   const sizes = await ta.evaluate((el) => ({ scroll: el.scrollHeight, client: el.clientHeight }));
@@ -121,7 +121,7 @@ test("il campo del testo cresce con il contenuto e la casella del reinvio viene 
 
 test("le settimane chiuse sono una riga che si apre con un clic; l'email non partita resta visibile (FB-04, FB-07, FB-09)", async ({ page }) => {
   await installMockBackend(page, withHistory());
-  await page.goto(`./#/atleta/${ATHLETE_ID}/panoramica`);
+  await page.goto(`./#/atleta/${ATHLETE_ID}/feedback`);
   const sent = page.locator("#feedback-r-21set");
   const toggle = sent.getByRole("button", { name: /21 set – 27 set 2026/ });
   await expect(toggle).toHaveAttribute("aria-expanded", "false");
@@ -145,13 +145,18 @@ test("le settimane chiuse sono una riga che si apre con un clic; l'email non par
   await expect(draft).not.toContainText("sedute assegnate");
   const coach = draft.locator(".review-card-coach");
   await expect(coach).toContainText("Sintesi per te");
-  await expect(coach).toContainText("Aderenza 75% · 4 sedute: 3 svolte, 1 senza attività registrata");
+  // Numeri chiave in widget (ADR 0046): aderenza sempre presente, sedute svolte, volume sulla settimana prima.
+  await expect(coach.locator(".kpi").nth(0)).toContainText("Aderenza75%");
+  await expect(coach.locator(".kpi").nth(1)).toContainText("Sedute svolte3 su 4");
+  await expect(coach.locator(".kpi").nth(2)).toContainText("Volume+9%");
   // Messaggio per l'atleta in un oggetto separato dalla sintesi.
   await expect(draft.locator(".review-card-athlete").getByLabel("Messaggio per l'atleta (modificabile)")).toBeVisible();
   await expect(coach.getByLabel("Messaggio per l'atleta (modificabile)")).toHaveCount(0);
-  // Limiti dei dati richiudibili come le sedute della settimana.
+  // Dettagli richiudibili, chiusi all'arrivo, ognuno con il riepilogo da chiuso (ADR 0046).
+  await expect(draft.locator(".detail-title")).toHaveText(["Volume e intensità", "Benessere e carico", "Sedute della settimana", "Limiti dei dati"]);
+  await expect(draft.locator("details.detail[open]")).toHaveCount(0);
   const limits = draft.locator("details.review-limits");
-  await expect(limits.locator("summary")).toHaveText("Limiti dei dati");
+  await expect(limits.locator(".detail-sum")).toHaveText("1 limite");
   await expect(limits).not.toHaveAttribute("open", "");
   await limits.locator("summary").click();
   await expect(limits).toHaveAttribute("open", "");
@@ -161,7 +166,7 @@ test("le settimane chiuse sono una riga che si apre con un clic; l'email non par
 test("il feedback lo prepara solo il server: nessun comando per prepararlo a mano", async ({ page }) => {
   const state = withHistory();
   await installMockBackend(page, state);
-  await page.goto(`./#/atleta/${ATHLETE_ID}/panoramica`);
+  await page.goto(`./#/atleta/${ATHLETE_ID}/feedback`);
   await expect(page.locator("#feedback-r-21set")).toBeVisible();
   await expect(page.getByRole("button", { name: "Prepara il feedback" })).toHaveCount(0);
   await expect(page.getByText("Prepara il feedback di un'altra settimana")).toHaveCount(0);
@@ -171,7 +176,7 @@ test("atleta senza email: la nota sta prima di «Approva» e porta al Profilo, s
   const state = createState();
   (state.tables.app_settings[0] as Record<string, unknown>).weekly_feedback_email_enabled = true;
   await installMockBackend(page, state);
-  await page.goto(`./#/atleta/${ATHLETE_ID}/panoramica`);
+  await page.goto(`./#/atleta/${ATHLETE_ID}/feedback`);
   const week = page.locator(".feedback-item").first();
   const note = week.getByText("L'atleta non ha un indirizzo email");
   await expect(note).toBeVisible();

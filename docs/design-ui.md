@@ -109,9 +109,10 @@ Regole per chi modifica il layout:
   - bozza mai salvata (solo la scheda): `CloudOff` in `--text-muted`.
 
   La frase («Scheda salvata», «Impostazioni salvate», «Modifiche non salvate», «Bozza non ancora salvata») è nascosta a schermo e resta per i lettori di schermo. Sotto l'header, la scheda atleta mostra una riga di riepilogo con discipline e prossimo evento; sotto i 720px solo il prossimo evento, così le tab restano in alto. Se un'altra sessione ha salvato la scheda, fra l'header e il riepilogo compare un avviso con "Ricarica i dati più recenti".
-- **Scheda atleta: tre viste** a tab (`role="tablist"`, frecce sinistra/destra per cambiare):
-  - **Panoramica**: carico e forma, la settimana in corso in sola lettura (un clic su una seduta apre il suo pannello nel Piano) con «Apri il piano», feedback settimanale (vedi [sotto](#feedback-settimanale)). Se all'apertura della scheda c'è un feedback da approvare, il feedback è la prima sezione;
+- **Scheda atleta: cinque viste** a tab, nell'ordine Panoramica, Piano, Feedback, Profilo, Anomalie (`role="tablist"`, frecce sinistra/destra per cambiare; sotto i 400px la barra scorre in orizzontale al suo interno e la tab attiva si porta in vista; [decisioni/0046](decisioni/0046-tab-feedback-e-panoramica-di-oggi.md)):
+  - **Panoramica**: carico e forma, poi «Oggi» con la data e le sole sedute di oggi in sola lettura (un clic su una seduta apre il suo pannello nel Piano), con «Apri il piano»; senza sedute, «Nessuna seduta in programma oggi.»;
   - **Piano**: vedi [sotto](#tab-piano);
+  - **Feedback** (solo per una scheda salvata): vedi [sotto](#feedback-settimanale). L'etichetta porta, nello stesso quadrato giallo delle anomalie, il numero dei feedback da approvare, non riusciti o approvati ma non inviati;
   - **Profilo**: sezioni comprimibili (`PageSection`) per identità, Intervals.icu, discipline, soglie e zone, stato di allenamento, obiettivi, vincoli e disponibilità, metodologia, note, gestione scheda, tutte chiuse all'arrivo;
   - **Anomalie** (solo per una scheda salvata): vedi [sotto](#tab-anomalie). L'etichetta della tab porta il numero di anomalie nello stesso quadrato giallo del contatore «Da fare» (22 px, `--warning` su `--warning-bg`, bordo `--warning`).
 
@@ -246,7 +247,8 @@ Altre compattazioni:
 
 ## Feedback settimanale
 
-Sezione della Panoramica (`WeeklyReviews.vue`, una settimana per `FeedbackWeek.vue`; decisioni in [decisioni/0038](decisioni/0038-bozza-del-feedback-salvata-e-storico-compatto.md)):
+Tab «Feedback» della scheda (`FeedbackTab.vue`: `AdherenceTrend.vue`, poi `WeeklyReviews.vue` con una settimana per `FeedbackWeek.vue`; decisioni in [decisioni/0038](decisioni/0038-bozza-del-feedback-salvata-e-storico-compatto.md) e [0046](decisioni/0046-tab-feedback-e-panoramica-di-oggi.md)). Ordine dall'alto: andamento, poi le settimane; in ogni settimana, sempre visibili la sintesi con i numeri chiave e il messaggio, sotto i dettagli richiudibili.
+- **Andamento dell'aderenza** delle ultime 8 settimane, in una card bassa (`.trend-card`): una barra per settimana in `--accent` su una griglia recessiva a 0, 50 e 100%, data sotto ogni barra, valore scritto solo sull'ultima e nel tooltip al passaggio o al focus (date, aderenza, stato). «n.c.» per una settimana non calcolabile. Ogni barra è un pulsante: apre quella settimana nell'elenco (`?feedback=<id>`); la settimana aperta da un link ha la barra contornata.
 - **Titolo con l'icona Info**: la guida spiega il flusso (ogni lunedì PCoach prepara il feedback, parte solo all'approvazione, le correzioni si salvano da sole).
 - **Elenco delle settimane**, dalla più recente; ne mostra 4 e il resto con «Mostra tutti». L'intestazione di ogni settimana ha:
   - l'intervallo di date;
@@ -258,12 +260,15 @@ Sezione della Panoramica (`WeeklyReviews.vue`, una settimana per `FeedbackWeek.v
   - l'errore di una valutazione non riuscita, con «Riprova».
 
   Una settimana senza sedute ha solo l'intestazione. Un link `?feedback=<id>` apre la settimana indicata e la porta in vista, aprendo «Mostra tutti» se serve.
-- **Contenuto di una settimana** (aperto per la bozza, a richiesta per le altre):
-  - «Sedute della settimana» (`<details>`): data, titolo ed esito di ogni seduta. Gli esiti che chiedono attenzione («Nessuna attività registrata», «Dato non disponibile», «Non attribuibile con certezza», «Al suo posto un'altra disciplina», «Molto più breve del previsto») sono in `--warning`;
-  - «Limiti dei dati» (`<details>`, chiuso come le sedute): l'elenco, in testo secondario;
+- **Contenuto di una settimana** (aperto per la bozza, a richiesta per le altre). Sopra i 820px di larghezza della settimana (container query) due colonne: sintesi e dettagli a sinistra, messaggio a destra, sticky sotto l'header; più stretta, una colonna nell'ordine sintesi, messaggio, dettagli. Nella tab Feedback la colonna della scheda arriva a 1120px invece di 680px.
   - due oggetti distinti ([decisioni/0045](decisioni/0045-sintesi-e-messaggio-separati-aderenza-sempre.md)):
-    - la card «Sintesi per te» (`.review-card-coach`, fondo `--surface-2`): una riga di dati calcolata da PCoach (`domain/feedbackText.ts`), con l'aderenza in grassetto, sempre presente («Aderenza 71%», oppure «Aderenza non calcolabile (nessuna seduta passata)» / «(troppe sedute non valutabili)»), e i conteggi («4 sedute: 3 svolte, 1 senza attività registrata · 1 attività extra»); sotto, la sintesi di Claude;
-    - la card «Messaggio per l'atleta» (`.review-card-athlete`, fondo `--surface` con bordo e barra `--accent` a sinistra): il campo modificabile nella bozza, il testo inviato in una settimana approvata;
+    - la card «Sintesi per te» (`.review-card-coach`, fondo `--surface-2`): tre widget numerici calcolati da PCoach (`coachKpis` in `domain/feedbackText.ts`, su `--surface`): «Aderenza» sempre presente («75%» sulle sedute valutabili, oppure «n.c.» con il motivo), «Sedute svolte» («3 su 4», con le mancanti e le extra), «Volume» rispetto alla settimana prima («+9%», «—» se non confrontabile); sotto, la sintesi di Claude;
+    - la card «Messaggio per l'atleta» (`.review-card-athlete`, fondo `--surface` con bordo e barra `--accent` a sinistra): il campo modificabile nella bozza, il testo inviato in una settimana approvata, con le azioni sotto;
+  - **«Dettagli»**: voci richiudibili (`<details class="detail">`) in un solo riquadro con i divisori, chiuse all'arrivo; da chiusa ogni voce mostra a destra un riepilogo di una riga, e compare solo se il dato c'è:
+    - «Volume e intensità» (riepilogo «Corsa 104% · Bici 44%»): per disciplina, il previsto come contorno, lo svolto nelle sedute in `--accent` e le attività extra tratteggiate, con «141 su 135 min · 104%» scritto sotto; l'intensità prevista e svolta in barre a tre segmenti, bassa, media e alta, in una sola tinta dal chiaro allo scuro (`--chart-int-low/mid/high`, validate per daltonici; nel tema scuro la più alta è la più chiara), con le percentuali scritte sotto e la legenda;
+    - «Benessere e carico» (riepilogo «HRV +3% · riposo −2% · sonno +4% · CTL 43,5»): riquadri per HRV, frequenza a riposo, sonno e RPE medio con la variazione sulla media di 28 giorni, poi CTL, ATL e il volume di endurance rispetto alla settimana prima con il motivo del confronto. Nessun colore di giudizio;
+    - «Sedute della settimana» (riepilogo dei conteggi): tabella con giorno abbreviato, seduta (con «chiave»), esito, «svolti / previsti min», lavoro in zona («17 / 18 min Z4+»); gli esiti che chiedono attenzione («Nessuna attività registrata», «Dato non disponibile», «Non attribuibile con certezza», «Al suo posto un'altra disciplina», «Molto più breve del previsto») sono in `--warning`. Sotto i 520px ogni seduta è un blocco con le etichette;
+    - «Limiti dei dati» (riepilogo «N limiti»): l'elenco, in testo secondario;
   - per una settimana approvata, «Rigenera».
 - **Bozza**:
   - il messaggio per l'atleta in un campo che cresce con il contenuto, senza scorrimento interno, dentro la sua card;

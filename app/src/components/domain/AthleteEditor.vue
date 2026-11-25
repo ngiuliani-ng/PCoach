@@ -14,14 +14,13 @@ import { useSettingsStore } from "../../stores/settings";
 import { useReviewsStore } from "../../stores/reviews";
 import { fullName, formatDate, disciplineLabel, todayISO } from "../../constants";
 import { parseLoadPattern } from "../../domain/planWeeks";
-import { addDaysISO, weekStartISO } from "@shared/workouts/calendar.ts";
 import { showToast, showResultToast } from "../../composables/useToast";
 import { confirmDialog } from "../../composables/useConfirmDialog";
 import { useIntervalsSync } from "../../composables/useIntervalsSync";
 import LoadMetricsChart from "./LoadMetricsChart.vue";
 import PlanTab from "./PlanTab.vue";
 import WorkoutRow from "./WorkoutRow.vue";
-import WeeklyReviews from "./WeeklyReviews.vue";
+import FeedbackTab from "./FeedbackTab.vue";
 import type { AthleteTab } from "../../router";
 import AnomaliesTab from "./AnomaliesTab.vue";
 import { useAthleteAnomalies } from "../../composables/useAthleteAnomalies";
@@ -77,13 +76,12 @@ watch(
 const ready = computed(() => !!athletes.currentProfile && (isNewRoute.value ? athletes.currentId === null : athletes.currentId === routeId.value));
 const profile = computed(() => athletes.currentProfile!);
 
-// ---------- Viste (Panoramica / Piano / Profilo) ----------
+// ---------- Viste (Panoramica / Piano / Feedback / Profilo / Anomalie) ----------
 type Tab = AthleteTab;
-// «Anomalie» solo per una scheda salvata: una bozza non ha sedute, feedback ne' Intervals.icu.
-const TABS = computed<[Tab, string][]>(() => [
-  ["panoramica", "Panoramica"], ["piano", "Piano"], ["profilo", "Profilo"],
-  ...(athletes.currentId ? [["anomalie", "Anomalie"] as [Tab, string]] : [])
-]);
+// «Feedback» e «Anomalie» solo per una scheda salvata: una bozza non ha sedute, feedback ne' Intervals.icu.
+const TABS = computed<[Tab, string][]>(() => athletes.currentId
+  ? [["panoramica", "Panoramica"], ["piano", "Piano"], ["feedback", "Feedback"], ["profilo", "Profilo"], ["anomalie", "Anomalie"]]
+  : [["panoramica", "Panoramica"], ["piano", "Piano"], ["profilo", "Profilo"]]);
 // Una bozza non ha ancora dati da consultare: si parte dal Profilo.
 const draftTab = ref<Tab>("profilo");
 const tab = computed<Tab>({
@@ -93,6 +91,16 @@ const tab = computed<Tab>({
     else void router.replace({ name: "athlete", params: { id: routeId.value, tab: value } });
   }
 });
+// Su uno schermo stretto la barra delle tab scorre: la tab attiva si porta in vista, solo in orizzontale.
+watch(tab, (t) => void nextTick(() => {
+  const el = document.getElementById(`tab-${t}`);
+  const bar = el?.parentElement;
+  if (!el || !bar || bar.scrollWidth <= bar.clientWidth) return;
+  const left = el.getBoundingClientRect().left - bar.getBoundingClientRect().left + bar.scrollLeft;
+  const right = left + el.offsetWidth;
+  if (left < bar.scrollLeft) bar.scrollLeft = left;
+  else if (right > bar.scrollLeft + bar.clientWidth) bar.scrollLeft = right - bar.clientWidth;
+}), { immediate: true });
 function onTabKeydown(event: KeyboardEvent) {
   if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
   event.preventDefault();
@@ -213,11 +221,10 @@ watch(
   },
   { immediate: true }
 );
-const thisWeek = computed(() => {
-  const start = weekStartISO(todayISO());
-  const end = addDaysISO(start, 6);
-  return workouts.workouts.filter((w) => w.planned_date >= start && w.planned_date <= end && (w.status === "draft" || w.status === "approved"));
-});
+// Panoramica: solo le sedute di oggi (ADR 0046); la settimana intera e' nel Piano.
+const today = computed(() => todayISO());
+const todayWorkouts = computed(() =>
+  workouts.workouts.filter((w) => w.planned_date === today.value && (w.status === "draft" || w.status === "approved")));
 
 // ---------- Azioni sulla scheda ----------
 const { saveProfile } = useZoneChange();
@@ -271,25 +278,24 @@ const anomalies = useAthleteAnomalies({
   },
   openIntervalsKey: () => void goToSection("sec-intervals"),
   openIdentity: () => void goToSection("sec-identita"),
-  openFeedback: (reviewId) => void router.push({ name: "athlete", params: { id: routeId.value, tab: "panoramica" }, query: { feedback: reviewId } }),
+  openFeedback: (reviewId) => void router.push({ name: "athlete", params: { id: routeId.value, tab: "feedback" }, query: { feedback: reviewId } }),
   // push e non replace: «indietro» chiude il pannello e torna alle anomalie.
   openWorkout: (id) => void router.push({ name: "athlete", params: { id: routeId.value, tab: "piano" }, query: { seduta: id } })
 });
 const anomalyCount = anomalies.count;
-// Si decide all'apertura della scheda: dopo l'approvazione il feedback resta dov'era, senza saltare in fondo.
-const feedbackFirst = ref(false);
-watch(
-  () => [reviewsStore.athleteId, reviewsStore.loading] as const,
-  ([id, loading]) => {
-    if (id === athletes.currentId && !loading) feedbackFirst.value = reviewsStore.current.some((r) => r.status === "draft");
-  },
-  { immediate: true }
-);
+
+// ---------- Feedback (ADR 0046) ----------
+// I feedback si leggono con la scheda, non con la tab: servono al numero sulla tab e alle anomalie.
+watch(() => athletes.currentId, (id) => { if (id !== reviewsStore.athleteId) void reviewsStore.load(id); }, { immediate: true });
+/** Feedback che chiedono un'azione: da approvare, non riusciti, approvati ma non inviati. */
+const feedbackCount = computed(() => reviewsStore.athleteId !== athletes.currentId ? 0 : reviewsStore.current.filter((r) =>
+  r.status === "draft" || r.status === "analysis_failed" || r.status === "generation_failed" ||
+  (r.status === "approved" && (r.delivery_status === "failed" || r.delivery_status === "skipped"))).length);
 </script>
 
 <template>
   <div v-if="!ready" class="placeholder"><p>Caricamento…</p></div>
-  <div class="form-wrap" v-else>
+  <div class="form-wrap" :class="{ 'form-wrap-wide': tab === 'feedback' }" v-else>
     <header class="page-header">
       <h1>{{ fullName(profile.identity) || "Nuovo atleta" }}</h1>
       <div class="page-header-actions">
@@ -327,13 +333,11 @@ watch(
         :aria-controls="`panel-${key}`"
         :tabindex="tab === key ? 0 : -1"
         @click="tab = key"
-      >{{ label }}<span v-if="key === 'anomalie' && anomalyCount" class="tab-count" :aria-label="`, ${anomalyCount} da sistemare`">{{ anomalyCount }}</span></button>
+      >{{ label }}<span v-if="key === 'anomalie' && anomalyCount" class="tab-count" :aria-label="`, ${anomalyCount} da sistemare`">{{ anomalyCount }}</span><span v-else-if="key === 'feedback' && feedbackCount" class="tab-count" :aria-label="`, ${feedbackCount} da gestire`">{{ feedbackCount }}</span></button>
     </div>
 
     <!-- ===================== Panoramica ===================== -->
     <div v-show="tab === 'panoramica'" id="panel-panoramica" role="tabpanel" aria-labelledby="tab-panoramica">
-      <!-- Con un feedback da approvare, il feedback e' la prima cosa della Panoramica (audit UX-10). -->
-      <WeeklyReviews v-if="athletes.currentId && feedbackFirst" :athlete-id="athletes.currentId" />
       <section class="block">
         <h2>Carico e forma</h2>
         <LoadMetricsChart :log="profile.training_status!.load_metrics_log as never">
@@ -349,21 +353,24 @@ watch(
       </section>
 
       <section class="block">
-        <h2>Questa settimana</h2>
+        <h2>Oggi <span class="h2-sub">{{ formatDate(today) }}</span></h2>
         <p v-if="!athletes.currentId" class="helper-text">Salva la scheda per pianificare le sedute.</p>
-        <p v-else-if="!thisWeek.length" class="helper-text">
-          Nessuna seduta in programma questa settimana.
+        <p v-else-if="!todayWorkouts.length" class="helper-text">
+          Nessuna seduta in programma oggi.
           <button type="button" class="link-btn" @click="tab = 'piano'">Apri il piano</button>
         </p>
         <template v-else>
           <div class="week-unit">
-            <WorkoutRow v-for="w in thisWeek" :key="w.id" :workout="w" :sync="workouts.syncRows[w.id]" show-date readonly @open="openWorkout" />
+            <WorkoutRow v-for="w in todayWorkouts" :key="w.id" :workout="w" :sync="workouts.syncRows[w.id]" readonly @open="openWorkout" />
           </div>
           <button type="button" class="link-btn overview-plan-link" @click="tab = 'piano'">Apri il piano</button>
         </template>
       </section>
+    </div>
 
-      <WeeklyReviews v-if="athletes.currentId && !feedbackFirst" :athlete-id="athletes.currentId" />
+    <!-- ===================== Feedback ===================== -->
+    <div v-if="tab === 'feedback'" id="panel-feedback" role="tabpanel" aria-labelledby="tab-feedback">
+      <FeedbackTab v-if="athletes.currentId" :athlete-id="athletes.currentId" />
     </div>
 
     <!-- ===================== Piano ===================== -->

@@ -94,12 +94,16 @@ App.vue
      │    ├─ pallino di stato connessione (useConnectionStatus)
      │    └─ footer compatto: IconButton "Impostazioni" + IconButton "Esci" (auth.signOut)
      ├─ <RouterView> (router.ts): una delle tre pagine seguenti
-     ├─ domain/AthleteEditor.vue  (/atleta/:id/:tab e /atleta/nuovo: header sticky con "Salva", viste Panoramica / Piano / Profilo / Anomalie)
+     ├─ domain/AthleteEditor.vue  (/atleta/:id/:tab e /atleta/nuovo: header sticky con "Salva", viste Panoramica / Piano / Feedback / Profilo / Anomalie)
      │    ├─ Panoramica
      │    │    ├─ domain/LoadMetricsChart.vue   (grafico CTL/ATL/TSB, tooltip, legenda con valori attuali)
-     │    │    ├─ questa settimana              (domain/WorkoutRow.vue in sola lettura, collegamento al Piano)
-     │    │    └─ domain/WeeklyReviews.vue   (feedback settimanale: elenco delle settimane)
-     │    │         └─ domain/FeedbackWeek.vue  (una settimana: esiti, limiti dei dati, testo salvato in automatico; chiusa se già conclusa)
+     │    │    └─ oggi                          (domain/WorkoutRow.vue in sola lettura, collegamento al Piano)
+     │    ├─ Feedback: domain/FeedbackTab.vue   (i feedback li legge la scheda: numero sulla tab e anomalie)
+     │    │    ├─ domain/AdherenceTrend.vue      (aderenza delle ultime 8 settimane, una barra-pulsante per settimana)
+     │    │    └─ domain/WeeklyReviews.vue      (elenco delle settimane)
+     │    │         └─ domain/FeedbackWeek.vue  (una settimana: sintesi con i numeri chiave, messaggio salvato in automatico,
+     │    │              │                        dettagli richiudibili; chiusa se già conclusa)
+     │    │              └─ domain/FeedbackWeekData.vue (volume, intensità, benessere e carico)
      │    ├─ Piano: domain/PlanTab.vue          (settimana o storico filtrabile)
      │    │    ├─ domain/WorkoutRow.vue         (riga di una seduta: StructureBar mini + WorkoutBadges)
      │    │    ├─ domain/WorkoutDrawer.vue      (pannello della seduta: dati, StepEditor con StepFields per ogni step, testo per Intervals.icu, cronologia)
@@ -130,7 +134,7 @@ Il drawer della sidebar su mobile (backdrop cliccabile, Esc, scroll-lock, gestio
 | `#/` | «Da fare» per tutti gli atleti |
 | `#/impostazioni` | Impostazioni |
 | `#/atleta/nuovo` | bozza di un nuovo atleta |
-| `#/atleta/:id/:tab` | scheda, con `tab` fra `panoramica`, `piano`, `profilo` e `anomalie` |
+| `#/atleta/:id/:tab` | scheda, con `tab` fra `panoramica`, `piano`, `feedback`, `profilo` e `anomalie`; `panoramica?feedback=<id>`, dei link salvati prima, apre la tab Feedback |
 
 Il pannello della seduta, i dialoghi del piano e la guida sono parametri di query (`?seduta=<id>`, `?dialogo=genera|prosegui|ripianifica|sincronizza`, `?guida=<gruppo>`, composable `useQueryLayer`): «indietro» li chiude e un ricaricamento li riapre. Altri parametri portano a un punto della pagina: `?feedback=<id>` (una settimana del feedback), `?sezione=<id>` (una sezione del Profilo o delle Impostazioni), `?settimana=<data>` (la settimana del Piano).
 
@@ -200,7 +204,7 @@ pg_cron (ogni ora, service-role da Vault) → Edge Function weekly-feedback
     al posto di quella anticipata non ancora approvata e non corretta dal coach
   → coda: analisi deterministica (_shared/feedback: abbinamento, metriche, qualità dei dati)
   → Claude scrive il testo come output strutturato a schema fisso → validazione → «draft»
-Coach (Panoramica, FeedbackWeek.vue) → rivede esiti e limitazioni, corregge il testo
+Coach (tab Feedback, FeedbackWeek.vue) → rivede esiti e limitazioni, corregge il testo
   → il testo corretto si salva da solo in weekly_reviews.coach_text (RLS, solo in bozza)
   → «Approva» (weekly-feedback, action approve) → email all'atleta se attiva, con nuovi tentativi
     (se la settimana è già stata inviata, solo se il coach sceglie di inviare anche questa versione)

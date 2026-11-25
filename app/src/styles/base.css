@@ -205,6 +205,8 @@ button:focus-visible, a:focus-visible {
   width: 100%;
   max-width: 680px;
 }
+/* Tab Feedback: colonna piu' larga per le due colonne di una settimana (ADR 0046). */
+.form-wrap.form-wrap-wide { max-width: 1120px; }
 .placeholder {
   max-width: 44ch;
   padding-top: 18vh;
@@ -372,16 +374,19 @@ section.block.todo-empty h2 { margin: 0 0 var(--sp-1); font-size: var(--fs-lg); 
 .tabs {
   display: flex;
   gap: var(--sp-5);
-  border-bottom: 1px solid var(--border);
+  /* Il filetto e' un'ombra interna: la barra scorre (overflow) e un bordo sotto le tab ne taglierebbe la sottolineatura. */
+  box-shadow: inset 0 -1px 0 var(--border);
 }
 .tab { white-space: nowrap; }
-/* Quattro tab e il numero delle anomalie devono stare in 288px (320px meno i margini). */
-@media (max-width: 400px) {
+/* Cinque tab e due numeri possono non stare nella larghezza di un telefono (436px con i numeri): la barra
+   scorre in orizzontale al suo interno, senza allargare la pagina, e la tab attiva si porta in vista. */
+.tabs { overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+@media (max-width: 480px) {
   .tabs { gap: var(--sp-3); }
 }
 .tab {
   padding: var(--sp-2) 0;
-  margin-bottom: -1px;
   border: none;
   border-bottom: 2px solid transparent;
   background: transparent;
@@ -1049,9 +1054,7 @@ button.ghost.danger-text { color: var(--danger); }
 .review-session-date { min-width: 52px; color: var(--text-muted); }
 .review-caution { color: var(--warning); }
 .review-muted { color: var(--text-muted); }
-.review-limits { max-width: 70ch; color: var(--text-muted); }
-.review-limits ul { list-style: disc; padding-left: var(--sp-5); }
-.review-limits li { display: list-item; padding: 0; border-top: 0; }
+.review-limits li { list-style: disc; }
 /* Sintesi per il coach e messaggio per l'atleta: due oggetti diversi (ADR 0045). La sintesi e' una
    nota interna su fondo grigio; il messaggio e' un foglio bianco con il bordo e la barra d'accento. */
 .review-card { max-width: 70ch; margin: 0 0 var(--sp-3); padding: var(--sp-3) var(--sp-4); border-radius: var(--radius-md); }
@@ -1314,4 +1317,168 @@ body:has(.drawer-foot) .toast, body:has(.dialog-foot) .toast { bottom: calc(var(
   summary { padding-block: var(--sp-2); }
   .checkbox-line, .op-choice label { min-height: 44px; }
   .link-btn { padding-block: var(--sp-2); }
+}
+
+/* ---------- Tab Feedback (ADR 0046) ---------- */
+.h2-sub { margin-left: var(--sp-2); font-size: var(--fs-md); font-weight: 400; color: var(--text-muted); }
+
+/* Andamento dell'aderenza: una barra per settimana, barre in HTML (ogni settimana e' un pulsante). */
+.adherence-trend .helper-text { margin-top: var(--sp-2); }
+.trend-card { padding: var(--sp-3) var(--sp-4) var(--sp-2); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); max-width: 680px; }
+.trend-plot { position: relative; max-width: 640px; padding-left: 40px; }
+.trend-grid { position: absolute; left: 40px; right: 0; top: 0; height: 72px; pointer-events: none; }
+.trend-gridline { position: absolute; left: 0; right: 0; border-top: 1px solid var(--border); }
+.trend-tick { position: absolute; right: calc(100% + 6px); transform: translateY(-50%); font-size: var(--fs-xs); color: var(--text-muted); white-space: nowrap; }
+.trend-cols { position: relative; display: flex; gap: var(--sp-1); list-style: none; margin: 0; padding: 0; }
+.trend-cols li { flex: 1 1 0; min-width: 0; }
+.trend-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-1);
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  font: inherit;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.trend-area { position: relative; display: flex; align-items: flex-end; justify-content: center; width: 100%; height: 72px; }
+.trend-bar { position: relative; width: min(60%, 28px); background: var(--accent); border-radius: 4px 4px 0 0; }
+.trend-col:hover .trend-bar,
+.trend-col:focus-visible .trend-bar { background: color-mix(in srgb, var(--accent) 80%, var(--text)); }
+.trend-col.selected .trend-bar { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--text); }
+.trend-col.selected .trend-week { color: var(--text); font-weight: 600; }
+.trend-value { position: absolute; bottom: calc(100% + 2px); left: 50%; transform: translateX(-50%); font-size: var(--fs-xs); font-weight: 600; color: var(--text); white-space: nowrap; }
+.trend-nc { font-size: var(--fs-xs); color: var(--text-muted); padding-bottom: 2px; }
+.trend-week { font-size: var(--fs-xs); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.trend-tooltip { top: -8px; transform: translate(-50%, -100%); }
+
+/* Settimana: due colonne quando c'e' spazio. Il container e' il corpo della settimana, cosi' le
+   colonne seguono lo spazio reale e non la larghezza della finestra. */
+.feedback-body { container-type: inline-size; }
+.feedback-cols { display: flex; flex-direction: column; gap: var(--sp-4); }
+.fw-sintesi, .fw-message, .fw-details { min-width: 0; }
+.fw-sintesi.review-card, .fw-message .review-card { margin: 0; }
+@container (min-width: 820px) {
+  .feedback-cols.has-athlete {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: "sintesi message" "details message";
+    grid-template-rows: auto 1fr;
+    gap: var(--sp-4) var(--sp-5);
+    align-items: start;
+  }
+  .feedback-cols.has-athlete .fw-sintesi { grid-area: sintesi; }
+  .feedback-cols.has-athlete .fw-details { grid-area: details; }
+  .feedback-cols.has-athlete .fw-message { grid-area: message; position: sticky; top: calc(var(--titlebar-h) + 104px); }
+  .feedback-cols .review-card, .feedback-cols .review-text { max-width: none; }
+}
+
+/* Numeri chiave della sintesi: widget sulla superficie, dentro la card grigia. */
+.kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: var(--sp-2); margin: 0 0 var(--sp-3); }
+.kpi { padding: var(--sp-2) var(--sp-3); background: var(--surface); border-radius: var(--radius-md); }
+.kpi dt { font-size: var(--fs-xs); color: var(--text-muted); }
+.kpi dd { margin: 0; }
+.kpi-value { font-size: var(--fs-xl); font-weight: 600; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.kpi-detail { font-size: var(--fs-xs); color: var(--text-muted); }
+
+/* Dettagli: voci richiudibili in un solo riquadro, chiuse all'arrivo, con il riepilogo da chiuse. */
+.fw-details-title { margin: 0 0 var(--sp-2); font-size: var(--fs-sm); font-weight: 600; color: var(--text-muted); }
+.detail-group { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
+.detail + .detail { border-top: 1px solid var(--border); }
+.detail > summary {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  min-height: 44px;
+  padding: var(--sp-2) var(--sp-3);
+  cursor: pointer;
+  list-style: none;
+  font-size: var(--fs-sm);
+}
+.detail > summary::-webkit-details-marker { display: none; }
+.detail-caret { flex: none; align-self: center; color: var(--text-muted); transition: transform 0.15s; }
+.detail[open] > summary .detail-caret { transform: rotate(90deg); }
+.detail-title { font-weight: 600; white-space: nowrap; }
+.detail-sum { margin-left: auto; color: var(--text-muted); text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.detail[open] .detail-sum { visibility: hidden; }
+.detail-body { padding: 0 var(--sp-3) var(--sp-3); }
+.detail-body .sessions-table { margin-top: 0; }
+.review-limits .detail-body ul { margin: 0; padding-left: var(--sp-5); color: var(--text-muted); font-size: var(--fs-sm); }
+@media (prefers-reduced-motion: reduce) { .detail-caret { transition: none; } }
+
+/* Dati della settimana: grafici con i numeri scritti accanto, riquadri senza colori di giudizio. */
+.week-data { margin: 0 0 var(--sp-3); }
+.week-data-group { margin: 0 0 var(--sp-4); }
+.week-data-label { margin: 0 0 var(--sp-2); font-size: var(--fs-sm); font-weight: 600; }
+.week-data-legend { margin-top: var(--sp-2); }
+.chart-legend .swatch-outline { background: transparent; box-shadow: inset 0 0 0 1.5px var(--text-muted); }
+.chart-legend .swatch-hatch,
+.vol-extra { background: repeating-linear-gradient(135deg, var(--accent) 0 2px, transparent 2px 5px); box-shadow: inset 0 0 0 1px var(--accent); }
+.vol-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+.vol-row {
+  display: grid;
+  grid-template-columns: 7.5em minmax(60px, 1fr);
+  grid-template-areas: "name track" ". text";
+  column-gap: var(--sp-3);
+  row-gap: 2px;
+  align-items: center;
+  font-size: var(--fs-sm);
+}
+.vol-name { grid-area: name; }
+.vol-track { grid-area: track; position: relative; height: 12px; }
+.vol-planned { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 0 4px 4px 0; box-shadow: inset 0 0 0 1.5px var(--text-muted); }
+.vol-done { position: absolute; left: 0; top: 2px; bottom: 2px; border-radius: 0 4px 4px 0; background: var(--accent); }
+.vol-extra { position: absolute; top: 2px; bottom: 2px; border-radius: 0 4px 4px 0; margin-left: 2px; }
+.vol-text { grid-area: text; color: var(--text-muted); }
+.int-block { margin: 0 0 var(--sp-3); }
+.int-name { margin: 0 0 var(--sp-1); font-size: var(--fs-sm); }
+.int-row {
+  display: grid;
+  grid-template-columns: 5.5em minmax(60px, 1fr);
+  grid-template-areas: "kind bar" ". text";
+  column-gap: var(--sp-3);
+  row-gap: 2px;
+  align-items: center;
+  font-size: var(--fs-sm);
+  margin-bottom: var(--sp-1);
+}
+.int-kind { grid-area: kind; color: var(--text-muted); }
+.int-bar { grid-area: bar; display: flex; gap: 2px; height: 12px; }
+.int-bar.int-empty { box-shadow: inset 0 0 0 1px var(--border); border-radius: 4px; }
+.int-seg { min-width: 2px; flex-basis: 0; }
+.int-seg:first-child { border-radius: 4px 0 0 4px; }
+.int-seg:last-child { border-radius: 0 4px 4px 0; }
+.int-seg:only-child { border-radius: 4px; }
+.int-0 { background: var(--chart-int-low); }
+.int-1 { background: var(--chart-int-mid); }
+.int-2 { background: var(--chart-int-high); }
+.int-text { grid-area: text; color: var(--text-muted); }
+.stat-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: var(--sp-2); margin: 0; }
+.stat-tile { padding: var(--sp-2) var(--sp-3); border: 1px solid var(--border); border-radius: var(--radius-md); }
+.stat-tile-wide { grid-column: 1 / -1; }
+.stat-tile dt { font-size: var(--fs-xs); color: var(--text-muted); }
+.stat-tile dd { margin: 0; }
+.stat-value { font-size: var(--fs-lg); font-weight: 600; font-variant-numeric: tabular-nums; }
+.stat-detail { font-size: var(--fs-xs); color: var(--text-muted); }
+
+/* Sedute della settimana in tabella; in uno spazio stretto ogni seduta diventa un blocco con le etichette. */
+.sessions-table { width: 100%; margin-top: var(--sp-2); border-collapse: collapse; font-size: var(--fs-sm); }
+.sessions-table th { text-align: left; font-weight: 600; color: var(--text-muted); padding: var(--sp-1) var(--sp-2) var(--sp-1) 0; border-bottom: 1px solid var(--border); }
+.sessions-table td { padding: var(--sp-1) var(--sp-2) var(--sp-1) 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+.sessions-table .num { font-variant-numeric: tabular-nums; }
+@container (max-width: 520px) {
+  .sessions-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .sessions-table,
+  .sessions-table tbody,
+  .sessions-table tr,
+  .sessions-table td { display: block; }
+  .sessions-table tr { padding: var(--sp-2) 0; border-bottom: 1px solid var(--border); }
+  .sessions-table td { border: 0; padding: 0; }
+  .sessions-table td[data-label="Giorno"] { font-weight: 600; color: var(--text); }
+  .sessions-table td[data-label="Svolto"]::before,
+  .sessions-table td[data-label="In zona"]::before { content: attr(data-label) ": "; color: var(--text-muted); }
 }

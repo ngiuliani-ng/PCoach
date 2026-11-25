@@ -10,9 +10,11 @@ test("rivede una bozza di feedback, modifica il testo e la approva", async ({ pa
   const menu = page.getByRole("button", { name: "Apri la barra laterale" });
   if (await menu.isVisible().catch(() => false)) await menu.click();
   await page.getByRole("button", { name: /Giulia Ferri/ }).first().click();
+  // Il feedback ha una tab sua, con il numero dei feedback da gestire (ADR 0046).
+  await page.getByRole("tab", { name: /^Feedback/ }).click();
 
   await expect(page.getByText("Da approvare", { exact: true })).toBeVisible();
-  await expect(page.getByText("Aderenza 75%")).toBeVisible();
+  await expect(page.locator(".kpi").first()).toContainText("75%");
   await expect(page.getByText("1 senza attività registrata")).toBeVisible();
   await page.getByText("Sedute della settimana").click();
   await expect(page.getByText("Nessuna attività registrata")).toBeVisible();

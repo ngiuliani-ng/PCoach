@@ -16,7 +16,7 @@ const props = defineProps<{ athleteId: string | null }>();
 const reviews = useReviewsStore();
 const settings = useSettingsStore();
 
-watch(() => props.athleteId, (id) => void reviews.load(id), { immediate: true });
+// I feedback li legge la scheda (AthleteEditor, ADR 0046): servono anche al numero sulla tab e alle anomalie.
 
 // Valutazioni in preparazione sul server: si rileggono da sole ogni 30 secondi finche' ce n'e' una.
 const REFRESH_MS = 30_000;
@@ -65,7 +65,7 @@ function sentBefore(r: ReviewRecord): ReviewRecord | undefined {
   <section class="block" id="sec-feedback">
     <div class="section-head">
       <h2 class="section-title">Feedback settimanale</h2>
-      <IconButton label="Guida: Feedback settimanale" @click="guideLayer.open('panoramica-feedback')"><Info :size="18" aria-hidden="true" /></IconButton>
+      <IconButton label="Guida: Feedback settimanale" @click="guideLayer.open('feedback')"><Info :size="18" aria-hidden="true" /></IconButton>
     </div>
 
     <p v-if="reviews.loading && !reviews.current.length" class="helper-text">Caricamento…</p>

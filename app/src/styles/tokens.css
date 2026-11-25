@@ -22,6 +22,12 @@
   --chart-atl: #7C3AED;
   --chart-tsb: color-mix(in srgb, var(--text) 13%, transparent);
   --chart-bar: color-mix(in srgb, var(--text-muted) 55%, transparent);
+  /* Intensita' del feedback (bassa / media / alta): una sola tinta, dal chiaro allo scuro, perche' i tre
+     domini sono ordinati (ADR 0046). Validata con lo script di dataviz: passi vicini ΔE ≥ 16; il tono
+     piu' tenue ha poco contrasto con la superficie, quindi le percentuali sono sempre scritte accanto. */
+  --chart-int-low: #A8D5CE;
+  --chart-int-mid: #4FA396;
+  --chart-int-high: #0F6E64;
   /* Zone di allenamento 1 (recupero) -> 7 (massimale); usate come swatch/bordo,
      non come sfondo testo, cosi' non serve una tonalita' per-tema. Tinte distinte
      dall'accento e dai colori semantici: una zona non deve sembrare uno stato. */
@@ -74,6 +80,10 @@
     --focus: #37C2AE;
     --chart-atl: #B79CFF;
     --chart-tsb: color-mix(in srgb, var(--text) 16%, transparent);
+    /* Tema scuro: il dominio piu' alto e' il piu' chiaro, il piu' evidente sullo sfondo scuro. */
+    --chart-int-low: #1E5A52;
+    --chart-int-mid: #2E9C8C;
+    --chart-int-high: #7ADCCB;
   }
 }
 :root[data-theme="dark"] {
@@ -94,6 +104,9 @@
   --focus: #37C2AE;
   --chart-atl: #B79CFF;
   --chart-tsb: color-mix(in srgb, var(--text) 16%, transparent);
+  --chart-int-low: #1E5A52;
+  --chart-int-mid: #2E9C8C;
+  --chart-int-high: #7ADCCB;
 }
 
 /* Altezza della barra di trascinamento quando la PWA desktop usa Window Controls Overlay

@@ -104,11 +104,32 @@ export function createState(): MockState {
           limitations: ["Mancano dati su RPE e benessere."],
           metrics: {
             sessions: { assigned: 4, past: 4, pending: 0, completed: 3, partial: 0, moved: 0, substituted: 0, not_recorded: 1, data_unavailable: 0, ambiguous: 0, unknown: 0, extra: 0 },
-            completion_rate: { numerator: 3, denominator: 4, value: 0.75, reportable: true }
+            completion_rate: { numerator: 3, denominator: 4, value: 0.75, reportable: true },
+            // Dati della settimana (ADR 0046): volume, intensita', carico e confronto, come li calcola il server.
+            by_discipline: {
+              running: { planned_min: 135, matched_min: 141, extra_min: 0, volume_ratio: 1.04, observed_min: 141 },
+              cycling: { planned_min: 210, matched_min: 92, extra_min: 40, volume_ratio: 0.44, observed_min: 132 }
+            },
+            intensity: {
+              running: { metric: "pace", domains: "7 zone: bassa ≤ Z2, media Z3, alta ≥ Z4", planned: [0.8, 0.1, 0.1], observed: [0.72, 0.08, 0.2], basis_min: 141, reportable: true }
+            },
+            trend: { comparable: true, comparison_reason: "due settimane di carico consecutive", endurance_minutes: { current: 273, previous: 250, change_pct: 9 }, expected_change_pct: { min_pct: 5, max_pct: 10 } },
+            load_status: { source: "Intervals.icu", ctl_start: 41.2, ctl_end: 43.5, atl_end: 52.1, end_date: "2026-10-11" }
+          },
+          response: {
+            rpe: { coverage: 0.67, rated: 2, of: 3, mean: 5.5 },
+            wellness: {
+              days_with_data: 7,
+              hrv: { week_mean: 62, week_days: 7, baseline_mean_28d: 60, baseline_days: 28, change_pct: 3 },
+              resting_hr: { week_mean: 48, week_days: 7, baseline_mean_28d: 49, baseline_days: 28, change_pct: -2 },
+              sleep_hours: { week_mean: 7.4, week_days: 7, baseline_mean_28d: 7.1, baseline_days: 28, change_pct: 4 }
+            },
+            available: true
           },
           sessions: [
-            { workout_id: "x1", date: "2026-10-06", discipline: "running", title: "Corsa facile", outcome: "completed", planned_minutes: 45, done_minutes: 46 },
-            { workout_id: "x2", date: "2026-10-09", discipline: "cycling", title: "Uscita lunga", outcome: "not_recorded", planned_minutes: 120, done_minutes: null }
+            { workout_id: "x1", date: "2026-10-06", weekday: "lunedì", discipline: "running", title: "Corsa facile", outcome: "completed", planned_minutes: 45, done_minutes: 46, key_session: false, quality: null },
+            { workout_id: "x3", date: "2026-10-08", weekday: "mercoledì", discipline: "running", title: "Ripetute 6x3'", outcome: "completed", planned_minutes: 60, done_minutes: 62, key_session: true, quality: { metric: "pace", from_zone: 4, planned_min: 18, done_min: 17, ratio: 0.94 } },
+            { workout_id: "x2", date: "2026-10-09", weekday: "giovedì", discipline: "cycling", title: "Uscita lunga", outcome: "not_recorded", planned_minutes: 120, done_minutes: null, key_session: false, quality: null }
           ]
         }
       }]

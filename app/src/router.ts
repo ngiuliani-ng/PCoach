@@ -16,7 +16,7 @@ import { useZoneChange } from "./composables/useZoneChange";
 import { saveSettings } from "./composables/useSettingsSave";
 import { fullName } from "./constants";
 
-export type AthleteTab = "panoramica" | "piano" | "profilo" | "anomalie";
+export type AthleteTab = "panoramica" | "piano" | "feedback" | "profilo" | "anomalie";
 
 export const router = createRouter({
   history: createWebHashHistory(),
@@ -24,7 +24,7 @@ export const router = createRouter({
     { path: "/", name: "home", component: TodoPage },
     { path: "/impostazioni", name: "settings", component: SettingsPanel },
     { path: "/atleta/nuovo", name: "new-athlete", component: AthleteEditor },
-    { path: "/atleta/:id/:tab(panoramica|piano|profilo|anomalie)?", name: "athlete", component: AthleteEditor },
+    { path: "/atleta/:id/:tab(panoramica|piano|feedback|profilo|anomalie)?", name: "athlete", component: AthleteEditor },
     { path: "/:pathMatch(.*)*", redirect: "/" }
   ]
 });
@@ -110,6 +110,10 @@ export async function confirmLeaveSettings(): Promise<boolean> {
 
 export function installNavigationGuards(r: Router) {
   r.beforeEach(async (to, from) => {
+    // Il feedback aveva una sezione nella Panoramica: un link salvato prima (?feedback=ID) apre la tab Feedback (ADR 0046).
+    if (to.name === "athlete" && (!to.params.tab || to.params.tab === "panoramica") && typeof to.query.feedback === "string") {
+      return { name: "athlete", params: { ...to.params, tab: "feedback" }, query: to.query, replace: true };
+    }
     // Prima navigazione (apertura o ricaricamento): niente da proteggere.
     if (!from.matched.length) return true;
     const fromKey = profileKey(from);

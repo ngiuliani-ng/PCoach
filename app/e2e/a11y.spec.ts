@@ -25,7 +25,7 @@ const SCREENS: Screen[] = [
   { name: "Nuovo atleta", url: () => "./#/atleta/nuovo", prep: openAllSections },
   {
     // Con i valori del carico: grafico e legenda.
-    name: "Panoramica con feedback da approvare e carico", url: () => `${A}/panoramica`, prep: openAllSections,
+    name: "Panoramica con il carico", url: () => `${A}/panoramica`, prep: openAllSections,
     state: (s) => {
       (s.tables.athletes[0].data as { training_status: { load_metrics_log: unknown[] } }).training_status.load_metrics_log =
         Array.from({ length: 14 }, (_, i) => ({
@@ -33,6 +33,8 @@ const SCREENS: Screen[] = [
         }));
     }
   },
+  // Tab Feedback (ADR 0046): andamento, sintesi con i widget, messaggio e tutti i dettagli aperti.
+  { name: "Feedback da approvare, dettagli aperti", url: () => `${A}/feedback`, prep: openAllSections },
   { name: "Piano, settimana con sedute", url: () => `${A}/piano?settimana=2026-10-12` },
   { name: "Piano, storico", url: () => `${A}/piano?settimana=2026-10-12`, prep: async (p) => { await p.getByRole("button", { name: "Storico" }).click(); } },
   { name: "Profilo, tutto aperto", url: () => `${A}/profilo`, prep: openAllSections },

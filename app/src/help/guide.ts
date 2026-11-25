@@ -49,7 +49,7 @@ export const GUIDES = {
   "profilo-note": { title: "Note libere", entries: [
     { label: "Note libere", help: "notes_free_text" }
   ] },
-  "panoramica-feedback": { title: "Feedback settimanale", entries: [
+  "feedback": { title: "Feedback settimanale", entries: [
     { label: "Come funziona", help: "review.flow" }
   ] },
   "impostazioni-claude": { title: "Claude e generazione", entries: [
