@@ -12,6 +12,10 @@ Ordine: più recente in cima. Versioni con [Semantic Versioning](https://semver.
 
 ## [Unreleased]
 
+## [1.9.0] — 2026-11-27
+
+La seduta si apre in visualizzazione, con «Modifica» per entrare nell'editor; accanto a ogni zona i watt o il passo, calcolati con la soglia valida nel giorno della seduta ([decisioni/0047](docs/decisioni/0047-seduta-in-visualizzazione-e-target-assoluti.md)).
+
 ### Aggiunto
 - Accanto alla zona di ogni step, in visualizzazione e nell'editor, i watt (bici, dall'FTP) o il passo (corsa in min/km dal passo di soglia, nuoto in min/100 m dalla CSS), con la soglia della rilevazione valida nel giorno della seduta (lo storico resta com'era) e i limiti del modello di zone dell'atleta; la FC resta in zone — il coach conosce soglie e zone dell'atleta e vuole leggere la seduta in valori concreti ([decisioni/0047](docs/decisioni/0047-seduta-in-visualizzazione-e-target-assoluti.md)) — docs: design-ui, modello-dati, limiti-roadmap.
 
