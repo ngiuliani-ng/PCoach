@@ -144,6 +144,7 @@ test("il sistema di zone dell'atleta limita l'editor e chiede conferma per appro
   const drawer = page.getByRole("dialog");
   await expect(drawer.getByText(/Usa la zona Z5, oltre le 3 zone impostate per la bici/)).toBeVisible();
   // L'editor propone solo Z1-Z3, piu' la zona gia' presente segnalata.
+  await drawer.getByRole("button", { name: "Modifica" }).click();
   const zone = drawer.getByRole("combobox", { name: "Zona", exact: true }).first();
   await expect(zone.locator("option")).toHaveText(["Zona…", "Z1", "Z2", "Z3"]);
   await drawer.getByRole("button", { name: "Approva" }).click();

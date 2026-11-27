@@ -148,6 +148,7 @@ test("atleta, vista e seduta restano nell'URL; «indietro» chiude il pannello",
   await page.reload();
   await expect(page.getByRole("dialog")).toBeVisible();
 
+  await page.getByRole("dialog").getByRole("button", { name: "Modifica" }).click();
   await page.getByRole("dialog").getByLabel("Obiettivo della seduta").fill("Cambiato");
   await page.goBack();
   await expect(page.getByRole("alertdialog")).toContainText("Chiudere la seduta senza salvare");
@@ -171,6 +172,7 @@ test("un errore di rete al salvataggio della seduta lascia il pannello aperto co
   await page.getByRole("button", { name: "Settimana successiva" }).click();
   await page.getByRole("button", { name: /Apri VO2max/ }).click();
   const drawer = page.getByRole("dialog");
+  await drawer.getByRole("button", { name: "Modifica" }).click();
   await drawer.getByLabel("Obiettivo della seduta").fill("Potenza aerobica");
   await drawer.getByRole("button", { name: "Salva modifiche" }).click();
   await expect(page.getByText(/Salvataggio non riuscito/)).toBeVisible();

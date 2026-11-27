@@ -11,7 +11,7 @@ const unitOverrides = new WeakMap<WorkoutStep, Unit>();
 // Campi di uno step nell'editor della struttura: tipo, durata, unita', zona (con l'intervallo solo se
 // serve) e indicazione per l'atleta. Etichette visibili e compatte (audit UX-25): su desktop solo sulla
 // prima riga di ogni gruppo, su telefono su ogni riga. Modifica lo step in place, come StepEditor.
-import type { StepRole } from "@shared/workouts/structure.ts";
+import type { StepRole, ZoneTarget } from "@shared/workouts/structure.ts";
 import { ROLE_LABELS } from "../../domain/workoutState";
 import { Plus } from "lucide-vue-next";
 
@@ -24,6 +24,8 @@ const props = defineProps<{
   zoneInvalid?: boolean;
   /** Prima riga del gruppo: etichette visibili anche su desktop. */
   first?: boolean;
+  /** Watt o passo della zona, mostrati accanto al selettore (ADR 0047). */
+  targetText?: (target: ZoneTarget | null) => string | null;
 }>();
 
 // Solo le zone del sistema dell'atleta per la disciplina (D-UX-3); una zona gia' oltre resta visibile.
@@ -134,6 +136,7 @@ function setCue(step: WorkoutStep, value: string) {
         </template>
         <button v-else-if="!readonly && canAddRange()" type="button" class="link-btn step-range" aria-label="Intervallo di zone: aggiungi il limite superiore"
           @click="addRange(step)"><Plus :size="14" aria-hidden="true" />Intervallo</button>
+        <span v-if="targetText?.(step.target)" class="step-hint">{{ targetText(step.target) }}</span>
       </span>
     </div>
     <div class="step-field step-cue">
@@ -156,6 +159,7 @@ function setCue(step: WorkoutStep, value: string) {
 .step-cue { flex: 1 1 160px; }
 .step-cue input { width: 100%; }
 .step-to { font-size: var(--fs-sm); color: var(--text-muted); white-space: nowrap; }
+.step-hint { font-size: var(--fs-xs); color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .step-range { display: inline-flex; align-items: center; gap: 2px; font-size: var(--fs-sm); white-space: nowrap; }
 .invalid { border-color: var(--danger) !important; }
 @media (max-width: 560px) {

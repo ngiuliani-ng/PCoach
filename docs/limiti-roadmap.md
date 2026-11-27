@@ -22,7 +22,7 @@ Il modello dati ([modello-dati.md](modello-dati.md)) non include deliberatamente
 
 La struttura v2 (vedi [modello-dati.md](modello-dati.md#sedute-e-piani)) ha queste limitazioni:
 - **Ripetute annidate**: non sono ammesse (come su Intervals.icu). Una piramide, ad esempio 1-2-3-2-1 minuti, si scrive come sequenza di step.
-- **Target**: solo zone 1-7, con una metrica per seduta. Niente watt, passi assoluti o percentuali, e niente step con metriche diverse nella stessa seduta.
+- **Target**: solo zone 1-7, con una metrica per seduta. Niente watt, passi assoluti o percentuali salvati o inviati, e niente step con metriche diverse nella stessa seduta. Il pannello mostra accanto alla zona i watt o il passo calcolati dalle soglie della scheda ([decisioni/0047](decisioni/0047-seduta-in-visualizzazione-e-target-assoluti.md)); la frequenza cardiaca resta in zone, perché la scheda non ha una FC di soglia della bici.
 - **Rampe e cadenza**: non sono modellate.
 - **Palestra**: è testo libero più una durata.
 

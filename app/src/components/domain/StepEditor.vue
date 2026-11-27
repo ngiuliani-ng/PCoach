@@ -3,12 +3,19 @@
 // della sintassi testuale di Intervals.icu (che resta visibile come anteprima nel pannello).
 // Modifica in place la struttura ricevuta, che appartiene alla bozza del pannello. I campi di ogni
 // step sono in StepFields.vue.
-import type { StepRole, WorkoutBlock, WorkoutStep, WorkoutStructure } from "@shared/workouts/structure.ts";
+import type { StepRole, WorkoutBlock, WorkoutStep, WorkoutStructure, ZoneTarget } from "@shared/workouts/structure.ts";
 import { STEP_ROLES, peakZone } from "@shared/workouts/structure.ts";
 import StepFields from "./StepFields.vue";
 import { ArrowDown, ArrowUp, Plus, Repeat, Trash2 } from "lucide-vue-next";
 
-const props = defineProps<{ structure: WorkoutStructure; errors: Record<string, string>; readonly?: boolean; maxZone?: number }>();
+const props = defineProps<{
+  structure: WorkoutStructure;
+  errors: Record<string, string>;
+  readonly?: boolean;
+  maxZone?: number;
+  /** Watt o passo di una zona, mostrati accanto al selettore (ADR 0047). */
+  targetText?: (target: ZoneTarget | null) => string | null;
+}>();
 
 function newStep(role: StepRole, zone: number, minutes: number): WorkoutStep {
   return { kind: "step", role, duration: { type: "time", seconds: minutes * 60 }, target: { zone } };
@@ -56,7 +63,7 @@ function isRepeat(b: WorkoutBlock): b is Extract<WorkoutBlock, { kind: "repeat" 
         <p v-if="errors[`step:${i}`]" class="helper-text error-text">{{ errors[`step:${i}`] }}</p>
         <div v-for="(step, j) in block.steps" :key="j" class="step-row">
           <span class="step-swatch" :style="{ background: swatch(step) }" aria-hidden="true"></span>
-          <StepFields :step="step" :roles="REPEAT_ROLES" :readonly="readonly" :max-zone="maxZone" :first="j === 0"
+          <StepFields :step="step" :roles="REPEAT_ROLES" :readonly="readonly" :max-zone="maxZone" :target-text="targetText" :first="j === 0"
             :duration-invalid="!!errors[`step:${i}.${j}`] && !(step.duration.type === 'time' ? step.duration.seconds : step.duration.meters)"
             :zone-invalid="!!errors[`step:${i}.${j}`] && !step.target" />
           <span class="step-tools" v-if="!readonly">
@@ -71,7 +78,7 @@ function isRepeat(b: WorkoutBlock): b is Extract<WorkoutBlock, { kind: "repeat" 
 
       <div v-else class="step-row">
         <span class="step-swatch" :style="{ background: swatch(block) }" aria-hidden="true"></span>
-        <StepFields :step="block" :roles="STEP_ROLES" :readonly="readonly" :max-zone="maxZone" :first="startsGroup(i)"
+        <StepFields :step="block" :roles="STEP_ROLES" :readonly="readonly" :max-zone="maxZone" :target-text="targetText" :first="startsGroup(i)"
           :duration-invalid="!!errors[`step:${i}`] && !(block.duration.type === 'time' ? block.duration.seconds : block.duration.meters)"
           :zone-invalid="!!errors[`step:${i}`] && !block.target" />
         <span class="step-tools" v-if="!readonly">

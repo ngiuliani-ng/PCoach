@@ -60,6 +60,8 @@ Le sedute vivono in tabelle Postgres proprie, separate dalla scheda (definizione
 
   PCoach la ricava in modo deterministico e il coach può cambiarla seduta per seduta.
 
+  I valori assoluti di una zona (watt dall'FTP, passo dal passo di soglia o dalla CSS, con i limiti del modello di zone dell'atleta) non si salvano: il pannello li calcola dalla rilevazione delle soglie valida nel giorno della seduta, cioè l'ultima con data uguale o precedente ([decisioni/0047](decisioni/0047-seduta-in-visualizzazione-e-target-assoluti.md)).
+
 **Tre stati separati**
 - **Approvazione** (`status`, salvato): `draft` (da revisionare), `approved`, `cancelled`, `superseded`. Lo cambiano solo il coach o una rigenerazione confermata.
   - Una seduta approvata e poi modificata resta approvata.

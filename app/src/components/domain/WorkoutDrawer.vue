@@ -1,10 +1,11 @@
 <script setup lang="ts">
-// Pannello di una seduta: modifica di dati e struttura, approvazione, annullamento,
-// anteprima del testo per Intervals.icu e cronologia. Si lavora su una bozza locale; il
+// Pannello di una seduta (ADR 0047): si apre in visualizzazione (WorkoutView), con approvazione,
+// annullamento ed esecuzione; «Modifica» passa all'editor di dati e struttura. Sempre visibili
+// l'anteprima del testo per Intervals.icu e la cronologia. Si lavora su una bozza locale; il
 // salvataggio e' condizionato alla revisione (vedi stores/workouts.ts).
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, nextTick, onMounted, reactive, ref } from "vue";
 import { onBeforeRouteLeave, onBeforeRouteUpdate, type RouteLocationNormalized } from "vue-router";
-import type { Discipline, WorkoutContent } from "@shared/workouts/structure.ts";
+import type { Discipline, WorkoutContent, ZoneTarget } from "@shared/workouts/structure.ts";
 import { DISCIPLINES, contentOf, defaultTargetMetric, validateWorkout, workoutTotals } from "@shared/workouts/structure.ts";
 import { intervalsDescription } from "@shared/workouts/intervals.ts";
 import { localSyncState } from "@shared/workouts/sync.ts";
@@ -17,11 +18,13 @@ import { disciplineIcon, disciplineLabel, formatDate, todayISO } from "../../con
 import { TARGET_LABELS, activitySummary, formatMinutes, formatMeters, execState, isPartlyDone, versionLabel } from "../../domain/workoutState";
 import { hasFtp, zoneIssue, zoneLimits, type ZoneDiscipline } from "../../domain/athlete";
 import { availabilityIssues } from "../../domain/availability";
+import { targetRange } from "../../domain/zoneTargets";
 import StepEditor from "./StepEditor.vue";
 import StructureBar from "./StructureBar.vue";
 import WorkoutBadges from "./WorkoutBadges.vue";
+import WorkoutView from "./WorkoutView.vue";
 import InfoToggle from "../ui/InfoToggle.vue";
-import { Ban, Check, RotateCcw, Trash2, X } from "lucide-vue-next";
+import { Ban, Check, Pencil, RotateCcw, Trash2, X } from "lucide-vue-next";
 
 const props = defineProps<{ workoutId: string }>();
 const emit = defineEmits<{ (e: "close"): void; (e: "open", id: string): void }>();
@@ -33,7 +36,9 @@ const store = useWorkoutsStore();
 const athletes = useAthletesStore();
 const root = ref<HTMLElement | null>(null);
 const titleInput = ref<HTMLInputElement | null>(null);
-useModalFocus(root, () => requestClose(), titleInput);
+// In visualizzazione il focus va al primo comando (su telefono non apre la tastiera); il campo del
+// nome lo riceve passando a «Modifica».
+useModalFocus(root, () => requestClose());
 
 // Contenuto su cui si lavora: una seduta non di palestra senza struttura (una proposta di Claude
 // senza step) ha una struttura vuota, cosi' l'editor offre «Aggiungi step». Aprirla non e' una modifica.
@@ -48,12 +53,29 @@ const draft = reactive<WorkoutContent & { locked: boolean }>({ ...editableConten
 const saving = ref(false);
 
 const editable = computed(() => original.value.status === "draft" || original.value.status === "approved");
+// Il pannello si apre in visualizzazione; l'editor solo da «Modifica» e per le sedute modificabili.
+const mode = ref<"view" | "edit">("view");
+const editing = computed(() => mode.value === "edit" && editable.value);
+async function startEdit() {
+  mode.value = "edit";
+  await nextTick();
+  titleInput.value?.focus();
+}
+async function discardChanges() {
+  if (changed.value && !(await confirmDialog("Scartare le modifiche alla seduta?", { confirmLabel: "Scarta modifiche", cancelLabel: "Continua a modificare" }))) return;
+  Object.assign(draft, editableContent(original.value), { locked: original.value.locked });
+  mode.value = "view";
+}
 const errors = computed(() => (editable.value ? validateWorkout(draft) : {}));
 const hasErrors = computed(() => Object.keys(errors.value).length > 0);
 const changed = computed(
   () => JSON.stringify({ ...contentOf(draft), locked: draft.locked }) !== JSON.stringify({ ...editableContent(original.value), locked: original.value.locked })
 );
 const pace = computed(() => athletes.paceContexts[original.value.athlete_id] ?? null);
+// Soglie valide nel giorno della seduta (anche quello scelto in modifica): lo storico resta com'era.
+const scales = computed(() => athletes.zoneScalesAt(original.value.athlete_id, draft.planned_date));
+// Watt o passo accanto alla zona nell'editor, con la metrica scelta nella bozza.
+const targetText = (t: ZoneTarget | null) => targetRange(t, draft.discipline, draft.primary_target, scales.value);
 const totals = computed(() => workoutTotals(draft, pace.value));
 const syncRow = computed(() => store.syncRows[props.workoutId] ?? null);
 const syncState = computed(() => localSyncState(original.value, syncRow.value));
@@ -123,7 +145,13 @@ async function save(approve: boolean) {
   }
   const outdated = localSyncState(result.value, store.syncRows[props.workoutId]) === "outdated";
   showToast(approve ? (wasApproved ? "Seduta verificata." : "Seduta approvata.") : outdated ? "Modifiche salvate: da aggiornare su Intervals.icu." : "Modifiche salvate.");
-  emit("close");
+  // Approvare chiude il pannello; un salvataggio torna alla visualizzazione della seduta salvata.
+  if (approve) {
+    emit("close");
+    return;
+  }
+  Object.assign(draft, editableContent(result.value), { locked: result.value.locked });
+  mode.value = "view";
 }
 
 // La chiusura passa dalla rotta (?seduta=…): la conferma per le modifiche non salvate la chiedono
@@ -134,7 +162,7 @@ function requestClose() {
 let leaveWithoutAsking = false;
 async function confirmLeave(to: RouteLocationNormalized): Promise<boolean> {
   if (to.query.seduta === props.workoutId || leaveWithoutAsking) return true;
-  if (!(changed.value && editable.value)) return true;
+  if (!(changed.value && editing.value)) return true;
   return confirmDialog("Chiudere la seduta senza salvare le modifiche?", { confirmLabel: "Chiudi senza salvare", cancelLabel: "Continua a modificare" });
 }
 onBeforeRouteUpdate(confirmLeave);
@@ -202,8 +230,11 @@ const exec = computed(() => execState(original.value, todayISO()));
   <aside ref="root" class="workout-drawer" role="dialog" aria-modal="true" aria-labelledby="wd-title-label">
     <header class="drawer-head">
       <component :is="disciplineIcon(draft.discipline)" :size="18" class="drawer-icon" role="img" :aria-label="disciplineLabel(draft.discipline)" />
-      <label id="wd-title-label" class="visually-hidden" for="wd-title">Nome della seduta</label>
-      <input id="wd-title" ref="titleInput" v-model="draft.title" class="drawer-title" :disabled="!editable" />
+      <template v-if="editing">
+        <label id="wd-title-label" class="visually-hidden" for="wd-title">Nome della seduta</label>
+        <input id="wd-title" ref="titleInput" v-model="draft.title" class="drawer-title" />
+      </template>
+      <h2 v-else id="wd-title-label" class="drawer-title drawer-title-text">{{ original.title }}</h2>
       <button type="button" class="icon-btn" aria-label="Chiudi" @click="requestClose"><X :size="18" aria-hidden="true" /></button>
     </header>
 
@@ -212,7 +243,7 @@ const exec = computed(() => execState(original.value, todayISO()));
         <WorkoutBadges :workout="original" :sync="syncRow" />
         <span class="w-badge plain">{{ versionLabel(original.revision) }}</span>
       </p>
-      <p v-if="errors.title" class="helper-text error-text">{{ errors.title }}</p>
+      <p v-if="editing && errors.title" class="helper-text error-text">{{ errors.title }}</p>
 
       <div v-if="original.status === 'superseded'" class="drawer-note">
         Sostituita da una rigenerazione: resta nello storico e non si modifica.
@@ -226,53 +257,60 @@ const exec = computed(() => execState(original.value, todayISO()));
       <div v-if="syncRow?.last_error && syncState === 'error'" class="drawer-note error">{{ syncRow.last_error }}</div>
       <div v-if="syncRow?.last_warning" class="drawer-note warn">{{ syncRow.last_warning }}</div>
 
-      <div class="field-row">
-        <label class="field"><span class="field-label">Data</span><input type="date" v-model="draft.planned_date" :disabled="!editable" /></label>
-        <label class="field">
-          <span class="field-label">Disciplina</span>
-          <select :value="draft.discipline" :disabled="!editable" @change="onDisciplineChange(($event.target as HTMLSelectElement).value)">
-            <option v-for="d in DISCIPLINES" :key="d" :value="d">{{ disciplineLabel(d) }}</option>
-          </select>
-        </label>
-      </div>
-      <p v-if="dateClash" class="helper-text">Quel giorno c'è già un'altra seduta: questa diventa la seconda del giorno.</p>
-      <label class="field"><span class="field-label">Obiettivo della seduta</span><input v-model="draft.objective" :disabled="!editable" /></label>
-
-      <section class="drawer-section">
-        <template v-if="draft.discipline === 'strength'">
+      <template v-if="editing">
+        <div class="field-row">
+          <label class="field"><span class="field-label">Data</span><input type="date" v-model="draft.planned_date" /></label>
           <label class="field">
-            <span class="field-label">Durata (minuti)</span>
-            <input type="number" min="1" :value="draft.duration_min ?? ''" :disabled="!editable"
-              @input="draft.duration_min = Number(($event.target as HTMLInputElement).value) || null" />
+            <span class="field-label">Disciplina</span>
+            <select :value="draft.discipline" @change="onDisciplineChange(($event.target as HTMLSelectElement).value)">
+              <option v-for="d in DISCIPLINES" :key="d" :value="d">{{ disciplineLabel(d) }}</option>
+            </select>
           </label>
-          <p v-if="errors.duration_min" class="helper-text error-text">{{ errors.duration_min }}</p>
-        </template>
-        <template v-else>
-          <div class="drawer-section-head">
-            <h2>Struttura</h2>
-            <span class="muted">{{ formatMinutes(totals.seconds) }}{{ totals.estimated ? " stimati" : "" }}<template v-if="totals.meters">, {{ formatMeters(totals.meters) }} a distanza</template></span>
-          </div>
-          <div class="field">
-            <div class="label-with-info"><span class="field-label" id="wd-metric">Target espressi in</span><InfoToggle field="workout.primary_target" label="Target espressi in" /></div>
-            <div class="segmented" role="group" aria-labelledby="wd-metric">
-              <button v-for="m in (['power', 'hr', 'pace'] as const)" :key="m" type="button" :aria-pressed="draft.primary_target === m" :disabled="!editable" @click="draft.primary_target = m">{{ TARGET_LABELS[m] }}</button>
-            </div>
-          </div>
-          <StructureBar :discipline="draft.discipline" :structure="draft.structure" :pace="pace" />
-          <StepEditor v-if="draft.structure" :structure="draft.structure" :errors="errors" :readonly="!editable" :max-zone="maxZone" />
-          <p v-if="editable && currentZoneIssue" class="helper-text error-text">{{ currentZoneIssue }} Le zone devono essere quelle impostate per l'atleta nel Profilo e su Intervals.icu.</p>
-          <p v-if="errors.structure" class="helper-text error-text">{{ errors.structure }}</p>
-        </template>
-      </section>
+        </div>
+        <p v-if="dateClash" class="helper-text">Quel giorno c'è già un'altra seduta: questa diventa la seconda del giorno.</p>
+        <label class="field"><span class="field-label">Obiettivo della seduta</span><input v-model="draft.objective" /></label>
 
-      <label class="field">
-        <span class="field-label">{{ draft.discipline === "strength" ? "Esercizi e istruzioni per l'atleta" : "Note per l'atleta" }}</span>
-        <textarea v-model="draft.notes_for_athlete" rows="3" :disabled="!editable"></textarea>
-      </label>
-      <label v-if="editable" class="checkbox-line">
-        <input type="checkbox" v-model="draft.locked" />
-        Mantienila se ripianifico il programma
-      </label>
+        <section class="drawer-section">
+          <template v-if="draft.discipline === 'strength'">
+            <label class="field">
+              <span class="field-label">Durata (minuti)</span>
+              <input type="number" min="1" :value="draft.duration_min ?? ''"
+                @input="draft.duration_min = Number(($event.target as HTMLInputElement).value) || null" />
+            </label>
+            <p v-if="errors.duration_min" class="helper-text error-text">{{ errors.duration_min }}</p>
+          </template>
+          <template v-else>
+            <div class="drawer-section-head">
+              <h2>Struttura</h2>
+              <span class="muted">{{ formatMinutes(totals.seconds) }}{{ totals.estimated ? " stimati" : "" }}<template v-if="totals.meters">, {{ formatMeters(totals.meters) }} a distanza</template></span>
+            </div>
+            <div class="field">
+              <div class="label-with-info"><span class="field-label" id="wd-metric">Target espressi in</span><InfoToggle field="workout.primary_target" label="Target espressi in" /></div>
+              <div class="segmented" role="group" aria-labelledby="wd-metric">
+                <button v-for="m in (['power', 'hr', 'pace'] as const)" :key="m" type="button" :aria-pressed="draft.primary_target === m" @click="draft.primary_target = m">{{ TARGET_LABELS[m] }}</button>
+              </div>
+            </div>
+            <StructureBar :discipline="draft.discipline" :structure="draft.structure" :pace="pace" />
+            <StepEditor v-if="draft.structure" :structure="draft.structure" :errors="errors" :max-zone="maxZone" :target-text="targetText" />
+            <p v-if="currentZoneIssue" class="helper-text error-text">{{ currentZoneIssue }} Le zone devono essere quelle impostate per l'atleta nel Profilo e su Intervals.icu.</p>
+            <p v-if="errors.structure" class="helper-text error-text">{{ errors.structure }}</p>
+          </template>
+        </section>
+
+        <label class="field">
+          <span class="field-label">{{ draft.discipline === "strength" ? "Esercizi e istruzioni per l'atleta" : "Note per l'atleta" }}</span>
+          <textarea v-model="draft.notes_for_athlete" rows="3"></textarea>
+        </label>
+        <label class="checkbox-line">
+          <input type="checkbox" v-model="draft.locked" />
+          Mantienila se ripianifico il programma
+        </label>
+      </template>
+      <template v-else>
+        <div v-if="editable && hasErrors" class="drawer-note warn">La seduta ha campi da correggere prima di approvarla: apri «Modifica».</div>
+        <div v-else-if="editable && currentZoneIssue" class="drawer-note warn">{{ currentZoneIssue }}</div>
+        <WorkoutView :content="draft" :pace="pace" :scales="scales" />
+      </template>
       <p v-if="original.completion_source === 'intervals' && original.completed_at" class="drawer-done">
         {{ isPartlyDone(original) ? "Svolta in parte" : "Svolta" }} su Intervals.icu<template v-if="activitySummary(original, totals.seconds)">: {{ activitySummary(original, totals.seconds) }}</template>.
       </p>
@@ -304,9 +342,8 @@ const exec = computed(() => execState(original.value, todayISO()));
     </div>
 
     <footer class="drawer-foot">
-      <template v-if="editable">
-        <button v-if="original.status === 'draft' && !syncRow" type="button" class="ghost danger-text" @click="onDeleteDraft"><Trash2 :size="16" aria-hidden="true" />Elimina bozza</button>
-        <button v-else type="button" class="ghost danger-text" @click="onCancelWorkout"><Ban :size="16" aria-hidden="true" />Annulla seduta</button>
+      <template v-if="editing">
+        <button type="button" class="ghost" :disabled="saving" @click="discardChanges">Scarta modifiche</button>
         <span class="drawer-spacer"></span>
         <button type="button" class="secondary" :disabled="!changed || hasErrors || saving" @click="save(false)">Salva modifiche</button>
         <button v-if="original.status === 'draft'" type="button" class="primary" :disabled="hasErrors || saving" @click="save(true)">
@@ -314,6 +351,18 @@ const exec = computed(() => execState(original.value, todayISO()));
         </button>
         <button v-else-if="original.needs_review" type="button" class="primary" :disabled="hasErrors || saving" @click="save(true)">
           <Check :size="16" aria-hidden="true" />{{ changed ? "Salva e segna verificata" : "Segna verificata" }}
+        </button>
+      </template>
+      <template v-else-if="editable">
+        <button v-if="original.status === 'draft' && !syncRow" type="button" class="ghost danger-text" @click="onDeleteDraft"><Trash2 :size="16" aria-hidden="true" />Elimina bozza</button>
+        <button v-else type="button" class="ghost danger-text" @click="onCancelWorkout"><Ban :size="16" aria-hidden="true" />Annulla seduta</button>
+        <span class="drawer-spacer"></span>
+        <button type="button" class="secondary" @click="startEdit"><Pencil :size="16" aria-hidden="true" />Modifica</button>
+        <button v-if="original.status === 'draft'" type="button" class="primary" :disabled="hasErrors || saving" @click="save(true)">
+          <Check :size="16" aria-hidden="true" />Approva
+        </button>
+        <button v-else-if="original.needs_review" type="button" class="primary" :disabled="hasErrors || saving" @click="save(true)">
+          <Check :size="16" aria-hidden="true" />Segna verificata
         </button>
       </template>
       <template v-else>

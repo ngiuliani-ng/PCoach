@@ -24,7 +24,8 @@ test("una seduta di oggi in Panoramica apre il suo pannello, e «indietro» torn
   await page.goto(`./#/atleta/${ATHLETE_ID}/panoramica`);
   await page.getByRole("button", { name: /^Apri Corsa rigenerativa/ }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
-  await expect(page.getByRole("textbox", { name: "Nome della seduta" })).toHaveValue("Corsa rigenerativa");
+  // Si apre in visualizzazione: il pannello prende il nome della seduta (ADR 0047).
+  await expect(page.getByRole("dialog")).toHaveAccessibleName("Corsa rigenerativa");
   await page.goBack();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByRole("tab", { name: "Panoramica" })).toHaveAttribute("aria-selected", "true");
@@ -296,6 +297,7 @@ test("editor della struttura: etichette visibili dei campi e intervallo di zone 
   await installMockBackend(page, state);
   await page.goto(`./#/atleta/${ATHLETE_ID}/piano?seduta=${run.id}`);
   const drawer = page.getByRole("dialog");
+  await drawer.getByRole("button", { name: "Modifica" }).click();
   const rows = drawer.locator(".step-row");
   await expect(rows).toHaveCount(2);
   // Etichette sul primo step; sugli altri solo su telefono.
@@ -356,6 +358,7 @@ test("toast informativo: resta con il puntatore o il focus sopra e si chiude anc
   // Il pulsante di chiusura c'e' anche per i messaggi informativi; con il focus sopra il toast resta.
   await page.getByRole("button", { name: /Apri Corsa rigenerativa/ }).click();
   const drawer = page.getByRole("dialog");
+  await drawer.getByRole("button", { name: "Modifica" }).click();
   await drawer.getByLabel("Obiettivo della seduta").fill("Recupero attivo");
   await drawer.getByRole("button", { name: "Salva modifiche" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Modifiche salvate" })).toBeVisible();

@@ -12,6 +12,15 @@ Ordine: più recente in cima. Versioni con [Semantic Versioning](https://semver.
 
 ## [Unreleased]
 
+### Aggiunto
+- Accanto alla zona di ogni step, in visualizzazione e nell'editor, i watt (bici, dall'FTP) o il passo (corsa in min/km dal passo di soglia, nuoto in min/100 m dalla CSS), con la soglia della rilevazione valida nel giorno della seduta (lo storico resta com'era) e i limiti del modello di zone dell'atleta; la FC resta in zone — il coach conosce soglie e zone dell'atleta e vuole leggere la seduta in valori concreti ([decisioni/0047](docs/decisioni/0047-seduta-in-visualizzazione-e-target-assoluti.md)) — docs: design-ui, modello-dati, limiti-roadmap.
+
+### Modificato
+- Il pannello della seduta si apre in visualizzazione, con approvazione, annullamento ed esecuzione a portata di mano; «Modifica» apre l'editor, «Scarta modifiche» e «Salva modifiche» tornano alla visualizzazione. Il nome del dialogo è quello della seduta e su telefono non si apre più la tastiera — aprire una seduta per leggerla la metteva subito in modifica ([decisioni/0047](docs/decisioni/0047-seduta-in-visualizzazione-e-target-assoluti.md)) — docs: design-ui, architettura.
+
+### Interno
+- Test unitari della traduzione delle zone (`zoneTargets.test.ts`) ed e2e della visualizzazione; gli e2e che modificano una seduta passano da «Modifica».
+
 ## [1.8.0] — 2026-11-25
 
 Il feedback ha una tab propria, ordinata: andamento dell'aderenza, sintesi con i numeri chiave e messaggio sempre visibili, dettagli richiudibili. La Panoramica mostra le sedute di oggi ([decisioni/0046](docs/decisioni/0046-tab-feedback-e-panoramica-di-oggi.md)).

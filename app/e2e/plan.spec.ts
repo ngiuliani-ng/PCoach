@@ -15,6 +15,44 @@ async function openPlan(page: Page, state: MockState) {
   await expect(page.getByText("12 ott – 18 ott")).toBeVisible();
 }
 
+test("la seduta si apre in visualizzazione, con le zone tradotte in watt e passo (ADR 0047)", async ({ page }) => {
+  const state = createState();
+  // Una rilevazione successiva alla seduta (13 ottobre) non ne cambia i watt: vale quella del giorno.
+  const bike = (state.tables.athletes[0].data as Record<string, any>).physiological_thresholds.cycling;
+  bike.thresholds_log.push({ date: "2026-10-20", source: "manual", ftp_watts: 260 });
+  await openPlan(page, state);
+
+  // Bici, FTP 230 e Coggan 7: Z2 è 55-75%, Z5 105-120%.
+  await page.getByRole("button", { name: /Apri VO2max/ }).click();
+  const drawer = page.getByRole("dialog");
+  await expect(drawer).toHaveAccessibleName("VO2max 5 × 4'");
+  await expect(drawer.getByRole("textbox")).toHaveCount(0);
+  await expect(drawer).toContainText("Target in potenza · FTP 230 W, rilevazione del 1 set 2026");
+  const steps = drawer.locator(".wv-step");
+  await expect(steps.nth(0)).toContainText("Riscaldamento");
+  await expect(steps.nth(0)).toContainText("127–173 W");
+  await expect(steps.nth(1)).toContainText("242–276 W");
+
+  // In modifica il valore resta accanto alla zona e segue il selettore.
+  await drawer.getByRole("button", { name: "Modifica" }).click();
+  const first = drawer.locator(".step-row").first();
+  await expect(first.locator(".step-hint")).toHaveText("127–173 W");
+  await first.getByRole("combobox", { name: "Zona", exact: true }).selectOption("4");
+  await expect(first.locator(".step-hint")).toHaveText("207–242 W");
+
+  // «Scarta modifiche» chiede conferma e torna alla visualizzazione com'era.
+  await drawer.getByRole("button", { name: "Scarta modifiche" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Scarta modifiche" }).click();
+  await expect(drawer.getByRole("button", { name: "Modifica" })).toBeVisible();
+  await expect(steps.nth(0)).toContainText("127–173 W");
+  await page.keyboard.press("Escape");
+  await expect(drawer).toBeHidden();
+
+  // Corsa, soglia 4:46/km e Friel 7: Z2 è 77,5-87,7% della velocità di soglia.
+  await page.getByRole("button", { name: /Apri Corsa rigenerativa/ }).click();
+  await expect(drawer.locator(".wv-step").first()).toContainText("6:09–5:26 /km");
+});
+
 test("modifica una bozza e la approva: la revisione sale e lo stato cambia", async ({ page }) => {
   const state = createState();
   await openPlan(page, state);
@@ -24,6 +62,7 @@ test("modifica una bozza e la approva: la revisione sale e lo stato cambia", asy
   await expect(drawer.getByText("Bozza", { exact: true })).toBeVisible();
   await expect(drawer.getByText("Serie principale 5x")).toBeAttached();
 
+  await drawer.getByRole("button", { name: "Modifica" }).click();
   await drawer.getByLabel("Ripetizioni").fill("6");
   await drawer.getByLabel("Obiettivo della seduta").fill("Potenza aerobica massima");
   await drawer.getByRole("button", { name: "Salva e approva" }).click();

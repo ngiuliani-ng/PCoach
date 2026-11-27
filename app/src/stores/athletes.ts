@@ -9,6 +9,7 @@ import { hasNewerRemoteVersion, snapshotForCompare } from "../composables/useDir
 import type { AthleteTrainingProfile } from "../schema/types.generated";
 import { paceContextOf, type PaceContext } from "@shared/workouts/thresholds.ts";
 import { useSettingsStore } from "./settings";
+import { zoneScalesOf, type ZoneScales } from "../domain/zoneTargets";
 
 const NOT_SAVED = "Scheda non salvata: il server non ha risposto. Le modifiche restano qui: riprova a salvare.";
 
@@ -56,6 +57,15 @@ export const useAthletesStore = defineStore("athletes", {
     paceContexts(state): Record<string, PaceContext> {
       const models = useSettingsStore().savedZoneModels;
       return Object.fromEntries(Object.entries(state.athletes).map(([id, p]) => [id, paceContextOf(p.physiological_thresholds, models)]));
+    },
+    /** Soglie valide in un giorno e limiti delle zone di un atleta, per mostrare le zone in watt e
+     * passo (ADR 0047). */
+    zoneScalesAt(state): (athleteId: string, day: string | null) => ZoneScales | null {
+      const models = useSettingsStore().savedZoneModels;
+      return (athleteId, day) => {
+        const p = state.athletes[athleteId];
+        return p ? zoneScalesOf(p.physiological_thresholds, models, day) : null;
+      };
     },
     hasRemoteUpdate(state): boolean {
       return hasNewerRemoteVersion(state.currentId, state.rowVersions, state.currentBaseVersion);
